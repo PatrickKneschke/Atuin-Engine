@@ -1,6 +1,9 @@
 
 add_executable(atuinEngine 
     main.cpp
+    EngineLoop.cpp
+    EngineLoop.h
+    Application.h
 )
 
 # compile options
