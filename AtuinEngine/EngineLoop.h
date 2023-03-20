@@ -2,6 +2,9 @@
 #pragma once
 
 
+#include "Core/Time/Clock.h"
+
+
 namespace Atuin {
 
 
@@ -16,8 +19,8 @@ public:
     void StartUp();
     void ShutDown();
 
-    bool isRunning() const { return mRunning; }
-    void Quit() { mRunning = false; }
+    bool isRunning() const;
+    void Quit();
 
     void Update();
     void FixedUpdate();
@@ -27,8 +30,8 @@ public:
 private:
 
     bool mRunning;
-
+    Clock gameClock;
 };
 
 
-}; // Atuin
+} // Atuin

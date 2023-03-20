@@ -40,6 +40,7 @@ void EngineLoop::Run() {
 
 void EngineLoop::StartUp() {
     
+    gameClock.Reset();
 }
 
 
@@ -63,4 +64,16 @@ void EngineLoop::VariableUpdate() {
 }
 
 
-}; // Atuin
+bool EngineLoop::isRunning() const { 
+    
+    return mRunning; 
+}
+
+
+void EngineLoop::Quit() {
+
+    mRunning = false;
+}
+
+
+} // Atuin
