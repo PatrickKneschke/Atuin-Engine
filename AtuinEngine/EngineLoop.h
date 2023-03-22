@@ -4,6 +4,10 @@
 
 #include "Core/Time/Clock.h"
 
+#include "Core/Util/Types.h"
+#include "Core/Util/StringID.h"
+
+    
 
 namespace Atuin {
 

@@ -22,6 +22,10 @@ constexpr Size KB   = 1024;
 constexpr Size MB   = KB * KB;
 constexpr Size GB   = KB * MB;
 
+inline Size operator""_KB (unsigned long long x) { return x * KB; }
+inline Size operator""_MB (unsigned long long x) { return x * MB; }
+inline Size operator""_GB (unsigned long long x) { return x * GB; }
+
 using U8    = uint8_t;
 using U16   = uint16_t;
 using U32   = uint32_t;
@@ -49,6 +53,7 @@ constexpr I64 I64_MAX   = INT64_MAX;
 
 using PtrInt    = uintptr_t;
 using PtrDiff   = std::ptrdiff_t;
+
 
 
 } // Atuin
