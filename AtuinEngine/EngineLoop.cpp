@@ -1,7 +1,6 @@
 
 #include "EngineLoop.h"
 
-
 #include <iostream>
 
 
@@ -20,6 +19,8 @@ EngineLoop::~EngineLoop() {
 
 void EngineLoop::Run() {
 
+        std::cout << "Run\n";
+
     StartUp();
 
     int i = 0;
@@ -27,7 +28,10 @@ void EngineLoop::Run() {
     {
         Update();
 
-        if(++i == 10) {
+        std::cout << gameClock.ElapsedTime() << '\n';
+        std::cout << gameClock.ElapsedFrames() << '\n';
+
+        if(++i == 10000) {
 
             Quit();
         }
@@ -40,17 +44,24 @@ void EngineLoop::Run() {
 
 void EngineLoop::StartUp() {
     
+        std::cout << "Startup\n";
+
     gameClock.Reset();
+    mRunning = true;
 }
 
 
 void EngineLoop::ShutDown() {
 
+        std::cout << "ShutDown\n";
 }
 
 
 void EngineLoop::Update() {
 
+        std::cout << "Update\n";
+
+    gameClock.Update();
 }
 
 
@@ -64,13 +75,15 @@ void EngineLoop::VariableUpdate() {
 }
 
 
-bool EngineLoop::isRunning() const { 
+bool EngineLoop::IsRunning() const { 
     
     return mRunning; 
 }
 
 
 void EngineLoop::Quit() {
+
+        std::cout << "Quit\n";
 
     mRunning = false;
 }

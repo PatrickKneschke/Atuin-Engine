@@ -28,7 +28,7 @@ void Clock::Reset() {
     mStartTime = HighResClock::now();
     mCurrTime = mStartTime;
     mRunning = true;
-    mTimeScale = 0.f;
+    mTimeScale = 1.0f;
     mDeltaTime = 0.0;
     mElapsedTime = 0.0;
     mElapsedUnscaledTime = 0.0;
@@ -43,8 +43,8 @@ void Clock::Update() {
     if (mRunning)
     {
         auto now = HighResClock::now();
-        mDeltaTime = mTimeScale * 1e-9 * std::chrono::duration_cast<Nanoseconds>(now - mCurrTime).count();
-        mElapsedUnscaledTime = 1e-9 * std::chrono::duration_cast<Nanoseconds>(now - mStartTime).count();
+        mDeltaTime = mTimeScale * std::chrono::duration_cast<Nanoseconds>(now - mCurrTime).count() * 1e-9;
+        mElapsedUnscaledTime = std::chrono::duration_cast<Nanoseconds>(now - mStartTime).count() * 1e-9;
         mElapsedTime += mDeltaTime;
         mCurrTime = now;
     }  
@@ -81,7 +81,7 @@ double Clock::ElapsedUnscaledTime() const {
 }
 
 
-uint64_t Clock::ElapsedFrames() const {
+U64 Clock::ElapsedFrames() const {
 
     return mElapsedFrames;
 }

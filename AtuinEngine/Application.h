@@ -22,7 +22,7 @@ public:
             sEngineLoop.reset( new EngineLoop() );
         }
 
-        if (sEngineLoop->isRunning())
+        if (sEngineLoop->IsRunning())
         {
             throw std::runtime_error("Cannot start engine after it has already been started!");
         }

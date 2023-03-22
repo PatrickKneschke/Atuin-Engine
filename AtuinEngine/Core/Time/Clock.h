@@ -2,6 +2,8 @@
 #pragma once
 
 
+#include "Core/Util/Types.h"
+
 #include <chrono>
 
 
@@ -31,7 +33,7 @@ public:
     double DeltaTime() const;
     double ElapsedTime() const;
     double ElapsedUnscaledTime() const;
-    uint64_t ElapsedFrames() const;
+    U64 ElapsedFrames() const;
     bool IsRunning();
 
 
@@ -47,7 +49,7 @@ private:
     double mElapsedTime;
     double mElapsedUnscaledTime;
 
-    uint64_t mElapsedFrames;
+    U64 mElapsedFrames;
 };
 
 

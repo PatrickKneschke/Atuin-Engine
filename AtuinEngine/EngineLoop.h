@@ -19,7 +19,7 @@ public:
     void StartUp();
     void ShutDown();
 
-    bool isRunning() const;
+    bool IsRunning() const;
     void Quit();
 
     void Update();
