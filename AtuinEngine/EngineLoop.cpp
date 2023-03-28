@@ -1,5 +1,7 @@
 
 #include "EngineLoop.h"
+#include "Core/Config/ConfigManager.h"
+#include "Core/Files/FileManager.h"
 
 #include <iostream>
 
@@ -9,11 +11,17 @@ namespace Atuin {
 
 EngineLoop::EngineLoop() : mRunning {false} {
 
+    // TODO allocate on memory manager isntead
+    pFiles = new FileManager(this);
+    pConfig = new ConfigManager(this);
 }
 
 
 EngineLoop::~EngineLoop() {
 
+    // TODO call dtors before deleting memomy manager
+    delete pFiles;
+    delete pConfig;
 }
 
 
@@ -38,6 +46,8 @@ void EngineLoop::Run() {
 
 
 void EngineLoop::StartUp() {
+
+    pConfig->StartUp();
 
     gameClock.Reset();
     mRunning = true;

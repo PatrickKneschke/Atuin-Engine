@@ -4,13 +4,13 @@
 
 #include "Core/Time/Clock.h"
 
-#include "Core/Util/Types.h"
-#include "Core/Util/StringID.h"
-
     
 
 namespace Atuin {
 
+
+class ConfigManager;
+class FileManager;
 
 class EngineLoop {
 
@@ -30,11 +30,19 @@ public:
     void FixedUpdate();
     void VariableUpdate();
 
+    // engine module access
+    ConfigManager* Config() const { return pConfig; }
+    FileManager* Files() const { return pFiles; }
+
 
 private:
 
     bool mRunning;
     Clock gameClock;
+
+    // engine modules
+    ConfigManager *pConfig;
+    FileManager *pFiles;
 };
 
 
