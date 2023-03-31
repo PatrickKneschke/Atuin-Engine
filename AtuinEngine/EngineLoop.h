@@ -41,8 +41,8 @@ private:
     Clock gameClock;
 
     // engine modules
-    ConfigManager *pConfig;
-    FileManager *pFiles;
+    ConfigManager*  pConfig;
+    FileManager*    pFiles;
 };
 
 

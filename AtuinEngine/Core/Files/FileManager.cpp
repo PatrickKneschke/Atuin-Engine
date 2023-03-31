@@ -14,8 +14,8 @@ char* FileManager::Read(std::string_view fileName) {
 
     auto filePath = mRootPath / fileName;
     std::ifstream file(filePath);
-    if(!file.is_open()) {
-
+    if (!file.is_open())
+    {
         std::cout << fileName << " could not be opened!" << '\n';
         // TODO call to error log : "<fileName> could not be opened!";
         return nullptr;

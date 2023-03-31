@@ -27,7 +27,7 @@ void Clock::Reset() {
 
     mStartTime = HighResClock::now();
     mCurrTime = mStartTime;
-    mRunning = true;
+    mRunning = false;
     mTimeScale = 1.0f;
     mDeltaTime = 0.0;
     mElapsedTime = 0.0;

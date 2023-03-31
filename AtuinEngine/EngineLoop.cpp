@@ -11,7 +11,7 @@ namespace Atuin {
 
 EngineLoop::EngineLoop() : mRunning {false} {
 
-    // TODO allocate on memory manager isntead
+    // TODO allocate on memory manager instead
     pFiles = new FileManager(this);
     pConfig = new ConfigManager(this);
 }
@@ -49,7 +49,7 @@ void EngineLoop::StartUp() {
 
     pConfig->StartUp();
 
-    gameClock.Reset();
+    gameClock.Start();
     mRunning = true;
 }
 
