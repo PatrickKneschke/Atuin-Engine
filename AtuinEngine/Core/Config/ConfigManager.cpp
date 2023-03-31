@@ -12,9 +12,9 @@
 namespace Atuin {
 
 
-void ConfigManager::StartUp() {
+void ConfigManager::Read(std::string_view configFile) {
 
-    const char *content = pEngine->Files()->Read("AtuinEngine/config.ini");
+    const char *content = pEngine->Files()->Read(configFile);
     ProcessConfigFile(content);
 }
 

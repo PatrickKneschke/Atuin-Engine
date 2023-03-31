@@ -14,6 +14,10 @@ EngineLoop::EngineLoop() : mRunning {false} {
     // TODO allocate on memory manager instead
     pFiles = new FileManager(this);
     pConfig = new ConfigManager(this);
+
+    // read engine config file
+    // TODO have separate cinfig files for engine and game (and key bindings)
+    pConfig->Read("AtuinEngine/config.ini");
 }
 
 
@@ -46,8 +50,6 @@ void EngineLoop::Run() {
 
 
 void EngineLoop::StartUp() {
-
-    pConfig->StartUp();
 
     gameClock.Start();
     mRunning = true;

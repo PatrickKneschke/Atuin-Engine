@@ -21,7 +21,7 @@ public:
     ConfigManager(EngineLoop *parent) : pEngine {parent} {}
     ~ConfigManager() = default;
 
-    void StartUp();
+    void Read(std::string_view configFile);
     void RegisterCVar(ICVar *cvar);
     void SetCVar(std::string_view name, std::string_view strValue);
     const ICVar* GetCVar(std::string_view name) const ;
