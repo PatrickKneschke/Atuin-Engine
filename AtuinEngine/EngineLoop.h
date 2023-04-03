@@ -3,6 +3,7 @@
 
 
 #include "Core/Time/Clock.h"
+#include "Core/Config/CVar.h"
 
     
 
@@ -36,6 +37,9 @@ public:
 
 
 private:
+
+    static CVar<U32> *pMaxFps;
+    static CVar<U32> *pMaxSimPerFrame;
 
     bool mRunning;
     Clock gameClock;

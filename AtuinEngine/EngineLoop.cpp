@@ -9,6 +9,10 @@
 namespace Atuin {
 
 
+CVar<U32>* EngineLoop::pMaxFps           = ConfigManager::RegisterCVar("MAX_FPS", 30U);
+CVar<U32>* EngineLoop::pMaxSimPerFrame   = ConfigManager::RegisterCVar("MAX_SIM_PER_FRAME", 1U);
+
+
 EngineLoop::EngineLoop() : mRunning {false} {
 
     // TODO allocate on memory manager instead
@@ -32,6 +36,9 @@ EngineLoop::~EngineLoop() {
 void EngineLoop::Run() {
 
     StartUp();
+
+    std::cout << pMaxFps->Get() << '\n';
+    std::cout << pMaxSimPerFrame->Get() << '\n';
 
     int i = 0;
     while (mRunning)

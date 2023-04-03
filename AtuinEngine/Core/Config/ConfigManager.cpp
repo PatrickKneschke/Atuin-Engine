@@ -12,6 +12,13 @@
 namespace Atuin {
 
 
+ConfigManager::CVarRegistry* ConfigManager::Registry() {
+
+    static CVarRegistry registry;
+    return &registry;
+}
+
+
 void ConfigManager::Read(std::string_view configFile) {
 
     const char *content = pEngine->Files()->Read(configFile);
@@ -19,41 +26,35 @@ void ConfigManager::Read(std::string_view configFile) {
 }
 
 
-void ConfigManager::RegisterCVar(ICVar *cvar) {
-
-
-    mRegister[cvar->Id()] = cvar;
-    mCVarNames.insert(cvar->Name());
-}
-
-
 void ConfigManager::SetCVar(std::string_view name, std::string_view strValue) {
  
     U64 id = SID(name.data());
-    if (mRegister.find(id) == mRegister.end())
+    auto registry = Registry();
+    if (registry->find(id) == registry->end())
     {
         // TODO : call to error log : "<name> is not a registered CVar!"
         return;
     }
 
-    mRegister[id]->Set(strValue);
+    (*registry)[id]->Set(strValue);
 }
 
 
 const ICVar* ConfigManager::GetCVar(std::string_view name) const {
  
     U64 id = SID(name.data());
-    if (mRegister.find(id) == mRegister.end())
+    auto registry = Registry();
+    if (registry->find(id) == registry->end())
     {
         // TODO : call to error log : "<name> is not a registered CVar!"
         return nullptr;
     }
 
-    return mRegister.at(id);
+    return registry->at(id);
 }
 
 
-void ConfigManager::ProcessConfigFile(const char *content) {
+void ConfigManager::ProcessConfigFile(const char *content) {  
 
     std::string_view lines(content);
     Size startPos = 0, endPos = 0, maxPos = lines.length();

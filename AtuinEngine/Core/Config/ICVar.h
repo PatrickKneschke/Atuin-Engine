@@ -16,7 +16,7 @@ class ICVar {
 public:
 
     ICVar(const std::string_view name) : mName {name}, mId {SID(name.data())} {}
-    virtual ~ICVar() = 0;
+    ~ICVar() = default;
 
     virtual void Set(const std::string_view strValue) = 0;
     std::string Name() { return mName; }

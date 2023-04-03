@@ -2,7 +2,7 @@
 #pragma once
 
 
-#include "ICVar.h";
+#include "ICVar.h"
 
 #include "utility"
 #include <sstream>
@@ -17,7 +17,7 @@ class CVar : public ICVar {
 public:
 
     CVar(const std::string_view name) : ICVar(name), mValue {T()} {}
-    CVar(const std::string_view name, const T&& value) : ICVar(name), mValue {std::forward<T>(value)} {}
+    CVar(const std::string_view name, T&& value) : ICVar(name), mValue {std::forward<T>(value)} {}
     ~CVar() = default;
 
     void Set(std::string_view strValue) {
