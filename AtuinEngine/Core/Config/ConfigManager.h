@@ -38,6 +38,8 @@ public:
     ~ConfigManager() = default;
 
     void Read(std::string_view configFile);
+    void Save() const;
+
     void SetCVar(std::string_view blockName, std::string_view cvarName, std::string_view strValue);
     const ICVar* GetCVar(std::string_view blockName, std::string_view cvarName) const ;
 
@@ -51,6 +53,7 @@ private:
     void ExtractBlock(std::string_view line, std::string *block);
     void ExtractCVar(std::string_view line, std::string *name, std::string *value);
 
+    std::string mConfigFile;
 
     EngineLoop *pEngine;
 };

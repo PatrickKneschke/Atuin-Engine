@@ -6,6 +6,8 @@
 #include "Core/Util/StringID.h"
 #include "EngineLoop.h"
 
+#include <string>
+
 #include <iostream>
 
 
@@ -21,8 +23,27 @@ ConfigManager::CVarRegistry* ConfigManager::GetRegistry() {
 
 void ConfigManager::Read(std::string_view configFile) {
 
+    mConfigFile = configFile;
+
     const char *content = pEngine->Files()->Read(configFile);
     ProcessConfigFile(content);
+}
+
+
+void ConfigManager::Save() const {
+
+    std::ostringstream oss(std::ios::ate);
+    for(auto &[blockId, block] : *GetRegistry())
+    {
+        oss << "\n[" << block.name << "]\n";
+        for (auto &[cvarId, cvar] : block.cvars)
+        {
+            oss << std::setw(20) << std::left << cvar->Name() << " = " << cvar->Get() << '\n';
+        }
+    }
+
+    auto buffer = oss.str();
+    pEngine->Files()->Write(mConfigFile, buffer.c_str(), buffer.length());
 }
 
 

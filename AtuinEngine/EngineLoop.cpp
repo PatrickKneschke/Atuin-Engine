@@ -62,6 +62,7 @@ void EngineLoop::StartUp() {
 
 void EngineLoop::ShutDown() {
 
+    pConfig->Save();
 }
 
 

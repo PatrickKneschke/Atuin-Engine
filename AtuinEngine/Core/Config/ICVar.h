@@ -18,7 +18,9 @@ public:
     ICVar(const std::string_view name) : mName {name}, mId {SID(name.data())} {}
     ~ICVar() = default;
 
+    virtual std::string Get() = 0;
     virtual void Set(const std::string_view strValue) = 0;
+    
     std::string Name() { return mName; }
     U64 Id() { return mId; };
 

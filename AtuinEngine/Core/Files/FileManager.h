@@ -2,6 +2,8 @@
 #pragma once
 
 
+#include "Core/Util/Types.h"
+
 #include <filesystem>
 #include <string>
 
@@ -19,6 +21,7 @@ public:
     ~FileManager() = default;
 
     char* Read(std::string_view fileName);
+    void Write(std::string_view fileName, const char *buffer, Size size);
 
 
 private:

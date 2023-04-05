@@ -39,4 +39,24 @@ char* FileManager::Read(std::string_view fileName) {
 }
 
 
+void FileManager::Write(std::string_view fileName, const char *buffer, Size size) {
+
+    auto filePath = mRootPath / fileName;
+    std::ofstream file(filePath);
+    if (!file.is_open())
+    {
+        std::cout << fileName << " could not be opened!" << '\n';
+        // TODO call to error log : "<fileName> could not be opened!";
+        return;
+    }
+
+    if (!file.write(buffer, size))
+    {
+        std::cout << fileName << " could not be written!" << '\n';
+        // TODO call to error log : "<fileName> could not be written!";
+        return;
+    }    
+}
+
+
 } // Atuin
