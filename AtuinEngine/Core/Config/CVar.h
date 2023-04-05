@@ -20,23 +20,23 @@ public:
     CVar(const std::string_view name, T&& value) : ICVar(name), mValue {std::forward<T>(value)} {}
     ~CVar() = default;
 
-    void Set(std::string_view strValue) override {
+    void SetValueStr(std::string_view strValue) override {
 
         std::istringstream iss(strValue.data());
         iss >> mValue;
     }
 
-    void Set(const T &value) {
-
-        mValue = value;
-    }
-
-    std::string Get() override {
+    std::string GetValueStr() override {
 
         std::ostringstream oss;
         oss << mValue;
 
         return oss.str();
+    }
+
+    void Set(const T &value) {
+
+        mValue = value;
     }
 
     T Get() const {

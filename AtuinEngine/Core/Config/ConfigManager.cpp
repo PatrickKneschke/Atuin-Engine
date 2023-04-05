@@ -38,7 +38,7 @@ void ConfigManager::Save() const {
         oss << "\n[" << block.name << "]\n";
         for (auto &[cvarId, cvar] : block.cvars)
         {
-            oss << std::setw(20) << std::left << cvar->Name() << " = " << cvar->Get() << '\n';
+            oss << std::setw(20) << std::left << cvar->Name() << " = " << cvar->GetValueStr() << '\n';
         }
     }
 
@@ -64,7 +64,7 @@ void ConfigManager::SetCVar(std::string_view blockName, std::string_view cvarNam
         return;
     }
 
-    registry->at(blockId).cvars[cvarId]->Set(strValue);
+    registry->at(blockId).cvars[cvarId]->SetValueStr(strValue);
 }
 
 
