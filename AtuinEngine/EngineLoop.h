@@ -12,6 +12,7 @@ namespace Atuin {
 
 class ConfigManager;
 class FileManager;
+class Logger;
 
 class EngineLoop {
 
@@ -34,12 +35,14 @@ public:
     // engine module access
     ConfigManager* Config() const { return pConfig; }
     FileManager* Files() const { return pFiles; }
+    Logger* Log() const  { return pLogger; }
 
 
 private:
 
-    static CVar<U32> *pMaxFps;
-    static CVar<U32> *pMaxSimPerFrame;
+    // config variables
+    static CVar<U32>* pMaxFps;
+    static CVar<U32>* pMaxSimPerFrame;
 
     bool mRunning;
     Clock gameClock;
@@ -47,6 +50,7 @@ private:
     // engine modules
     ConfigManager*  pConfig;
     FileManager*    pFiles;
+    Logger*         pLogger;
 };
 
 

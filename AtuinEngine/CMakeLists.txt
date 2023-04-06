@@ -1,6 +1,16 @@
 
 include_directories( . )
 
+# compile options
+set(GCC_COMPILE_OPTIONS "-Wall;-Wextra;-Wformat;-Wshadow;-Wconversion;-pthread;-std=c++20")
+set(GCC_COMPILE_DEBUG_OPTIONS "${GCC_COMPILE_OPTIONS};-g;-O0")
+set(GCC_COMPILE_RELEASE_OPTIONS "${GCC_COMPILE_OPTIONS};-O3")
+
+add_compile_options(
+    "$<$<CONFIG:Debug>:${GCC_COMPILE_DEBUG_OPTIONS}>"
+    "$<$<CONFIG:Release>:${GCC_COMPILE_RELEASE_OPTIONS}>"
+)
+
 add_subdirectory(Core)
 
 add_executable(${PROJECT_NAME}
@@ -14,16 +24,7 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE Time
     PRIVATE Files 
     PRIVATE Config
-)
-
-# compile options
-set(GCC_COMPILE_OPTIONS "-Wall;-Wextra;-Wformat;-Wshadow;-Wconversion;-pthread;-std=c++17")
-set(GCC_COMPILE_DEBUG_OPTIONS "${GCC_COMPILE_OPTIONS};-g;-O0")
-set(GCC_COMPILE_RELEASE_OPTIONS "${GCC_COMPILE_OPTIONS};-O3")
-
-target_compile_options(${PROJECT_NAME}
-    PRIVATE "$<$<CONFIG:Debug>:${GCC_COMPILE_DEBUG_OPTIONS}>"
-    PRIVATE "$<$<CONFIG:Release>:${GCC_COMPILE_RELEASE_OPTIONS}>"
+    PRIVATE Debug
 )
 
 # copy config file to binary directory

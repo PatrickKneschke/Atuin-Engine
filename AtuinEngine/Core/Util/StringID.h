@@ -9,6 +9,7 @@
 
 
 #include <cstddef>
+#include <cstdint>
 
 
 namespace Atuin {

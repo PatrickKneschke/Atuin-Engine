@@ -55,7 +55,7 @@ private:
 
     std::string mConfigFile;
 
-    EngineLoop *pEngine;
+    EngineLoop* pEngine;
 };
 
 

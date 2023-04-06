@@ -2,6 +2,7 @@
 #include "EngineLoop.h"
 #include "Core/Config/ConfigManager.h"
 #include "Core/Files/FileManager.h"
+#include "Core/Debug/Logger.h"
 
 #include <iostream>
 
@@ -18,18 +19,22 @@ EngineLoop::EngineLoop() : mRunning {false} {
     // TODO allocate on memory manager instead
     pFiles = new FileManager(this);
     pConfig = new ConfigManager(this);
+    pLogger = new Logger(this);
 
     // read engine config file
-    // TODO have separate cinfig files for engine and game (and key bindings)
+    // TODO (optional) have separate cinfig files for engine and game (and key bindings)
     pConfig->Read("AtuinEngine/config.ini");
+
+    pLogger->Error("Test Error Message");
 }
 
 
 EngineLoop::~EngineLoop() {
 
     // TODO call dtors before deleting memomy manager
-    delete pFiles;
+    delete pLogger;
     delete pConfig;
+    delete pFiles;
 }
 
 

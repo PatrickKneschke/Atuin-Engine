@@ -29,7 +29,7 @@ private:
     // absolute path to the executable
     std::filesystem::path mRootPath;
 
-    EngineLoop *pEngine;
+    EngineLoop* pEngine;
 };
 
     
