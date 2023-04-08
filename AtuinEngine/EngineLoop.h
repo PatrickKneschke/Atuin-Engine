@@ -5,7 +5,6 @@
 #include "Core/Time/Clock.h"
 #include "Core/Config/CVar.h"
 
-    
 
 namespace Atuin {
 

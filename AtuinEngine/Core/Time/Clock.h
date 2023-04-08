@@ -5,6 +5,7 @@
 #include "Core/Util/Types.h"
 
 #include <chrono>
+#include <string>
 
 
 namespace Atuin {
@@ -17,6 +18,8 @@ class Clock {
     using TimePoint = std::chrono::time_point<HighResClock>;
 
 public:
+
+    static std::string GetDateTimeStr();
 
     Clock();
     ~Clock() = default;

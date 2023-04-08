@@ -10,6 +10,12 @@
 namespace Atuin {
 
 
+void FileManager::MakeDir(std::string_view dirName) {
+
+    std::filesystem::create_directory(dirName);
+}
+
+
 char* FileManager::Read(std::string_view fileName) {
 
     auto filePath = mRootPath / fileName;
@@ -39,10 +45,10 @@ char* FileManager::Read(std::string_view fileName) {
 }
 
 
-void FileManager::Write(std::string_view fileName, const char *buffer, Size size) {
+void FileManager::Write(std::string_view fileName, const char *buffer, Size size, std::ios::openmode mode) {
 
     auto filePath = mRootPath / fileName;
-    std::ofstream file(filePath);
+    std::ofstream file(filePath, mode);
     if (!file.is_open())
     {
         std::cout << fileName << " could not be opened!" << '\n';

@@ -24,8 +24,6 @@ EngineLoop::EngineLoop() : mRunning {false} {
     // read engine config file
     // TODO (optional) have separate cinfig files for engine and game (and key bindings)
     pConfig->Read("AtuinEngine/config.ini");
-
-    pLogger->Error("Test Error Message");
 }
 
 
@@ -45,6 +43,9 @@ void EngineLoop::Run() {
     int i = 0;
     while (mRunning)
     {
+
+        pLogger->Error(LogChannel::GENERAL, "Test Error Message");
+
         Update();
 
         if(++i == 100) {
@@ -60,12 +61,16 @@ void EngineLoop::Run() {
 
 void EngineLoop::StartUp() {
 
+    pLogger->StartUp();
+
     gameClock.Start();
     mRunning = true;
 }
 
 
 void EngineLoop::ShutDown() {
+
+    pLogger->ShutDown();
 
     pConfig->Save();
 }

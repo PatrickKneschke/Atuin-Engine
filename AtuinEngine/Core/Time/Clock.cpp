@@ -5,6 +5,16 @@
 namespace Atuin {
 
 
+std::string Clock::GetDateTimeStr() {
+
+    auto now = std::time(nullptr);
+    char buffer[sizeof("YYYY-MM-DD_HH:MM:SS")];    
+    auto dateTimeStr = std::string(buffer, buffer + std::strftime(buffer, sizeof(buffer),"%F_%T", std::gmtime(&now)));
+
+    return dateTimeStr;
+}
+
+
 Clock::Clock() {
 
     Reset();
@@ -43,8 +53,8 @@ void Clock::Update() {
     if (mRunning)
     {
         auto now = HighResClock::now();
-        mDeltaTime = mTimeScale * std::chrono::duration_cast<Nanoseconds>(now - mCurrTime).count() * 1e-9;
-        mElapsedUnscaledTime = std::chrono::duration_cast<Nanoseconds>(now - mStartTime).count() * 1e-9;
+        mDeltaTime = mTimeScale * (double)std::chrono::duration_cast<Nanoseconds>(now - mCurrTime).count() * 1e-9;
+        mElapsedUnscaledTime = (double)std::chrono::duration_cast<Nanoseconds>(now - mStartTime).count() * 1e-9;
         mElapsedTime += mDeltaTime;
         mCurrTime = now;
     }  

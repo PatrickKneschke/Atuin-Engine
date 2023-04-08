@@ -21,18 +21,18 @@ public:
     CVar(const std::string_view name, T&& value) : ICVar(name), mValue {std::forward<T>(value)} {}
     ~CVar() = default;
 
-    void SetValueStr(std::string_view strValue) override {
+    // TODO only works for types that support istream::operator>>, also need vector CVars
+    void SetValueStr(std::string_view valueStr) override {
 
-        std::istringstream iss(strValue.data());
+        mValueStr = valueStr;
+
+        std::istringstream iss(valueStr.data());
         iss >> mValue;
     }
 
     std::string GetValueStr() override {
 
-        std::ostringstream oss;
-        oss << mValue;
-
-        return oss.str();
+        return mValueStr;
     }
 
     void Set(const T &value) {
@@ -48,6 +48,7 @@ public:
 private:
 
     T mValue;
+    std::string mValueStr;
 };
 
 
