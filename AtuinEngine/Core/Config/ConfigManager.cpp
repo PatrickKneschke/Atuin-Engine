@@ -42,8 +42,7 @@ void ConfigManager::Save() const {
         }
     }
 
-    auto buffer = oss.str();
-    pEngine->Files()->Write(mConfigFile, buffer.c_str(), buffer.length());
+    pEngine->Files()->Write(mConfigFile, oss.str());
 }
 
 

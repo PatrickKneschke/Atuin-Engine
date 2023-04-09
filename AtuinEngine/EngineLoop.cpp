@@ -44,6 +44,7 @@ void EngineLoop::Run() {
     while (mRunning)
     {
 
+        pLogger->Warning(LogChannel::GAMEPLAY, "Test Warning Message");
         pLogger->Error(LogChannel::GENERAL, "Test Error Message");
 
         Update();

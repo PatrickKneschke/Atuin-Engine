@@ -45,7 +45,7 @@ char* FileManager::Read(std::string_view fileName) {
 }
 
 
-void FileManager::Write(std::string_view fileName, const char *buffer, Size size, std::ios::openmode mode) {
+void FileManager::Write(std::string_view fileName, std::string_view buffer, std::ios::openmode mode) {
 
     auto filePath = mRootPath / fileName;
     std::ofstream file(filePath, mode);
@@ -56,7 +56,7 @@ void FileManager::Write(std::string_view fileName, const char *buffer, Size size
         return;
     }
 
-    if (!file.write(buffer, size))
+    if (!file.write(buffer.data(), buffer.length()))
     {
         std::cout << fileName << " could not be written!" << '\n';
         // TODO call to error log : "<fileName> could not be written!";

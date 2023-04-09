@@ -23,7 +23,7 @@ public:
     void MakeDir(std::string_view dirName);
 
     char* Read(std::string_view fileName);
-    void Write(std::string_view fileName, const char *buffer, Size size, std::ios::openmode mode = std::ios::out);
+    void Write(std::string_view fileName, std::string_view buffer, std::ios::openmode mode = std::ios::out);
 
 
 private:

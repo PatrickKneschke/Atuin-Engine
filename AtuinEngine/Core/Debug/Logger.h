@@ -51,7 +51,7 @@ private:
     static CVar<Size>*          pBytesToBuffer;
     
     // log level mask
-    std::bitset<(Size)LogLevel::ALL - 1> mLevelMask;
+    std::bitset<(Size)LogLevel::ALL> mLevelMask;
     // log channel mask
     std::bitset<(Size)LogChannel::ALL> mChannelMask;
 
