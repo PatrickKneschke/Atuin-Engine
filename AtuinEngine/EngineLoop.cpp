@@ -3,6 +3,7 @@
 #include "Core/Config/ConfigManager.h"
 #include "Core/Files/FileManager.h"
 #include "Core/Debug/Logger.h"
+#include "Core/Util/StringFormat.h"
 
 #include <iostream>
 
@@ -45,7 +46,7 @@ void EngineLoop::Run() {
     {
 
         pLogger->Warning(LogChannel::GAMEPLAY, "Test Warning Message");
-        pLogger->Error(LogChannel::GENERAL, "Test Error Message");
+        pLogger->Error(LogChannel::GENERAL, FormatStr("Test Error Message %d, %f, %s", 42, 3.14, "hello"));
 
         Update();
 
