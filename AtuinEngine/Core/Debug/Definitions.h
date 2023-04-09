@@ -13,8 +13,7 @@ namespace Atuin {
 
 enum class LogLevel : U8 {
 
-    OFF = 0,
-    ERROR,
+    ERROR = 0,
     WARNING,
     INFO,
     ALL

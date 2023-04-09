@@ -34,6 +34,9 @@ void Logger::StartUp() {
     auto timeStamp = Clock::GetDateTimeStr();
     mFullLog.fileName = pLogDir->Get() + "/full_" + timeStamp + ".log";
     mChannelsLog.fileName = pLogDir->Get() + "/channels_" + timeStamp + ".log";
+
+    mLevelMask.flip((Size)LogLevel::WARNING);
+    mChannelMask.flip((Size)LogChannel::GENERAL);
 }
 
 
@@ -42,18 +45,16 @@ void Logger::ShutDown() {
     std::string content;
 
     mFullLog.stream.flush();
-    content = mFullLog.stream.str(); 
     // TODO use async write instead
-    pEngine->Files()->Write(mFullLog.fileName, content.c_str(), content.length(), std::ios::app);
+    pEngine->Files()->Write(mFullLog.fileName, mFullLog.stream.str(), std::ios::app);
 
     mFullLog.stream.str("");
     mFullLog.stream.clear();
     mFullLog.stream.seekp(0);
 
     mChannelsLog.stream.flush();
-    content = mChannelsLog.stream.str(); 
     // TODO use async write instead
-    pEngine->Files()->Write(mChannelsLog.fileName, content.c_str(), content.length(), std::ios::app);
+    pEngine->Files()->Write(mChannelsLog.fileName, mChannelsLog.stream.str(), std::ios::app);
 
     mChannelsLog.stream.str("");
     mChannelsLog.stream.clear();
@@ -92,7 +93,7 @@ void Logger::Debug(LogLevel level, LogChannel channel, std::string_view message,
     std::ostringstream oss;
     oss << file << " [" << line << "] , " << ToString(level) << " ,  " << ToString(channel) << "  :  " << message << '\n';
 
-    if (mLevelMask.test((Size)level-1))
+    if (mLevelMask.test((Size)level))
     {
         // TODO do engine console output instead
         std::cout << oss.str();
@@ -117,10 +118,9 @@ void Logger::Debug(LogLevel level, LogChannel channel, std::string_view message,
     if ( static_cast<Size>(writer.stream.tellp()) >= pBytesToBuffer->Get() )
     {
         writer.stream.flush();
-
-        auto content = writer.stream.str(); 
+ 
         // TODO use async write instead
-        pEngine->Files()->Write(writer.fileName, content.c_str(), content.length(), std::ios::app);
+        pEngine->Files()->Write(writer.fileName, writer.stream.str(), std::ios::app);
 
         writer.stream.str("");
         writer.stream.clear();

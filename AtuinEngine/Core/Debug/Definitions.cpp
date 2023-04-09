@@ -9,9 +9,6 @@ const std::string ToString(LogLevel level) {
 
     switch (level) {
 
-        case LogLevel::OFF:
-            return "Off";
-
         case LogLevel::ERROR:
             return "Error";
 
