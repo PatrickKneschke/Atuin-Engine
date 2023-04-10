@@ -115,7 +115,8 @@ void Logger::Debug(LogLevel level, LogChannel channel, std::string_view message,
 
     writer.stream << buffer;
     writer.stream.seekp(0, std::ios::end);
-    if ( static_cast<Size>(writer.stream.tellp()) >= pBytesToBuffer->Get() )
+    // write to file if file manager is created and enough characters have been buffered
+    if ( static_cast<Size>(writer.stream.tellp()) >= pBytesToBuffer->Get() && pEngine->Files() != nullptr )
     {
         writer.stream.flush();
  

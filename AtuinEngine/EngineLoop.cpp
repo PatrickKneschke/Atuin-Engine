@@ -23,7 +23,7 @@ EngineLoop::EngineLoop() : mRunning {false} {
     pLogger = new Logger(this);
 
     // read engine config file
-    // TODO (optional) have separate cinfig files for engine and game (and key bindings)
+    // TODO (optional) have separate config files for engine and game (and key bindings)
     pConfig->Read("AtuinEngine/config.ini");
 }
 
