@@ -4,6 +4,8 @@
 
 #include "Core/Util/Types.h"
 
+#include <assert.h>
+
 
 namespace Atuin {
     
@@ -68,7 +70,7 @@ T* IAllocator::New(Args... args) {
 template<typename T>
 T* IAllocator::NewArray(Size size) {
 
-    // TODO assert size > 0
+    assert(size > 0);
 
     T *mem = static_cast<T*>( Allocate(size * sizeof(T), alignof(T)) );
     for (Size i = 0; i < size; i++)
@@ -83,6 +85,8 @@ T* IAllocator::NewArray(Size size) {
 template<typename T>
 void IAllocator::Delete(T *obj) {
 
+    assert(obj != nullptr);
+
     obj->~T();
     Free(static_cast<void*>(obj));
 }
@@ -91,7 +95,8 @@ void IAllocator::Delete(T *obj) {
 template<typename T>
 void IAllocator::DeleteArr(T *arr, Size size) {
 
-    // TODO assert size > 0
+    assert(arr != nullptr);
+    assert(size > 0);
 
     for(Size i=0; i<size; i++)
     {

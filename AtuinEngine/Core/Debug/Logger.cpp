@@ -5,8 +5,8 @@
 #include "Core/Files/FileManager.h"
 #include "Core/Time/Clock.h"
 
+#include "assert.h"
 #include <ctime>
-#include <iostream>
 
 
 namespace Atuin {
@@ -26,7 +26,8 @@ Logger::~Logger() {
 
 void Logger::StartUp() {
 
-    // TODO assert for LogDir not empty
+    assert(pLogDir->Get().length() > 0);
+
     // create log directory
     pEngine->Files()->MakeDir(pLogDir->Get());
     
@@ -41,8 +42,6 @@ void Logger::StartUp() {
 
 
 void Logger::ShutDown() {
-
-    std::string content;
 
     mFullLog.stream.flush();
     // TODO use async write instead

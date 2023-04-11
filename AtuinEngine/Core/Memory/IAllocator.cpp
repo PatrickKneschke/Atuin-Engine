@@ -11,7 +11,7 @@ IAllocator::IAllocator(Size totalMemory, IAllocator *parent) :
     mMaxUsedMemory {0},
     pParent {parent} {
 
-    // TODO assert totalMemory > 0
+    assert(mTotalMemory > 0);
 
     if(pParent == nullptr)
     {
@@ -39,8 +39,9 @@ IAllocator::~IAllocator() {
 
 Size IAllocator::GetAlignmentAdjustment(PtrInt address, Size alignment) {
 
-    // TODO Allow only power of 2 alignments
-    //assert( alignment > 0 && (alignment & (alignment - 1)) == 0);
+    // alignment must be positive ad power of two
+    assert( alignment > 0 ); 
+    assert( (alignment & (alignment - 1)) == 0 );
 
     Size adjustment = alignment - address & (alignment - 1);
     // If address is already properly aligned then adjustment = 0

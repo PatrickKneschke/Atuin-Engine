@@ -1,10 +1,12 @@
 
 #include "ConfigManager.h"
+#include "EngineLoop.h"
 #include "ICVar.h"
+#include "Core/Debug/Logger.h"
 #include "Core/Files/FileManager.h"
 #include "Core/Util/Types.h"
 #include "Core/Util/StringID.h"
-#include "EngineLoop.h"
+#include "Core/Util/StringFormat.h"
 
 #include <string>
 
@@ -53,13 +55,13 @@ void ConfigManager::SetCVar(std::string_view blockName, std::string_view cvarNam
     U64 cvarId = SID(cvarName.data());
     if (registry->find(blockId) == registry->end())
     {
-        // TODO : call to debug log : "<blockName> is not a registered CVar block!"
+        pEngine->Log()->Warning(LogChannel::GENERAL, FormatStr("%s is not a known block of CVars!", blockName.data()));
         return;
     }
 
     if (registry->at(blockId).cvars.find(cvarId) == registry->at(blockId).cvars.end())
     {
-        // TODO : call to debug log : "<cvarName> is not a registered CVar!"
+        pEngine->Log()->Warning(LogChannel::GENERAL, FormatStr("%s is not registered CVar!", cvarName.data()));
         return;
     }
 
@@ -74,13 +76,13 @@ const ICVar* ConfigManager::GetCVar(std::string_view blockName, std::string_view
     U64 cvarId = SID(cvarName.data());
     if (registry->find(blockId) == registry->end())
     {
-        // TODO : call to debug log : "<blockName> is not a registered CVar block!"
+        pEngine->Log()->Error(LogChannel::GENERAL, FormatStr("%s is not a known block of CVars!", blockName.data()));
         return nullptr;
     }
     
     if (registry->at(blockId).cvars.find(cvarId) == registry->at(blockId).cvars.end())
     {
-        // TODO : call to debug log : "<cvarName> is not a registered CVar!"
+        pEngine->Log()->Error(LogChannel::GENERAL, FormatStr("%s is not registered CVar!", cvarName.data()));
         return nullptr;
     }
 

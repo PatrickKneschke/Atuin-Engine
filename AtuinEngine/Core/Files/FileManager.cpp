@@ -1,6 +1,8 @@
 
 #include "FileManager.h"
 #include "EngineLoop.h"
+#include "Core/Debug/Logger.h"
+#include "Core/Util/StringFormat.h"
 
 #include <fstream>
 
@@ -22,8 +24,8 @@ char* FileManager::Read(std::string_view fileName) {
     std::ifstream file(filePath);
     if (!file.is_open())
     {
-        std::cout << fileName << " could not be opened!" << '\n';
-        // TODO call to error log : "<fileName> could not be opened!";
+        pEngine->Log()->Error(LogChannel::FILES, FormatStr("Unable to open file : %s", fileName.data()));
+
         return nullptr;
     }
 
@@ -35,8 +37,7 @@ char* FileManager::Read(std::string_view fileName) {
     char* buffer = new char[size+1];
     if (!file.read(buffer, size))
     {
-        std::cout << fileName << " could not be read!" << '\n';
-        // TODO call to error log : "<fileName> could not be read!"
+        pEngine->Log()->Error(LogChannel::FILES, FormatStr("Unable to read file : %s", fileName.data()));
         return nullptr;
     }
     buffer[size] = '\0';
@@ -51,15 +52,13 @@ void FileManager::Write(std::string_view fileName, std::string_view buffer, std:
     std::ofstream file(filePath, mode);
     if (!file.is_open())
     {
-        std::cout << fileName << " could not be opened!" << '\n';
-        // TODO call to error log : "<fileName> could not be opened!";
+        pEngine->Log()->Error(LogChannel::FILES, FormatStr("Unable to open file : %s", fileName.data()));
         return;
     }
 
     if (!file.write(buffer.data(), buffer.length()))
     {
-        std::cout << fileName << " could not be written!" << '\n';
-        // TODO call to error log : "<fileName> could not be written!";
+        pEngine->Log()->Error(LogChannel::FILES, FormatStr("Unable to write to file : %s", fileName.data()));
         return;
     }    
 }
