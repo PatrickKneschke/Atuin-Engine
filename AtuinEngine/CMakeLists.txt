@@ -21,10 +21,11 @@ add_executable(${PROJECT_NAME}
 )
 
 target_link_libraries(${PROJECT_NAME}
-    PRIVATE Time
+    PRIVATE Time 
     PRIVATE Files 
-    PRIVATE Config
-    PRIVATE Debug
+    PRIVATE Config 
+    PRIVATE Debug 
+    PRIVATE Memory 
 )
 
 # copy config file to binary directory

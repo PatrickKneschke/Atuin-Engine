@@ -51,9 +51,7 @@ constexpr I16 I16_MAX   = INT16_MAX;
 constexpr I32 I32_MAX   = INT32_MAX;
 constexpr I64 I64_MAX   = INT64_MAX;
 
-using PtrInt    = uintptr_t;
-using PtrDiff   = std::ptrdiff_t;
-
+using UPtr = uintptr_t;
 
 
 } // Atuin

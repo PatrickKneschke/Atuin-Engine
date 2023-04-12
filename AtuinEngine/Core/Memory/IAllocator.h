@@ -44,11 +44,8 @@ protected:
     IAllocator(Size totalMemory, IAllocator *parent = nullptr);
 
 
-    size_t GetAlignmentAdjustment(PtrInt address, Size alignment);
+    Size GetAlignmentAdjustment(UPtr address, Size alignment);
 
-
-    // Poiner to a parent allocator, nullptr by default
-    IAllocator *pParent;
 
     // Pointer to the beginning of the allocated memory
     void* pBase;
@@ -56,6 +53,9 @@ protected:
     Size mTotalMemory;
     Size mUsedMemory;
     Size mMaxUsedMemory;
+
+    // Poiner to a parent allocator, nullptr by default
+    IAllocator *pParent;
 };
 
 
@@ -63,7 +63,7 @@ template<typename T, typename... Args>
 T* IAllocator::New(Args... args) {
 
     void *mem = Allocate(sizeof(T), alignof(T));
-    return new (mem) T(args);
+    return new (mem) T(args...);
 }
 
 
@@ -100,7 +100,7 @@ void IAllocator::DeleteArr(T *arr, Size size) {
 
     for(Size i=0; i<size; i++)
     {
-        arr[i]~T();
+        arr[i].~T();
     }
 
     Free(static_cast<void*>(arr));
