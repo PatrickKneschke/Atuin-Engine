@@ -44,10 +44,6 @@ void EngineLoop::Run() {
     int i = 0;
     while (mRunning)
     {
-
-        pLogger->Warning(LogChannel::GAMEPLAY, "Test Warning Message");
-        pLogger->Error(LogChannel::GENERAL, FormatStr("Test Error Message %d, %f, %s", 42, 3.14, "hello"));
-
         Update();
 
         if(++i == 100) {

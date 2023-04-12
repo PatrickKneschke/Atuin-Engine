@@ -107,6 +107,7 @@ void ConfigManager::ProcessConfigFile(const char *content) {
 
             std::string name, value;
             ExtractCVar(nextLine, &name, &value);
+
             if (name.length() > 0 && value.length() > 0)
             {
                 SetCVar(currBlock, name, value);
@@ -154,6 +155,11 @@ void ConfigManager::ExtractCVar(std::string_view line, std::string *name, std::s
 
     // extract CVar name
     Size end = line.find_first_of('=', start);
+    // stop if no seperator was found
+    if (end == std::string::npos)
+    {
+        return;
+    }
     *name = line.substr(start, end-start);
 
     // remove trailing spaces

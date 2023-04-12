@@ -60,15 +60,15 @@ private:
 
 
 template<typename T>
-CVar<T>* ConfigManager::RegisterCVar(std::string_view block, std::string_view name, T &&value) {
+CVar<T>* ConfigManager::RegisterCVar(std::string_view blockName, std::string_view cvarName, T &&value) {
 
     auto registry = GetRegistry();
-    auto newCVar = new CVar<T>(name, std::forward<T>(value));
+    auto newCVar = new CVar<T>(cvarName, std::forward<T>(value));
 
-    U64 blockId = SID(block.data());
+    U64 blockId = SID(blockName.data());
     if (registry->find(blockId) == registry->end())
     {
-        registry->insert( {blockId, CVarBlock{block.data(), blockId, {}}} );
+        registry->insert( {blockId, CVarBlock{blockName.data(), blockId, {}}} );
     }
     registry->at(blockId).cvars.insert( {newCVar->Id(), newCVar} );
 

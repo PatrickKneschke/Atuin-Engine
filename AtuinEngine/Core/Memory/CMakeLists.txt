@@ -1,5 +1,7 @@
 
 add_library(Memory 
     MemoryManager.cpp 
-    MemoryManager.h 
+    MemoryManager.h
+    IAllocator.h 
+    IAllocator.cpp
 )
