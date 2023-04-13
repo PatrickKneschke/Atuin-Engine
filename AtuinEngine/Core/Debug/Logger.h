@@ -30,6 +30,7 @@ public:
 
     Logger(EngineLoop *engine): mLevelMask {~0UL}, mChannelMask {~0UL},  pEngine {engine} {}
     ~Logger();
+    
 
     void StartUp();
     void ShutDown();

@@ -11,7 +11,7 @@ StackAllocator::StackAllocator(Size totalMemory, IAllocator *parent) :
     IAllocator(totalMemory, parent)
 {
     mBaseAddress = reinterpret_cast<UPtr>(pBase);
-    Clear();
+    mTopAddress = mBaseAddress;
 }
 
 

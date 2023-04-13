@@ -17,7 +17,7 @@ public:
     ~StackAllocator();
 
 
-    void* Allocate(Size size, U8 alignment = 1) override;
+    void* Allocate(Size size, U8 alignment) override;
     void  Free(void *ptr) override;
     void  Clear() override;
 

@@ -20,7 +20,7 @@ public:
     Size  usedMemory()    const { return mUsedMemory;}
     Size  maxUsedMemory() const { return mMaxUsedMemory;}
 
-    virtual void* Allocate(Size size, U8 alignment = 1) = 0;
+    virtual void* Allocate(Size size, U8 alignment) = 0;
     virtual void  Free(void *ptr) = 0;
     virtual void  Clear() = 0;
 
