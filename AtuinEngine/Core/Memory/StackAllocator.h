@@ -13,7 +13,7 @@ class StackAllocator : public IAllocator {
 public:
 
     StackAllocator() = delete;
-    StackAllocator(Size totalMemory, IAllocator *parent);
+    StackAllocator(Size totalMemory, IAllocator *parent = nullptr);
     ~StackAllocator();
 
 

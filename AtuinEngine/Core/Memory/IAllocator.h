@@ -41,7 +41,7 @@ public:
 protected:
 
     IAllocator() = delete;
-    IAllocator(Size totalMemory, IAllocator *parent = nullptr);
+    IAllocator(Size totalMemory, IAllocator *parent);
 
 
     Size GetAlignmentAdjustment(UPtr address, Size alignment);

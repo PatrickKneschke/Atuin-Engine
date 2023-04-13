@@ -10,15 +10,17 @@ namespace Atuin {
 
 class PoolAllocator : public IAllocator {
 
+    
     struct PoolNode {
 
         PoolNode *next;
     };
 
+
 public:
     
     PoolAllocator() = delete;
-    PoolAllocator(Size numChunks, Size chunkSize, IAllocator *parent);
+    PoolAllocator(Size numChunks, Size chunkSize, IAllocator *parent = nullptr);
     ~PoolAllocator();
 
     void* Allocate();
