@@ -1,6 +1,8 @@
 
 #include "IAllocator.h"
 
+#include <cstdlib>
+
 
 namespace Atuin {
 

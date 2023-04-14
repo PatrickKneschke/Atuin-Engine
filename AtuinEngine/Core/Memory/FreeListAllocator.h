@@ -18,7 +18,7 @@ class FreeListAllocator : public IAllocator{
         FreeNode *next;
 
         FreeNode() : size {0}, address {0}, next {nullptr} {}
-        FreeNode(const size_t size_, FreeNode *next_ = nullptr) : size {size_}, next {next_} {
+        FreeNode(const Size size_, FreeNode *next_ = nullptr) : size {size_}, next {next_} {
 
             address = reinterpret_cast<UPtr>(this);
         }    

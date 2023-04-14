@@ -4,10 +4,12 @@ add_library(Memory
     IAllocator.cpp 
     StackAllocator.cpp
     PoolAllocator.cpp 
-    FreeListAllocator.cpp    
+    FreeListAllocator.cpp 
+    FreeTreeAllocator.cpp 
     MemoryManager.h
     IAllocator.h 
     StackAllocator.h 
     PoolAllocator.h 
-    FreeListAllocator.h 
+    FreeListAllocator.h
+    FreeTreeAllocator.h 
 )
