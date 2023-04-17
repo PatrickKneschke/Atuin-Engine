@@ -26,11 +26,11 @@ class FreeTreeAllocator : public IAllocator {
             size {size_}, parent {parent_}, left {left_}, right {right_} 
         {
             maxSize = size;
-            if (left)
+            if (left != nullptr)
             {
                 maxSize = std::max(maxSize, left->maxSize);
             }
-            if (right)
+            if (right != nullptr)
             {
                 maxSize = std::max(maxSize, right->maxSize);
             }

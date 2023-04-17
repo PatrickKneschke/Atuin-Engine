@@ -3,6 +3,7 @@
 #include "Core/Config/ConfigManager.h"
 #include "Core/Files/FileManager.h"
 #include "Core/Debug/Logger.h"
+#include "Core/Memory/MemoryManager.h"
 #include "Core/Util/StringFormat.h"
 
 #include <iostream>
@@ -25,6 +26,8 @@ EngineLoop::EngineLoop() : mRunning {false} {
     // read engine config file
     // TODO (optional) have separate config files for engine and game (and key bindings)
     pConfig->Read("AtuinEngine/config.ini");
+
+    pMemory = new MemoryManager();
 }
 
 

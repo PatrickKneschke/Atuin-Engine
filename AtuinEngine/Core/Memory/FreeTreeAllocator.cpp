@@ -22,7 +22,7 @@ void* FreeTreeAllocator::Allocate(Size size, U8 alignment) {
     // Pad size so that total allocated space can fit a TreeNode when freed
     Size paddedSize = std::max(size, sizeof(TreeNode) - sizeof(AllocHeader));
 
-    // Find best memory region to allocate from
+    // Find memory region to allocate from
     Size requiredSize = paddedSize + sizeof(AllocHeader) + alignment - 1;    
     TreeNode *allocNode = FindNode(requiredSize, pRoot);
     if (allocNode == nullptr)

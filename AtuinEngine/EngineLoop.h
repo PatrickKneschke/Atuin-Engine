@@ -12,6 +12,7 @@ namespace Atuin {
 class ConfigManager;
 class FileManager;
 class Logger;
+class MemoryManager;
 
 class EngineLoop {
 
@@ -32,9 +33,10 @@ public:
     void VariableUpdate();
 
     // engine module access
-    ConfigManager* Config() const { return pConfig; }
-    FileManager* Files() const { return pFiles; }
-    Logger* Log() const  { return pLogger; }
+    ConfigManager*  Config() const { return pConfig; }
+    FileManager*    Files() const { return pFiles; }
+    Logger*         Log() const  { return pLogger; }
+    MemoryManager*  Memory() { return pMemory; }
 
 
 private:
@@ -50,6 +52,7 @@ private:
     ConfigManager*  pConfig;
     FileManager*    pFiles;
     Logger*         pLogger;
+    MemoryManager*  pMemory;
 };
 
 
