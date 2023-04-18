@@ -16,9 +16,9 @@ public:
 
     ~IAllocator();
 
-    Size  totalMemory()   const { return mTotalMemory;}
-    Size  usedMemory()    const { return mUsedMemory;}
-    Size  maxUsedMemory() const { return mMaxUsedMemory;}
+    Size  TotalMemory()   const { return mTotalMemory;}
+    Size  UsedMemory()    const { return mUsedMemory;}
+    Size  MaxUsedMemory() const { return mMaxUsedMemory;}
 
     virtual void* Allocate(Size size, U8 alignment) = 0;
     virtual void  Free(void *ptr) = 0;

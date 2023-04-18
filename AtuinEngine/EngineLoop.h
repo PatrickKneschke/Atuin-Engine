@@ -32,11 +32,12 @@ public:
     void FixedUpdate();
     void VariableUpdate();
 
+    // TODO direct access to private members might be problematic -> interface access ?
     // engine module access
     ConfigManager*  Config() const { return pConfig; }
     FileManager*    Files() const { return pFiles; }
     Logger*         Log() const  { return pLogger; }
-    MemoryManager*  Memory() { return pMemory; }
+    MemoryManager*  Memory() const { return pMemory; }
 
 
 private:

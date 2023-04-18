@@ -37,6 +37,7 @@ EngineLoop::~EngineLoop() {
     delete pLogger;
     delete pConfig;
     delete pFiles;
+    delete pMemory;
 }
 
 

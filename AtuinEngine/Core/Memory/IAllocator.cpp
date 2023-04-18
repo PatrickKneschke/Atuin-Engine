@@ -3,6 +3,8 @@
 
 #include <cstdlib>
 
+#include "iostream"
+
 
 namespace Atuin {
 
