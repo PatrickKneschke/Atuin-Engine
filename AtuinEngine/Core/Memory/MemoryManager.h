@@ -4,8 +4,6 @@
 
 #include "Core/Config/CVar.h"
 #include "Core/Util/Types.h"
-#include "Core/Memory/StackAllocator.h"
-#include "Core/Memory/FreeListAllocator.h"
 
 #include <memory>
 
@@ -13,47 +11,88 @@
 namespace Atuin {
 
 
+class EngineLoop;
+class FreeListAllocator;
+
 class MemoryManager {
 
-    
-    class FrameAllocator {
-
-        public:
-
-            FrameAllocator(Size size, IAllocator *parent) : 
-                stacks {StackAllocator(size/2, parent), StackAllocator(size/2, parent)}, 
-                curr {0} 
-            {
-
-            }
-
-            StackAllocator& Current() { return stacks[curr]; }
-            void Switch() { curr = abs(curr - 1); }
-
-        private:
-
-            StackAllocator stacks[2];
-            int curr;
-    };
 
 public:
 
-    MemoryManager();
-    ~MemoryManager();
+    MemoryManager(EngineLoop *engine);
+    ~MemoryManager() = default;
+
+
+    void* Allocate(Size size, U8 alignment);
+    void  Free(void *ptr);
+
+    template<typename T, typename... Args>
+    T* New(const Args&... args);
+
+    template<typename T>
+    T* NewArray(Size size);
+
+    template<typename T>
+    void Delete(T *obj);
+
+    template<typename T>
+    void DeleteArray(T *arr, Size size);
 
 
 private:
 
-    static CVar<Size>* pLsrMemorySize;
-    static CVar<Size>* pSceneMemorySize;
-    static CVar<Size>* pFrameMemorySize;
-    
+    static CVar<Size>* pHeapMemorySize;
 
-    std::unique_ptr<StackAllocator>    pMemoryStack;
-    std::unique_ptr<StackAllocator>    pLsrMemory;
-    std::unique_ptr<FreeListAllocator> pSceneMemory;
-    std::unique_ptr<FrameAllocator>    pFrameMemory;
+    std::unique_ptr<FreeListAllocator> pHeapMemory;
+
+    // TODO ? add entity pool
+    // TODO ? add pool for colliders
+    // TODO ? add pools for graphic assets and sound clips
+    // -> everything updated together stays together in memory for cache friendlyness ?
+
+    EngineLoop* pEngine;
 };
+
+
+template<typename T, typename... Args>
+T* MemoryManager::New(const Args&... args) {
+
+    void *mem = Allocate(sizeof(T), alignof(T));
+    return new (mem) T(args...)
+}
+
+
+template<typename T>
+T* MemoryManager::NewArray(Size size) {
+
+    T *mem = static_cast<T*>( Allocate(size * sizeof(T), alignof(T)) );
+    for (Size i = 0; i < size; i++)
+    {    
+        new (mem + i) T();
+    }
+
+    return mem;
+}
+
+
+template<typename T>
+void MemoryManager::Delete(T *obj) {
+
+    obj->~T();
+    Free(static_cast<void*>(obj));
+}
+
+
+template<typename T>
+void MemoryManager::DeleteArray(T *arr, Size size) {
+
+    for(Size i=0; i<size; i++)
+    {
+        arr[i].~T();
+    }
+
+    Free(static_cast<void*>(arr));
+}
 
     
 } //  Atuin

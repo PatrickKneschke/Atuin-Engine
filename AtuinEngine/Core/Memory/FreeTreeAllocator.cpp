@@ -19,6 +19,8 @@ FreeTreeAllocator::~FreeTreeAllocator() {
 
 void* FreeTreeAllocator::Allocate(Size size, U8 alignment) {
 
+    // TODO assert size > 0
+
     // Pad size so that total allocated space can fit a TreeNode when freed
     Size paddedSize = std::max(size, sizeof(TreeNode) - sizeof(AllocHeader));
 

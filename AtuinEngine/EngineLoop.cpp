@@ -27,7 +27,7 @@ EngineLoop::EngineLoop() : mRunning {false} {
     // TODO (optional) have separate config files for engine and game (and key bindings)
     pConfig->Read("AtuinEngine/config.ini");
 
-    pMemory = new MemoryManager();
+    pMemory = new MemoryManager(this);
 }
 
 

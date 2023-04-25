@@ -25,8 +25,7 @@ public:
 private:
 
     UPtr mBaseAddress;
-    UPtr mTopAddress;    
-
+    UPtr mTopAddress;
 };
     
     

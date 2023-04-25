@@ -35,9 +35,6 @@ void Logger::StartUp() {
     auto timeStamp = Clock::GetDateTimeStr();
     mFullLog.fileName = pLogDir->Get() + "/full_" + timeStamp + ".log";
     mChannelsLog.fileName = pLogDir->Get() + "/channels_" + timeStamp + ".log";
-
-    mLevelMask.flip((Size)LogLevel::WARNING);
-    mChannelMask.flip((Size)LogChannel::GENERAL);
 }
 
 
@@ -64,6 +61,7 @@ void Logger::ShutDown() {
 void Logger::Error(LogChannel channel, std::string_view message, const std::source_location location) {
 
     Debug(LogLevel::ERROR, channel, message, location);
+    // TODO terminate program after error
 }
 
 

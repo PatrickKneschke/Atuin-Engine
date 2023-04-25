@@ -35,7 +35,7 @@ public:
     void Delete(T *obj);
 
     template<typename T>
-    void DeleteArr(T *arr, Size size);
+    void DeleteArray(T *arr, Size size);
 
 
 protected:
@@ -93,7 +93,7 @@ void IAllocator::Delete(T *obj) {
 
 
 template<typename T>
-void IAllocator::DeleteArr(T *arr, Size size) {
+void IAllocator::DeleteArray(T *arr, Size size) {
 
     assert(arr != nullptr);
     assert(size > 0);
