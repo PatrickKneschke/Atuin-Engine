@@ -22,8 +22,8 @@ StackAllocator::~StackAllocator() {
 
 void* StackAllocator::Allocate(Size size, U8 alignment) {
 
-    // TODO assert size > 0
-    
+    assert(size > 0);
+
     Size adjustment = GetAlignmentAdjustment(mTopAddress, alignment);
 
     UPtr alignedAddress = mTopAddress + adjustment;

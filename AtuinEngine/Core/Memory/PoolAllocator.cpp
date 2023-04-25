@@ -29,7 +29,7 @@ void* PoolAllocator::Allocate() {
 
 void* PoolAllocator::Allocate(Size size, U8 alignment) {
 
-    assert(size <= mChunkSize);
+    assert(size > 0 && size <= mChunkSize);
     assert(mChunkSize % alignment == 0);
 
     if(!pHead)

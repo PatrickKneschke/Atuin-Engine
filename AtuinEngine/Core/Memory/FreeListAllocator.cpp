@@ -21,7 +21,7 @@ FreeListAllocator::~FreeListAllocator() {
 
 void* FreeListAllocator::Allocate(Size size, U8 alignment) {
 
-    // TODO assert size > 0
+    assert(size > 0);
    
     // Pad size so that total allocated space can fit a FreeNode when freed
     Size paddedSize = std::max(size, sizeof(FreeNode) - sizeof(AllocHeader));
