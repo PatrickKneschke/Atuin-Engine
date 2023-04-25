@@ -4,6 +4,7 @@
 
 #include "EngineLoop.h"
 
+#include <iostream>
 #include <memory>
 #include <stdexcept>
 
@@ -27,7 +28,16 @@ public:
             throw std::runtime_error("Cannot start engine after it has already been started!");
         }
 
-        sEngineLoop->Run();
+        try
+        {
+            sEngineLoop->Run();
+        }
+        catch(const std::exception& e)
+        {
+            std::cerr << e.what() << '\n';
+            sEngineLoop->ShutDown();
+        }
+        
     }
 
     static void Quit()  {

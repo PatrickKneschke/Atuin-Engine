@@ -4,6 +4,7 @@
 
 #include "Core/Config/CVar.h"
 #include "Core/Util/Types.h"
+#include "Core/Memory/FreeListAllocator.h"
 
 #include <memory>
 
@@ -12,7 +13,6 @@ namespace Atuin {
 
 
 class EngineLoop;
-class FreeListAllocator;
 
 class MemoryManager {
 
@@ -58,7 +58,7 @@ template<typename T, typename... Args>
 T* MemoryManager::New(const Args&... args) {
 
     void *mem = Allocate(sizeof(T), alignof(T));
-    return new (mem) T(args...)
+    return new (mem) T(args...);
 }
 
 

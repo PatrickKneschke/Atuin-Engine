@@ -5,7 +5,8 @@
 #include "Core/Files/FileManager.h"
 #include "Core/Time/Clock.h"
 
-#include "assert.h"
+#include <assert.h>
+#include <stdexcept>
 #include <ctime>
 
 
@@ -61,7 +62,7 @@ void Logger::ShutDown() {
 void Logger::Error(LogChannel channel, std::string_view message, const std::source_location location) {
 
     Debug(LogLevel::ERROR, channel, message, location);
-    // TODO terminate program after error
+    throw std::runtime_error("Program terminated after error.");
 }
 
 
