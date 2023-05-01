@@ -1,9 +1,8 @@
 
 #include "IAllocator.h"
+#include "Core/Util/Math.h"
 
 #include <cstdlib>
-
-#include "iostream"
 
 
 namespace Atuin {
@@ -43,15 +42,12 @@ IAllocator::~IAllocator() {
 
 Size IAllocator::GetAlignmentAdjustment(UPtr address, Size alignment) {
 
-    // alignment must be positive ad power of two
     assert( alignment > 0 ); 
-    assert( (alignment & (alignment - 1)) == 0 );
+    assert( Math::IsPowerOfTwo(alignment) );
 
-    Size adjustment = alignment - (address & (alignment - 1));
-    // if address is already properly aligned then adjustment = 0
-    adjustment &= alignment - 1;
+    Size adjustment = alignment - Math::ModuloPowerOfTwo(address, alignment);
 
-    return adjustment;
+    return Math::ModuloPowerOfTwo(adjustment, alignment);
 }
 
     

@@ -4,6 +4,7 @@
 
 #include "Core/Util/Types.h"
 #include "Core/Memory/MemoryManager.h"
+#include "Core/Util/Math.h"
 #include "Core/Util/StringFormat.h"
 
 #include <algorithm>
@@ -65,7 +66,6 @@ private:
 
     void Allocate(Size capacity);
     void Free();
-    Size NextPowerOfTwo(Size n);
 
     Size mSize;
     Size mCapacity;
@@ -120,13 +120,6 @@ void Array<T>::Free() {
     }
 
     mCapacity = 0;
-}
-
-
-template<typename T>
-Size Array<T>::NextPowerOfTwo(Size n) {
-
-    return n;
 }
 
 
@@ -288,7 +281,7 @@ void Array<T>::PushBack(const T &value) {
 
     if (mSize == mCapacity)
     {
-        Reserve( NextPowerOfTwo(mCapacity) );
+        Reserve( Math::NextPowerOfTwo(mCapacity) );
     }
 
     pData[mSize++] = value;
@@ -300,7 +293,7 @@ void Array<T>::PushBack(T &&value) {
 
     if (mSize == mCapacity)
     {
-        Reserve( NextPowerOfTwo(mCapacity) );
+        Reserve( Math::NextPowerOfTwo(mCapacity) );
     }
 
     pData[mSize++] = std::move(value);
@@ -325,7 +318,7 @@ T& Array<T>::EmplaceBack(Args&&... args) {
 
     if (mSize == mCapacity)
     {
-        Reserve( NextPowerOfTwo(mCapacity) );
+        Reserve( Math::NextPowerOfTwo(mCapacity) );
     }
 
     return *(new ( reinterpret_cast<void*>(pData + mSize++) ) T(std::forward<Args>(args)...));
