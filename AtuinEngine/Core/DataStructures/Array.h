@@ -44,6 +44,7 @@ public:
     void Clear();
     void Reserve(Size capacity);
     void Resize(Size newSize);
+    void Resize(Size newSize, const T &value);
     void PushBack(const T &value);
     void PushBack(T &&value);
     void PopBack();
@@ -64,7 +65,7 @@ private:
 
     void Allocate(Size capacity);
     void Free();
-
+    Size NextPowerOfTwo(Size n);
 
     Size mSize;
     Size mCapacity;
@@ -87,11 +88,13 @@ void Array<T>::Allocate(Size capacity) {
 
     if (pMemory == nullptr)
     {
-        pData = new T[capacity];
+        // pData = new T[capacity];
+        pData = static_cast<T*>( malloc(mCapacity * sizeof(T)) );
     }
     else
     {
-        pData = pMemory->NewArray<T>(capacity);
+        // pData = pMemory->NewArray<T>(capacity);
+        pData = static_cast<T*>( pMemory->Allocate(mCapacity * sizeof(T), alignof(T)) );
     }
     mCapacity = capacity;
 }
@@ -107,14 +110,23 @@ void Array<T>::Free() {
 
     if (pMemory == nullptr)
     {
-        delete[] pData;
+        // delete[] pData;
+        free(static_cast<void*>(pData));
     }
     else
     {
-        pMemory->DeleteArray(pData, mCapacity);
+        // pMemory->DeleteArray(pData, mCapacity);
+        pMemory->Free(static_cast<void*>(pData));
     }
 
     mCapacity = 0;
+}
+
+
+template<typename T>
+Size Array<T>::NextPowerOfTwo(Size n) {
+
+    return n;
 }
 
 
@@ -172,13 +184,12 @@ Array<T>::Array(Array &&other) : mSize {other.mSize}, mCapacity {other.mCapacity
 template<typename T>
 Array<T>& Array<T>::operator= (const Array &rhs) {
 
+    Clear();
     Free();
     Allocate(rhs.mCapacity);
-    mSize = rhs.mSize;
-
     for(Size i = 0; i < mSize; i++)
     {
-        pData[i] = rhs[i];
+        PushBack(rhs[i]);
     }
 
     return *this;
@@ -188,6 +199,7 @@ Array<T>& Array<T>::operator= (const Array &rhs) {
 template<typename T>
 Array<T>& Array<T>::operator= (Array &&rhs) {
 
+    Clear();
     Free();
 
     mSize = rhs.mSize;
@@ -205,10 +217,9 @@ Array<T>& Array<T>::operator= (Array &&rhs) {
 template<typename T>
 Array<T>::~Array() {
 
+    Clear();
     Free();
     pData = nullptr;
-    mSize = 0;
-    mCapacity = 0;
 }
 
 
@@ -249,11 +260,24 @@ void Array<T>::Resize(Size newSize) {
     {
         pData[i].~T();
     }
-        
-    if (newSize > mCapacity)
+    
+    Reserve(newSize);
+    std::fill_n(pData+mSize, newSize-mSize, T());
+
+    mSize = newSize;    
+}
+
+
+template<typename T>
+void Array<T>::Resize(Size newSize, const T &value) {
+
+    for ( Size i = newSize; i < mSize; i++)
     {
-        Reserve(newSize);
+        pData[i].~T();
     }
+    
+    Reserve(newSize);
+    std::fill_n(pData+mSize, newSize-mSize, value);
 
     mSize = newSize;    
 }
@@ -264,7 +288,7 @@ void Array<T>::PushBack(const T &value) {
 
     if (mSize == mCapacity)
     {
-        Reserve(2*mCapacity);
+        Reserve( NextPowerOfTwo(mCapacity) );
     }
 
     pData[mSize++] = value;
@@ -276,7 +300,7 @@ void Array<T>::PushBack(T &&value) {
 
     if (mSize == mCapacity)
     {
-        Reserve(2*mCapacity);
+        Reserve( NextPowerOfTwo(mCapacity) );
     }
 
     pData[mSize++] = std::move(value);
@@ -301,7 +325,7 @@ T& Array<T>::EmplaceBack(Args&&... args) {
 
     if (mSize == mCapacity)
     {
-        Reserve(2*mCapacity);
+        Reserve( NextPowerOfTwo(mCapacity) );
     }
 
     return *(new ( reinterpret_cast<void*>(pData + mSize++) ) T(std::forward<Args>(args)...));
