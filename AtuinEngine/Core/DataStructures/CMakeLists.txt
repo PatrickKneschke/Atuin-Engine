@@ -7,5 +7,6 @@ add_library(DataStructures
 )
 
 target_link_libraries(DataStructures
+    PRIVATE Math 
     PRIVATE Memory 
 )

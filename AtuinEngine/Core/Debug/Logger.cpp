@@ -59,26 +59,26 @@ void Logger::ShutDown() {
 }
 
 
-void Logger::Error(LogChannel channel, std::string_view message, const std::source_location location) {
+void Logger::Error(LogChannel channel, std::string_view message, const std::source_location &location) {
 
     Debug(LogLevel::ERROR, channel, message, location);
     throw std::runtime_error("Program terminated after error.");
 }
 
 
-void Logger::Warning(LogChannel channel, std::string_view message, const std::source_location location) {
+void Logger::Warning(LogChannel channel, std::string_view message, const std::source_location &location) {
 
     Debug(LogLevel::WARNING, channel, message, location);
 }
 
 
-void Logger::Info(LogChannel channel, std::string_view message, const std::source_location location) {
+void Logger::Info(LogChannel channel, std::string_view message, const std::source_location &location) {
 
     Debug(LogLevel::INFO, channel, message, location);
 }
 
 
-void Logger::Debug(LogLevel level, LogChannel channel, std::string_view message, const std::source_location location) {
+void Logger::Debug(LogLevel level, LogChannel channel, std::string_view message, const std::source_location &location) {
 
     std::string file = std::filesystem::path(location.file_name()).filename();
     U32 line = location.line();

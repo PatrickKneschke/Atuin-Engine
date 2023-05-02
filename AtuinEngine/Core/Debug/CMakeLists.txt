@@ -7,5 +7,6 @@ add_library(Debug
 )
 
 target_link_libraries(Debug 
+    PRIVATE Time 
     PRIVATE Files
 )

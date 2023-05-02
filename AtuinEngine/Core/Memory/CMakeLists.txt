@@ -13,3 +13,10 @@ add_library(Memory
     FreeListAllocator.h
     FreeTreeAllocator.h 
 )
+
+
+target_link_libraries(Memory 
+    PRIVATE Math 
+    PRIVATE Config 
+    PRIVATE Debug
+)

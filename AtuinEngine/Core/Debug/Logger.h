@@ -35,10 +35,10 @@ public:
     void StartUp();
     void ShutDown();
 
-    void Error(LogChannel channel, std::string_view message, const std::source_location location = std::source_location::current());
-    void Warning(LogChannel channel, std::string_view message, const std::source_location location = std::source_location::current());
-    void Info(LogChannel channel, std::string_view message, const std::source_location location = std::source_location::current());
-    void Debug(LogLevel level, LogChannel channel, std::string_view message, const std::source_location location = std::source_location::current());
+    void Error(LogChannel channel, std::string_view message, const std::source_location &location = std::source_location::current());
+    void Warning(LogChannel channel, std::string_view message, const std::source_location &location = std::source_location::current());
+    void Info(LogChannel channel, std::string_view message, const std::source_location &location = std::source_location::current());
+    void Debug(LogLevel level, LogChannel channel, std::string_view message, const std::source_location &location = std::source_location::current());
 
 
 private:

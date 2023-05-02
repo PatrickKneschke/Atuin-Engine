@@ -16,6 +16,8 @@
 namespace Atuin {
 
 
+class MemoryManager;
+
 template<typename T>
 class Array {
 
@@ -177,13 +179,16 @@ Array<T>::Array(Array &&other) : mSize {other.mSize}, mCapacity {other.mCapacity
 template<typename T>
 Array<T>& Array<T>::operator= (const Array &rhs) {
 
-    Clear();
-    Free();
-    Allocate(rhs.mCapacity);
-    for(Size i = 0; i < mSize; i++)
+    if (this != &rhs)
     {
-        PushBack(rhs[i]);
-    }
+        Clear();
+        Free();
+        Allocate(rhs.mCapacity);
+        for(Size i = 0; i < mSize; i++)
+        {
+            PushBack(rhs[i]);
+        }
+    }    
 
     return *this;
 }
@@ -192,16 +197,19 @@ Array<T>& Array<T>::operator= (const Array &rhs) {
 template<typename T>
 Array<T>& Array<T>::operator= (Array &&rhs) {
 
-    Clear();
-    Free();
+    if (this != &rhs)
+    {
+        Clear();
+        Free();
 
-    mSize = rhs.mSize;
-    mCapacity = rhs.mCapacity;
-    pData = rhs.pData;
+        mSize = rhs.mSize;
+        mCapacity = rhs.mCapacity;
+        pData = rhs.pData;
 
-    rhs.mSize = 0;
-    rhs.mCapacity = 0;
-    rhs.pData = nullptr;
+        rhs.mSize = 0;
+        rhs.mCapacity = 0;
+        rhs.pData = nullptr;      
+    }
 
     return *this;
 }
