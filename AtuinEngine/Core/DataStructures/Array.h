@@ -277,8 +277,11 @@ void Array<T>::Resize(Size newSize, const T &value) {
     }
     
     Reserve(newSize);
-    std::fill_n(pData+mSize, newSize-mSize, value);
-
+    if (newSize > mSize)
+    {
+        std::fill_n(pData+mSize, newSize-mSize, value);
+    }
+    
     mSize = newSize;    
 }
 
