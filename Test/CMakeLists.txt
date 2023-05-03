@@ -7,5 +7,6 @@ add_executable(TestAll
 add_subdirectory(Core)
 
 target_link_libraries(TestAll
+    PRIVATE Math 
     PRIVATE DataStructures
 )
