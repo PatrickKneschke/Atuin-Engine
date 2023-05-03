@@ -90,12 +90,10 @@ void Array<T>::Allocate(Size capacity) {
 
     if (pMemory == nullptr)
     {
-        // pData = new T[capacity];
         pData = static_cast<T*>( malloc(mCapacity * sizeof(T)) );
     }
     else
     {
-        // pData = pMemory->NewArray<T>(capacity);
         pData = static_cast<T*>( pMemory->Allocate(mCapacity * sizeof(T), alignof(T)) );
     }
     mCapacity = capacity;
@@ -112,12 +110,10 @@ void Array<T>::Free() {
 
     if (pMemory == nullptr)
     {
-        // delete[] pData;
         free(static_cast<void*>(pData));
     }
     else
     {
-        // pMemory->DeleteArray(pData, mCapacity);
         pMemory->Free(static_cast<void*>(pData));
     }
 
@@ -263,7 +259,10 @@ void Array<T>::Resize(Size newSize) {
     }
     
     Reserve(newSize);
-    std::fill_n(pData+mSize, newSize-mSize, T());
+    if (newSize > mSize)
+    {
+        std::fill_n(pData+mSize, newSize-mSize, T());
+    }
 
     mSize = newSize;    
 }

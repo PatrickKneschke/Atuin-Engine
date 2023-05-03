@@ -11,33 +11,48 @@ namespace Math {
 
 bool IsPowerOfTwo(U64 n) {
 
-    return (n & (n - 1)) == 0;
+    return n > 0 && (n & (n - 1)) == 0;
 }
 
 
 U64 NextPowerOfTwo(U64 n) {
 
-    return std::bit_ceil(n);
+    if (n >= ((U64)1<<63))
+    {
+        return n;
+    }
+
+    return std::bit_ceil(n+1);
 }
 
 
 U64 PrevPowerOfTwo(U64 n) {
 
-    return std::bit_floor(n);
+    if (n <= 1)
+    {
+        return n;
+    }
+
+    return std::bit_floor(n-1);
 }
 
 
 U64 ClosestPowerOfTwo(U64 n) {
 
-    U64 top = std::bit_ceil(n);
-    U64 bottom = std::bit_floor(n);
-
-    if (top-n < n-bottom)
+    if (IsPowerOfTwo(n))
     {
-        return top;
+        return n;
     }
 
-    return bottom;
+    U64 next = NextPowerOfTwo(n);
+    U64 prev = PrevPowerOfTwo(n);
+
+    if (next-n < n-prev)
+    {
+        return next;
+    }
+
+    return prev;
 }
 
 

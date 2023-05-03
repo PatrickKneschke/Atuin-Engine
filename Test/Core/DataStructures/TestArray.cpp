@@ -121,19 +121,19 @@ TEST_CASE("reserve", "[modify]") {
     REQUIRE(arr.GetSize() == 3);
 }
 
-// TEST_CASE("resize", "[modify]") {
+TEST_CASE("resize", "[modify]") {
     
-//     Array<int> arr = {1,2,3};
-//     arr.Resize(5);
+    Array<int> arr = {1,2,3};
+    arr.Resize(5);
 
-//     REQUIRE(arr.GetCapacity() == 5);
-//     REQUIRE(arr.GetSize() == 5);
+    REQUIRE(arr.GetCapacity() == 5);
+    REQUIRE(arr.GetSize() == 5);
 
-//     arr.Resize(2);
+    arr.Resize(2);
 
-//     REQUIRE(arr.GetCapacity() == 5);
-//     REQUIRE(arr.GetSize() == 2);
-// }
+    REQUIRE(arr.GetCapacity() == 5);
+    REQUIRE(arr.GetSize() == 2);
+}
 
 TEST_CASE("push", "[modify]") {
     
