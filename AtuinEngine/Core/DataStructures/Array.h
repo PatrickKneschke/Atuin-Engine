@@ -32,17 +32,17 @@ public:
     Array(const std::initializer_list<T> &list);
 
     Array(const Array &other);
-    Array(Array &&other);
+    Array(Array &&other) noexcept;
 
     Array& operator= (const Array &rhs);
-    Array& operator= (Array &&rhs);
+    Array& operator= (Array &&rhs) noexcept;
 
     ~Array();
 
 
-    bool IsEmpty() { return mSize == 0; }
-    Size GetSize() { return mSize; }
-    Size GetCapacity() { return mCapacity; }
+    bool IsEmpty() const { return mSize == 0; }
+    Size GetSize() const { return mSize; }
+    Size GetCapacity() const { return mCapacity; }
 
     void Clear();
     void Reserve(Size capacity);
@@ -53,6 +53,9 @@ public:
     void PopBack();
     template<typename... Args>
     T&   EmplaceBack(Args&&... args);
+    void Insert(Size pos, const T &value);
+    void Insert(Size pos, T &&value);
+    void Erase(Size pos);
 
     T*       Data() { return pData; }
     const T* Data() const { return pData; }
@@ -62,6 +65,9 @@ public:
     const T& Back() const;
     T&       operator[](Size idx);
     const T& operator[](Size idx) const;
+
+    bool operator== (const Array &rhs) const;
+    bool operator!= (const Array &rhs) const;
 
 
 private:
@@ -164,7 +170,7 @@ Array<T>::Array(const Array &other) : mSize {other.mSize}, mCapacity {other.mCap
 
 
 template<typename T>
-Array<T>::Array(Array &&other) : mSize {other.mSize}, mCapacity {other.mCapacity}, pData {other.pData} {
+Array<T>::Array(Array &&other) noexcept : mSize {other.mSize}, mCapacity {other.mCapacity}, pData {other.pData} {
 
     other.mSize = 0;
     other.mCapacity = 0;
@@ -191,7 +197,7 @@ Array<T>& Array<T>::operator= (const Array &rhs) {
 
 
 template<typename T>
-Array<T>& Array<T>::operator= (Array &&rhs) {
+Array<T>& Array<T>::operator= (Array &&rhs) noexcept {
 
     if (this != &rhs)
     {
@@ -336,6 +342,54 @@ T& Array<T>::EmplaceBack(Args&&... args) {
 
 
 template<typename T>
+void Array<T>::Insert(Size pos, const T &value) {
+
+    if (pos > mSize)
+    {
+        return;
+    }
+
+    PushBack(value);
+    for (Size i = mSize-1; i > pos; i--)
+    {
+        std::swap(pData[i], pData[i-1]);
+    }    
+}
+
+
+template<typename T>
+void Array<T>::Insert(Size pos, T &&value) {
+
+    if (pos > mSize)
+    {
+        return;
+    }
+
+    PushBack(std::move(value));
+    for (Size i = mSize-1; i > pos; i--)
+    {
+        std::swap(pData[i], pData[i-1]);
+    }
+}
+
+
+template<typename T>
+void Array<T>::Erase(Size pos) {
+
+    if (pos >= mSize)
+    {
+        return;
+    }
+
+    for (Size i = pos; i < mSize-1; i++)
+    {
+        std::swap(pData[i], pData[i+1]);
+    }
+    PopBack();
+}
+
+
+template<typename T>
 T& Array<T>::Front() {
 
     if (mSize == 0)
@@ -404,6 +458,33 @@ const T& Array<T>::operator[](Size idx) const {
     }    
 
     return pData[idx];
+}
+
+
+template<typename T>
+bool Array<T>::operator== (const Array &rhs) const {
+
+    if (mSize != rhs.GetSize())
+    {
+        return false;
+    }    
+
+    for (Size i = 0; i < mSize; i++)
+    {
+        if (pData[i] != rhs[i])
+        {
+            return false;
+        }        
+    }    
+
+    return true;
+}
+    
+
+template<typename T>    
+bool Array<T>::operator!= (const Array &rhs) const {
+
+    return !( *this == rhs );
 }
 
 
