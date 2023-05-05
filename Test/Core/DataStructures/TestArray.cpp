@@ -209,32 +209,32 @@ TEST_CASE("insert a new element", "[array]") {
         REQUIRE(arr.GetSize() == 3);
         REQUIRE(arr == Array<int>{1,3,2}); 
     }
-    // SECTION("insert outside array range does nothing")
-    // {
-    //     arr.Insert(3, 3);
-    //     REQUIRE(arr.GetCapacity() == 2);
-    //     REQUIRE(arr.GetSize() == 2);
-    //     REQUIRE(arr == Array<int>{1,2}); 
-    // }
+    SECTION("insert outside array range does nothing")
+    {
+        arr.Insert(3, 3);
+        REQUIRE(arr.GetCapacity() == 2);
+        REQUIRE(arr.GetSize() == 2);
+        REQUIRE(arr == Array<int>{1,2}); 
+    }
 }
 
-// TEST_CASE("erase an element", "[array]") {
+TEST_CASE("erase an element", "[array]") {
     
-//     Array<int> arr = {1,2,3};
+    Array<int> arr = {1,2,3};
 
-//     SECTION("erase inside array range")
-//     {
-//         arr.Erase(0);
+    SECTION("erase inside array range")
+    {
+        arr.Erase(0);
 
-//         REQUIRE(arr.GetCapacity() == 3);
-//         REQUIRE(arr.GetSize() == 2);
-//         REQUIRE(arr == Array<int>{2,3}); 
-//     }
-//     SECTION("erase outside array range does nothing")
-//     {
-//         arr.Erase(3);
-//         REQUIRE(arr.GetCapacity() == 3);
-//         REQUIRE(arr.GetSize() == 3);
-//         REQUIRE(arr == Array<int>{1,2,3}); 
-//     }
-// }
+        REQUIRE(arr.GetCapacity() == 3);
+        REQUIRE(arr.GetSize() == 2);
+        REQUIRE(arr == Array<int>{2,3}); 
+    }
+    SECTION("erase outside array range does nothing")
+    {
+        arr.Erase(3);
+        REQUIRE(arr.GetCapacity() == 3);
+        REQUIRE(arr.GetSize() == 3);
+        REQUIRE(arr == Array<int>{1,2,3}); 
+    }
+}

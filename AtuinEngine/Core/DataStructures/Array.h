@@ -36,6 +36,7 @@ public:
 
     Array& operator= (const Array &rhs);
     Array& operator= (Array &&rhs) noexcept;
+    Array& operator= (const std::initializer_list<T> &list);
 
     ~Array();
 
@@ -124,6 +125,7 @@ void Array<T>::Free() {
     }
 
     mCapacity = 0;
+    pData = nullptr;
 }
 
 
@@ -218,11 +220,25 @@ Array<T>& Array<T>::operator= (Array &&rhs) noexcept {
 
 
 template<typename T>
+Array<T>& Array<T>::operator= (const std::initializer_list<T> &list) {
+
+    Clear();
+    Free();
+    Allocate(mCapacity);
+    for(auto it = list.begin(); it != list.end(); it++)
+    {
+        PushBack(*it);
+    }
+
+    return *this;
+}
+
+
+template<typename T>
 Array<T>::~Array() {
 
     Clear();
     Free();
-    pData = nullptr;
 }
 
 
