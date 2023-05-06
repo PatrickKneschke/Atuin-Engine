@@ -5,6 +5,11 @@
 #include "Array.h"
 #include "Core/Util/Types.h"
 
+#include <algorithm>
+#include <initializer_list>
+#include <stdexcept>
+#include <utility>
+
 
 namespace Atuin {
 
@@ -26,6 +31,9 @@ public:
     Queue& operator= (const Queue &rhs);
     Queue& operator= (Queue &&rhs);
     Queue& operator= (const std::initializer_list<T> &list);
+
+    ~Queue() = default;
+    
 
     bool IsEmpty() const {return mSize == 0;}
     Size GetSize() const { return mSize; }
