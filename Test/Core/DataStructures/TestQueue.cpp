@@ -8,13 +8,13 @@ using namespace Atuin;
 
 TEST_CASE("create an empty queue", "[queue]") {
 
-    SECTION("queue of initila size zero")
+    SECTION("queue of initial size zero")
     {
         Queue<int> q1;
 
         REQUIRE(q1.GetSize() == 0);
     }
-    SECTION("queue with initil size")
+    SECTION("queue with initial size")
     {
         Queue<int> q2(5);
 
