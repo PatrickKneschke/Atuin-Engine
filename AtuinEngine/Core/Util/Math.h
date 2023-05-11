@@ -12,7 +12,7 @@ namespace Math {
 template<typename T>
 struct Less {
 
-    bool operator() (const T &a, const T &b) {
+    bool operator() (const T &a, const T &b) const {
 
         return a < b;
     }
@@ -22,7 +22,7 @@ struct Less {
 template<typename T>
 struct Greater {
 
-    bool operator() (const T &a, const T &b) {
+    bool operator() (const T &a, const T &b) const {
 
         return a > b;
     }

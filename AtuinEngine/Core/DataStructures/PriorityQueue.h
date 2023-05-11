@@ -15,7 +15,7 @@
 namespace Atuin {
 
 
-template<typename T, template<typename> class Compare = Math::Less>
+template<typename T, class Compare = Math::Less<T>>
 class PriorityQueue {
 
 public:
@@ -59,69 +59,69 @@ private:
 
 
     Array<T> mData;
-    Compare<T> mCompare;
+    Compare mCompare;
 };
 
 
-template<typename T, template<typename> class Compare>
+template<typename T,  class Compare>
 PriorityQueue<T,Compare>::PriorityQueue() : mData() {}
 
 
-template<typename T, template<typename> class Compare>
+template<typename T, class Compare>
 PriorityQueue<T,Compare>::PriorityQueue(Size capacity) : mData(capacity) {}
 
 
-template<typename T, template<typename> class Compare>
+template<typename T, class Compare>
 PriorityQueue<T,Compare>::PriorityQueue(const std::initializer_list<T> &list) : mData {list} {
 
     MakeHeap(0);
 }
 
 
-template<typename T, template<typename> class Compare>
+template<typename T, class Compare>
 PriorityQueue<T,Compare>::PriorityQueue(const Array<T> &array) : mData {array} {
 
     MakeHeap(0);
 }
 
 
-template<typename T, template<typename> class Compare>
+template<typename T, class Compare>
 PriorityQueue<T,Compare>::PriorityQueue(Array<T> &&array) : mData {std::move(array)} {
 
     MakeHeap(0);
 }
 
 
-template<typename T, template<typename> class Compare>
+template<typename T, class Compare>
 PriorityQueue<T,Compare>::PriorityQueue(const PriorityQueue<T,Compare> &other) : mData {other.mData} {}
 
 
-template<typename T, template<typename> class Compare>
+template<typename T, class Compare>
 PriorityQueue<T,Compare>::PriorityQueue(PriorityQueue<T,Compare> &&other) : mData {std::move(other.mData)} {}
 
 
-template<typename T, template<typename> class Compare>
+template<typename T, class Compare>
 PriorityQueue<T,Compare>& PriorityQueue<T,Compare>::operator= (const PriorityQueue<T, Compare> &other) {
 
     mData = other.mData;
 }
 
 
-template<typename T, template<typename> class Compare>
+template<typename T, class Compare>
 PriorityQueue<T,Compare>& PriorityQueue<T,Compare>::operator= (PriorityQueue<T, Compare> &&other) {
 
     mData = std::move(other.Data);
 }
 
 
-template<typename T, template<typename> class Compare>
+template<typename T, class Compare>
 PriorityQueue<T,Compare>& PriorityQueue<T,Compare>::operator= (const std::initializer_list<T> &list) {
 
     mData = list;
 }
 
 
-template<typename T, template<typename> class Compare>
+template<typename T, class Compare>
 void PriorityQueue<T,Compare>::Push(const T &value) {
 
     mData.PushBack(value);
@@ -129,7 +129,7 @@ void PriorityQueue<T,Compare>::Push(const T &value) {
 }
     
     
-template<typename T, template<typename> class Compare>
+template<typename T, class Compare>
 void PriorityQueue<T,Compare>::Push(T &&value) {
 
     mData.PushBack( std::move(value) );
@@ -137,7 +137,7 @@ void PriorityQueue<T,Compare>::Push(T &&value) {
 }
     
     
-template<typename T, template<typename> class Compare>
+template<typename T, class Compare>
 void PriorityQueue<T,Compare>::Pop() {
 
     std::swap( mData.Front(), mData.Back() );
@@ -146,7 +146,7 @@ void PriorityQueue<T,Compare>::Pop() {
 }
 
 
-template<typename T, template<typename> class Compare>
+template<typename T, class Compare>
 template<typename... Args>
 void PriorityQueue<T,Compare>::Emplace(Args&&... args) {
 
@@ -155,7 +155,7 @@ void PriorityQueue<T,Compare>::Emplace(Args&&... args) {
 }
 
 
-template<typename T, template<typename> class Compare>
+template<typename T, class Compare>
 T& PriorityQueue<T,Compare>::Top() {
 
     if ( mData.IsEmpty() )
@@ -167,7 +167,7 @@ T& PriorityQueue<T,Compare>::Top() {
 }
 
 
-template<typename T, template<typename> class Compare>
+template<typename T, class Compare>
 const T& PriorityQueue<T,Compare>::Top() const {
 
     if ( mData.IsEmpty() )
@@ -179,7 +179,7 @@ const T& PriorityQueue<T,Compare>::Top() const {
 }
 
 
-template<typename T, template<typename> class Compare>
+template<typename T, class Compare>
 void PriorityQueue<T,Compare>::MakeHeap(Size rootIdx) {
 
     Size left = Left(rootIdx);
@@ -202,28 +202,28 @@ void PriorityQueue<T,Compare>::MakeHeap(Size rootIdx) {
 }
 
 
-template<typename T, template<typename> class Compare>
+template<typename T, class Compare>
 Size PriorityQueue<T,Compare>::Parent(Size idx) {
 
     return (idx - 1) / 2;
 }
 
 
-template<typename T, template<typename> class Compare>
+template<typename T, class Compare>
 Size PriorityQueue<T,Compare>::Left(Size idx) {
 
     return 2 * idx + 1;
 }
 
 
-template<typename T, template<typename> class Compare>
+template<typename T, class Compare>
 Size PriorityQueue<T,Compare>::Right(Size idx) {
 
     return 2 * idx + 2;
 }
 
 
-template<typename T, template<typename> class Compare>
+template<typename T, class Compare>
 void PriorityQueue<T,Compare>::PushToTop(Size idx) {
 
     Size parent = Parent(idx);
