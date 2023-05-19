@@ -11,6 +11,8 @@
 namespace Atuin {
 
 
+/* @brief Single producer, multiple consumer queue. Push/Pop are LIFO local to one thread, Steal is FIFO across multiple threads.
+ */
 template<typename T>
 class ConcurrentQueue {
 
@@ -58,7 +60,7 @@ void ConcurrentQueue<T>::Push(const T &value) {
 
     Size tail = mTail.load(std::memory_order_relaxed);
     mData[ Math::ModuloPowerOfTwo(tail, mCapacity) ] = value;
-    mTail.fetch_add(1);
+    mTail.fetch_add(1, std::memory_order_release);
 }
 
 
@@ -96,7 +98,7 @@ bool ConcurrentQueue<T>::Pop(T &out) {
 template<typename T>
 bool ConcurrentQueue<T>::Steal(T &out) {
 
-    Size head = mHead.load();
+    Size head = mHead.load(std::memory_order_acquire);
     Size tail = mTail.load(std::memory_order_relaxed);
 
     // queue is empty
