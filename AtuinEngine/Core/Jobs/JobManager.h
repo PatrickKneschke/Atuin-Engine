@@ -15,9 +15,6 @@
 namespace Atuin {
 
 
-class EngineLoop;
-
-
 using JobID = int64_t;
 using Task  = std::function<void(void *data)>;
 
@@ -31,11 +28,13 @@ struct Job {
 };
 
 
+class EngineLoop;
+
 class JobManager {
 
 public:
 
-    JobManager(Size numThreads = 0, EngineLoop *engine);
+    JobManager(EngineLoop *engine, Size numThreads = 0);
     ~JobManager();
 
 
@@ -52,8 +51,10 @@ private:
     static CVar<U8>* pMaxFibersOnThread;
     static CVar<Size>* pMaxJobsPerFrame;
 
+    static thread_local Size gThreadID;
 
-    void WorkerThread();
+
+    void WorkerThread(Size threadID);
     ConcurrentQueue<JobID>* GetWorkerQueue();
     JobID GetJob();
     void ExecuteJob(JobID id);
@@ -61,13 +62,15 @@ private:
     bool IsFinished(JobID id);
     
 
+    std::atomic_bool mActive;
+
     std::atomic<JobID> mNumJobs;
     Array<Job> mJobs;
 
-
-    std::atomic_bool mActive;
     Size mNumThreads;
     Array<std::thread> mThreads;
+
+    std::atomic<Size> mCurrQueue;
     Array<ConcurrentQueue<JobID>> mJobQueues;
 
     EngineLoop* pEngine;

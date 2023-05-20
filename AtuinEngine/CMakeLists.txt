@@ -16,6 +16,7 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE Debug 
     PRIVATE Memory 
     PRIVATE DataStructures
+    PRIVATE Jobs 
 )
 
 # copy config file to binary directory

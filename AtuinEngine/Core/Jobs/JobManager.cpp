@@ -12,24 +12,20 @@ CVar<U8>* JobManager::pMaxFibersOnThread = ConfigManager::RegisterCVar("Multithr
 CVar<Size>* JobManager::pMaxJobsPerFrame = ConfigManager::RegisterCVar("Multithreading", "MAX_JOBS_PER_FRAME", (Size)4096);
 
 
-JobManager::JobManager(Size numThreads, EngineLoop *engine) : 
+JobManager::JobManager(EngineLoop *engine, Size numThreads) : 
+    mActive {false},
     mNumJobs {0}, 
     mJobs( pMaxJobsPerFrame->Get() ), 
-    mActive {false},
     mNumThreads {numThreads}, 
+    mCurrQueue {0}, 
     pEngine {engine} 
 {
     if (mNumThreads == 0)
     {
         mNumThreads = std::max(std::thread::hardware_concurrency(), 2u) - 1u;
     }
-
-
+    mThreads.Reserve(mNumThreads);
     mJobQueues.Reserve(mNumThreads);
-    for (Size i = 0; i < mNumThreads; i++)
-    {
-        mJobQueues.EmplaceBack( pMaxJobsPerFrame->Get() );
-    } 
 }
 
 
@@ -39,13 +35,18 @@ JobManager::~JobManager() {
 
 
 void JobManager::StartUp() {
+
+    for (Size i = 0; i < mNumThreads; i++)
+    {
+        mJobQueues.EmplaceBack( pMaxJobsPerFrame->Get() );
+    } 
     
     mActive.store(true);
     try
     {
         for (Size i = 0; i < mNumThreads; i++)
         {
-            mThreads.EmplaceBack(&JobManager::WorkerThread, this);
+            mThreads.EmplaceBack(&JobManager::WorkerThread, this, i);
         }        
     }
     catch(const std::exception& e)
@@ -71,7 +72,9 @@ void JobManager::ShutDown() {
 }
 
 
-void JobManager::WorkerThread() {
+void JobManager::WorkerThread(Size threadID) {
+
+    gThreadID = threadID;
 
     // when using fibers
     // also wrap below code in a fiber and detach, mFibersPerThread - 1 times
@@ -90,8 +93,9 @@ void JobManager::WorkerThread() {
     
 ConcurrentQueue<JobID>* JobManager::GetWorkerQueue() {
 
-    //get one of the worker thread queues
-    // at random?
+    Size currQueue = mCurrQueue.fetch_add(1, std::memory_order_relaxed);
+
+    return &mJobQueues[currQueue];
 }
 
 
@@ -108,14 +112,14 @@ JobID JobManager::CreateJob(Task task, void *jobData, JobID parent) {
 }
 
 
-void  JobManager::Run(JobID id) {
+void JobManager::Run(JobID id) {
 
     auto queue = GetWorkerQueue();
     queue->Push(id);
 }
 
 
-void  JobManager::Wait(JobID id) {
+void JobManager::Wait(JobID id) {
 
     while (!IsFinished(id))
     {
@@ -130,9 +134,20 @@ void  JobManager::Wait(JobID id) {
 
 JobID JobManager::GetJob() {
 
-    // try pop
-    // pick random other queue
-    // try steal
+    JobID id;
+
+    if (mJobQueues[gThreadID].Pop(id))
+    {
+        return id;
+    }
+
+    Size otherThreadID = (gThreadID + 1 + rand() % (mNumThreads - 1)) % mNumThreads;
+    if (mJobQueues[otherThreadID].Steal(id))
+    {
+        return id;
+    }
+
+    return -1;
 }
 
 
