@@ -17,7 +17,9 @@ JobManager::JobManager(EngineLoop *engine, Size numThreads) :
     mNumJobs {0}, 
     mJobs( pMaxJobsPerFrame->Get() ), 
     mNumThreads {numThreads}, 
-    mCurrQueue {0}, 
+    mThreads {}, 
+    mCurrQueue {0},
+    mJobQueues {},  
     pEngine {engine} 
 {
     if (mNumThreads == 0)

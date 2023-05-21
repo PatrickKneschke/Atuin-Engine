@@ -265,7 +265,7 @@ void Array<T>::Reserve(Size capacity) {
     Array<T> temp(capacity);
     for (Size i = 0; i < mSize; i++)
     {
-        temp.PushBack(pData[i]);
+        temp.PushBack( std::move(pData[i]) );
     }
     
     *this = std::move(temp);

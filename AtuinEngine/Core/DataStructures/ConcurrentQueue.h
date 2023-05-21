@@ -59,8 +59,8 @@ template<typename T>
 ConcurrentQueue<T>::ConcurrentQueue(ConcurrentQueue &&other) {
 
     mData = std::move(other.mData);
-    mHead = std::move(other.mHead);
-    mTail = std::move(other.mtail);
+    mHead = other.mHead.load(std::memory_order_relaxed);
+    mTail = other.mTail.load(std::memory_order_relaxed);
     mCapacity = other.mCapacity;
 }
 
@@ -69,9 +69,11 @@ template<typename T>
 ConcurrentQueue<T>& ConcurrentQueue<T>::operator= (ConcurrentQueue &&other) {
 
     mData = std::move(other.mData);
-    mHead = std::move(other.mHead);
-    mTail = std::move(other.mtail);
+    mHead = other.mHead.load(std::memory_order_relaxed);
+    mTail = other.mTail.load(std::memory_order_relaxed);
     mCapacity = other.mCapacity;
+
+    return *this;
 }
 
 
