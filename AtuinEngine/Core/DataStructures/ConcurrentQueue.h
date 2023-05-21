@@ -22,10 +22,10 @@ public:
     ConcurrentQueue(Size capacity);
     
     ConcurrentQueue(const ConcurrentQueue &other) = delete;
-    ConcurrentQueue(ConcurrentQueue &&other) = delete;
+    ConcurrentQueue(ConcurrentQueue &&other);
     
     ConcurrentQueue& operator= (const ConcurrentQueue &rhs) = delete;
-    ConcurrentQueue& operator= (ConcurrentQueue &&rhs) = delete;
+    ConcurrentQueue& operator= (ConcurrentQueue &&rhs);
 
     ~ConcurrentQueue() = default;
 
@@ -52,6 +52,26 @@ template<typename T>
 ConcurrentQueue<T>::ConcurrentQueue(Size capacity) : mData(capacity), mHead {0}, mTail {0}, mCapacity {capacity} {
 
     mData.Resize(capacity);
+}
+
+
+template<typename T>
+ConcurrentQueue<T>::ConcurrentQueue(ConcurrentQueue &&other) {
+
+    mData = std::move(other.mData);
+    mHead = std::move(other.mHead);
+    mTail = std::move(other.mtail);
+    mCapacity = other.mCapacity;
+}
+
+
+template<typename T>
+ConcurrentQueue<T>& ConcurrentQueue<T>::operator= (ConcurrentQueue &&other) {
+
+    mData = std::move(other.mData);
+    mHead = std::move(other.mHead);
+    mTail = std::move(other.mtail);
+    mCapacity = other.mCapacity;
 }
 
 
