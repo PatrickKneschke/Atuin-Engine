@@ -2,6 +2,7 @@
 #include "EngineLoop.h"
 #include "Core/Config/ConfigManager.h"
 #include "Core/Files/FileManager.h"
+#include "Core/Jobs/JobManager.h"
 #include "Core/Debug/Logger.h"
 #include "Core/Memory/MemoryManager.h"
 #include "Core/Util/StringFormat.h"
@@ -18,7 +19,6 @@ CVar<U32>* EngineLoop::pMaxSimPerFrame   = ConfigManager::RegisterCVar("Engine L
 
 EngineLoop::EngineLoop() : mRunning {false} {
 
-    // TODO allocate on memory manager instead
     pFiles = new FileManager(this);
     pConfig = new ConfigManager(this);
     pLogger = new Logger(this);
@@ -28,6 +28,7 @@ EngineLoop::EngineLoop() : mRunning {false} {
     pConfig->Read("AtuinEngine/config.ini");
 
     pMemory = new MemoryManager(this);
+    pJobs = new JobManager(this);
 }
 
 
@@ -38,6 +39,7 @@ EngineLoop::~EngineLoop() {
     delete pConfig;
     delete pFiles;
     delete pMemory;
+    delete pJobs;
 }
 
 
@@ -64,6 +66,7 @@ void EngineLoop::Run() {
 void EngineLoop::StartUp() {
 
     pLogger->StartUp();
+    pJobs->StartUp();
 
     gameClock.Start();
     mRunning = true;
@@ -74,7 +77,7 @@ void EngineLoop::ShutDown() {
 
     pConfig->Save();
     pLogger->ShutDown();
-
+    pJobs->ShutDown();
 }
 
 

@@ -5,11 +5,16 @@
 #include "Core/Debug/Logger.h"
 
 
+using namespace std::chrono_literals;
+
 namespace Atuin {
  
 
 CVar<U8>* JobManager::pMaxFibersOnThread = ConfigManager::RegisterCVar("Multithreading", "MAX_FIBERS_ON_THREAD", (U8)16);
 CVar<Size>* JobManager::pMaxJobsPerFrame = ConfigManager::RegisterCVar("Multithreading", "MAX_JOBS_PER_FRAME", (Size)4096);
+
+
+thread_local Size JobManager::sThreadID = 0;
 
 
 JobManager::JobManager(EngineLoop *engine, Size numThreads) : 
@@ -41,8 +46,8 @@ void JobManager::StartUp() {
     for (Size i = 0; i < mNumThreads; i++)
     {
         mJobQueues.EmplaceBack( pMaxJobsPerFrame->Get() );
-    } 
-    
+    }
+
     mActive.store(true);
     try
     {
@@ -56,7 +61,6 @@ void JobManager::StartUp() {
         ShutDown();
         pEngine->Log()->Error(LogChannel::GENERAL, e.what());
     }
-    
 }
 
 
@@ -69,25 +73,28 @@ void JobManager::ShutDown() {
         {
             mThreads[i].join();
         }
-    }
-    
+    }    
 }
 
 
 void JobManager::WorkerThread(Size threadID) {
 
-    gThreadID = threadID;
+    sThreadID = threadID;
 
     // when using fibers
     // also wrap below code in a fiber and detach, mFibersPerThread - 1 times
 
-    JobID jobId;
+    JobID jobId = -1;
     while (mActive.load(std::memory_order_relaxed))
     {
         jobId = GetJob();
         if (jobId >= 0)
         {
             ExecuteJob(jobId);
+        }
+        else
+        {
+            std::this_thread::sleep_for(1000ms);
         }
     }
 }
@@ -138,12 +145,12 @@ JobID JobManager::GetJob() {
 
     JobID id;
 
-    if (mJobQueues[gThreadID].Pop(id))
+    if (mJobQueues[sThreadID].Pop(id))
     {
         return id;
     }
 
-    Size otherThreadID = (gThreadID + 1 + rand() % (mNumThreads - 1)) % mNumThreads;
+    Size otherThreadID = (sThreadID + 1 + rand() % (mNumThreads - 1)) % mNumThreads;
     if (mJobQueues[otherThreadID].Steal(id))
     {
         return id;

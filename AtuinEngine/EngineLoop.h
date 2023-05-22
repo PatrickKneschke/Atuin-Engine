@@ -13,6 +13,7 @@ class ConfigManager;
 class FileManager;
 class Logger;
 class MemoryManager;
+class JobManager;
 
 class EngineLoop {
 
@@ -38,6 +39,7 @@ public:
     FileManager*    Files() const { return pFiles; }
     Logger*         Log() const  { return pLogger; }
     MemoryManager*  Memory() const { return pMemory; }
+    JobManager*     Jobs() const { return pJobs; }
 
 
 private:
@@ -54,6 +56,7 @@ private:
     FileManager*    pFiles;
     Logger*         pLogger;
     MemoryManager*  pMemory;
+    JobManager*     pJobs;
 };
 
 

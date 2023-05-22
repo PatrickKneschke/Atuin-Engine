@@ -51,7 +51,7 @@ private:
     static CVar<U8>* pMaxFibersOnThread;
     static CVar<Size>* pMaxJobsPerFrame;
 
-    static thread_local Size gThreadID;
+    static thread_local Size sThreadID;
 
 
     void WorkerThread(Size threadID);

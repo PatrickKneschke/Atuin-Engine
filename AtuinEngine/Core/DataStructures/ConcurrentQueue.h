@@ -7,6 +7,8 @@
 
 #include <atomic>
 
+#include <iostream>
+
 
 namespace Atuin {
 
@@ -30,7 +32,7 @@ public:
     ~ConcurrentQueue() = default;
 
 
-    bool IsEmpty() const { return mHead == mTail - 1; }
+    bool IsEmpty() const { return mHead == mTail; }
     Size GetSize() const { return mTail - mHead; }
     Size GetCapacity() const { return mCapacity; }
 
@@ -49,7 +51,7 @@ private:
 
 
 template<typename T>
-ConcurrentQueue<T>::ConcurrentQueue(Size capacity) : mData(capacity), mHead {0}, mTail {0}, mCapacity {capacity} {
+ConcurrentQueue<T>::ConcurrentQueue(Size capacity) : mData(capacity), mHead {1}, mTail {1}, mCapacity {capacity} {
 
     mData.Resize(capacity);
 }
@@ -91,6 +93,8 @@ bool ConcurrentQueue<T>::Pop(T &out) {
 
     Size tail = mTail.fetch_sub(1) - 1;
     Size head = mHead.load(std::memory_order_relaxed);
+
+    std::cout << head << "  " << tail << '\n';
 
     // queue is empty -> reset tail to empty state
     if (head > tail)
