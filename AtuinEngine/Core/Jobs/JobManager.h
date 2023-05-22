@@ -55,7 +55,6 @@ private:
 
 
     void WorkerThread(Size threadID);
-    ConcurrentQueue<JobID>* GetWorkerQueue();
     JobID GetJob();
     void ExecuteJob(JobID id);
     void FinishJob(JobID id);
@@ -69,8 +68,6 @@ private:
 
     Size mNumThreads;
     Array<std::thread> mThreads;
-
-    std::atomic<Size> mCurrQueue;
     Array<ConcurrentQueue<JobID>> mJobQueues;
 
     EngineLoop* pEngine;

@@ -94,8 +94,6 @@ bool ConcurrentQueue<T>::Pop(T &out) {
     Size tail = mTail.fetch_sub(1) - 1;
     Size head = mHead.load(std::memory_order_relaxed);
 
-    std::cout << head << "  " << tail << '\n';
-
     // queue is empty -> reset tail to empty state
     if (head > tail)
     {

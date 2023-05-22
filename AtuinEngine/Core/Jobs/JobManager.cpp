@@ -22,8 +22,7 @@ JobManager::JobManager(EngineLoop *engine, Size numThreads) :
     mNumJobs {0}, 
     mJobs( pMaxJobsPerFrame->Get() ), 
     mNumThreads {numThreads}, 
-    mThreads {}, 
-    mCurrQueue {0},
+    mThreads {},
     mJobQueues {},  
     pEngine {engine} 
 {
@@ -32,7 +31,7 @@ JobManager::JobManager(EngineLoop *engine, Size numThreads) :
         mNumThreads = std::max(std::thread::hardware_concurrency(), 2u) - 1u;
     }
     mThreads.Reserve(mNumThreads);
-    mJobQueues.Reserve(mNumThreads);
+    mJobQueues.Reserve(mNumThreads+1);
 }
 
 
@@ -43,7 +42,7 @@ JobManager::~JobManager() {
 
 void JobManager::StartUp() {
 
-    for (Size i = 0; i < mNumThreads; i++)
+    for (Size i = 0; i <= mNumThreads; i++)
     {
         mJobQueues.EmplaceBack( pMaxJobsPerFrame->Get() );
     }
@@ -61,6 +60,9 @@ void JobManager::StartUp() {
         ShutDown();
         pEngine->Log()->Error(LogChannel::GENERAL, e.what());
     }
+
+    // main thread is is num threads -> last queue in array
+    sThreadID = mNumThreads;
 }
 
 
@@ -99,14 +101,6 @@ void JobManager::WorkerThread(Size threadID) {
     }
 }
 
-    
-ConcurrentQueue<JobID>* JobManager::GetWorkerQueue() {
-
-    Size currQueue = mCurrQueue.fetch_add(1, std::memory_order_relaxed);
-
-    return &mJobQueues[currQueue];
-}
-
 
 JobID JobManager::CreateJob(Task task, void *jobData, JobID parent) {
 
@@ -123,8 +117,7 @@ JobID JobManager::CreateJob(Task task, void *jobData, JobID parent) {
 
 void JobManager::Run(JobID id) {
 
-    auto queue = GetWorkerQueue();
-    queue->Push(id);
+    mJobQueues[sThreadID].Push(id);
 }
 
 
@@ -150,7 +143,7 @@ JobID JobManager::GetJob() {
         return id;
     }
 
-    Size otherThreadID = (sThreadID + 1 + rand() % (mNumThreads - 1)) % mNumThreads;
+    Size otherThreadID = (sThreadID + 1 + rand() % mNumThreads) % (mNumThreads + 1);
     if (mJobQueues[otherThreadID].Steal(id))
     {
         return id;
