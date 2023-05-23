@@ -262,13 +262,19 @@ void Array<T>::Reserve(Size capacity) {
         return;
     }
 
-    Array<T> temp(capacity);
-    for (Size i = 0; i < mSize; i++)
+    if constexpr (!std::is_copy_assignable_v<T> && !std::is_move_assignable_v<T>)
     {
-        temp.PushBack( std::move(pData[i]) );
+        throw std::logic_error("Cannot reserve more space for array of non-copyable, non-movable type.");
     }
-    
-    *this = std::move(temp);
+    else
+    {
+        Array<T> temp(capacity);
+        for (Size i = 0; i < mSize; i++)
+        {
+            temp.PushBack( std::move(pData[i]) );
+        }
+        *this = std::move(temp);
+    }
 }
 
 

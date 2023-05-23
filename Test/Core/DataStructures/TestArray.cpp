@@ -125,6 +125,20 @@ TEST_CASE("reserve array space", "[array]") {
         REQUIRE(arr.GetCapacity() == 5);
         REQUIRE(arr.GetSize() == 3);
     }
+    SECTION("reserve more space for non-copyable, non-movable type")
+    {
+        struct NoCopyOrMove {
+            int i;
+            NoCopyOrMove(int i_) : i {i_} {}
+            NoCopyOrMove(const NoCopyOrMove&) = delete;
+            NoCopyOrMove(NoCopyOrMove&&) = delete;
+            NoCopyOrMove& operator= (const NoCopyOrMove&) = delete;
+            NoCopyOrMove& operator= (NoCopyOrMove&&) = delete;
+        };
+
+        Array<NoCopyOrMove> arr2(1);
+        REQUIRE_THROWS(arr2.Reserve(2));
+    }
 }
 
 TEST_CASE("resize an array", "[array]") {
