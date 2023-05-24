@@ -224,7 +224,7 @@ Array<T>& Array<T>::operator= (const std::initializer_list<T> &list) {
 
     Clear();
     Free();
-    Allocate(mCapacity);
+    Allocate(list.size());
     for(auto it = list.begin(); it != list.end(); it++)
     {
         PushBack(*it);

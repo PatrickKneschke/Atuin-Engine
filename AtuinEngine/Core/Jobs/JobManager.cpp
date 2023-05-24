@@ -5,12 +5,10 @@
 #include "Core/Debug/Logger.h"
 
 
-using namespace std::chrono_literals;
-
 namespace Atuin {
  
 
-CVar<U8>* JobManager::pMaxFibersOnThread = ConfigManager::RegisterCVar("Multithreading", "MAX_FIBERS_ON_THREAD", (U8)16);
+// CVar<U8>* JobManager::pMaxFibersOnThread = ConfigManager::RegisterCVar("Multithreading", "MAX_FIBERS_ON_THREAD", (U8)16);
 CVar<Size>* JobManager::pMaxJobsPerFrame = ConfigManager::RegisterCVar("Multithreading", "MAX_JOBS_PER_FRAME", (Size)4096);
 
 
@@ -23,15 +21,16 @@ JobManager::JobManager(EngineLoop *engine, Size numThreads) :
     mJobs( pMaxJobsPerFrame->Get() ), 
     mNumThreads {numThreads}, 
     mThreads {},
-    mJobQueues {},  
+    mJobQueues {},
     pEngine {engine} 
 {
+    // allocate thread and job queue arrays
     if (mNumThreads == 0)
     {
         mNumThreads = std::max(std::thread::hardware_concurrency(), 2u) - 1u;
     }
     mThreads.Reserve(mNumThreads);
-    mJobQueues.Reserve(mNumThreads+1);
+    mJobQueues.Reserve(mNumThreads + 1);
 }
 
 
@@ -42,11 +41,19 @@ JobManager::~JobManager() {
 
 void JobManager::StartUp() {
 
+    // create empty jobs in job array
+    for (Size i = 0; i < mJobs.GetCapacity(); i++)
+    {
+        mJobs.EmplaceBack();
+    }
+
+    // create job queues
     for (Size i = 0; i <= mNumThreads; i++)
     {
         mJobQueues.EmplaceBack( pMaxJobsPerFrame->Get() );
     }
 
+    // create worker threads
     mActive.store(true);
     try
     {
@@ -61,7 +68,7 @@ void JobManager::StartUp() {
         pEngine->Log()->Error(LogChannel::GENERAL, e.what());
     }
 
-    // main thread is is num threads -> last queue in array
+    // main thread has the last queue in the array
     sThreadID = mNumThreads;
 }
 
@@ -69,6 +76,7 @@ void JobManager::StartUp() {
 void JobManager::ShutDown() {
 
     mActive.store(false);
+    mJobsReadyCV.notify_all();
     for (Size i = 0; i < mNumThreads; i++)
     {
         if (mThreads[i].joinable())
@@ -96,7 +104,8 @@ void JobManager::WorkerThread(Size threadID) {
         }
         else
         {
-            std::this_thread::sleep_for(1000ms);
+            std::unique_lock<std::mutex> lock(mJobsReadyLock);
+            mJobsReadyCV.wait(lock); 
         }
     }
 }
@@ -104,12 +113,17 @@ void JobManager::WorkerThread(Size threadID) {
 
 JobID JobManager::CreateJob(Task task, void *jobData, JobID parent) {
 
-    JobID id = mNumJobs.fetch_add(1, std::memory_order_relaxed);
+    JobID id = Math::ModuloPowerOfTwo( mNumJobs.fetch_add(1, std::memory_order_relaxed) , mJobs.GetCapacity());
 
     mJobs[id].task = task;
     mJobs[id].data = jobData;
     mJobs[id].parent = parent;
     mJobs[id].unfinishedCount = 1;
+
+    if (parent >= 0) 
+    {
+        ++mJobs[parent].unfinishedCount;
+    }
 
     return id;
 }
@@ -118,6 +132,7 @@ JobID JobManager::CreateJob(Task task, void *jobData, JobID parent) {
 void JobManager::Run(JobID id) {
 
     mJobQueues[sThreadID].Push(id);
+    mJobsReadyCV.notify_all();
 }
 
 
@@ -143,12 +158,22 @@ JobID JobManager::GetJob() {
         return id;
     }
 
-    Size otherThreadID = (sThreadID + 1 + rand() % mNumThreads) % (mNumThreads + 1);
-    if (mJobQueues[otherThreadID].Steal(id))
-    {
-        return id;
-    }
 
+    // // Size otherThreadID = (sThreadID + 1 + rand() % mNumThreads) % (mNumThreads + 1);
+    // if (mJobQueues[otherThreadID].Steal(id))
+    // {
+    //     return id;
+    // }
+
+
+    for (Size i = 1; i<=mNumThreads; i++)
+    {
+        if (mJobQueues[ (sThreadID + i) % (mNumThreads + 1) ].Steal(id))
+        {
+            return id;
+        }
+    }
+    
     return -1;
 }
 

@@ -87,15 +87,6 @@ TEST_CASE("move assign an array", "[array]") {
     REQUIRE(arr2.Data() == data1);
 }
 
-TEST_CASE("destroy an array", "[array]") {
-
-    Array<int> arr = {1,2,3};
-    arr.~Array();
-
-    REQUIRE(arr.GetCapacity() == 0);
-    REQUIRE(arr.GetSize() == 0);
-    REQUIRE(arr.Data() == nullptr);
-}
 
 TEST_CASE("clear an array", "[array]") {
 

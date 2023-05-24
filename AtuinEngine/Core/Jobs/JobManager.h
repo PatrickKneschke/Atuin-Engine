@@ -7,8 +7,10 @@
 #include "Core/DataStructures/Array.h"
 #include "Core/DataStructures/ConcurrentQueue.h"
 
-#include <boost/fiber/all.hpp>
+// #include <boost/fiber/all.hpp>
+#include <condition_variable>
 #include <functional>
+#include <mutex>
 #include <thread>
 
 
@@ -17,6 +19,12 @@ namespace Atuin {
 
 using JobID = int64_t;
 using Task  = std::function<void(void *data)>;
+
+
+class EngineLoop;
+
+class JobManager {
+
 
 struct Job {
 
@@ -27,10 +35,6 @@ struct Job {
     Byte padding[64 - sizeof(Task) - sizeof(JobID) - sizeof(unfinishedCount) - sizeof(void*)];
 };
 
-
-class EngineLoop;
-
-class JobManager {
 
 public:
 
@@ -48,7 +52,7 @@ public:
 
 private:
 
-    static CVar<U8>* pMaxFibersOnThread;
+    // static CVar<U8>* pMaxFibersOnThread;
     static CVar<Size>* pMaxJobsPerFrame;
 
     static thread_local Size sThreadID;
@@ -69,6 +73,10 @@ private:
     Size mNumThreads;
     Array<std::thread> mThreads;
     Array<ConcurrentQueue<JobID>> mJobQueues;
+
+    std::condition_variable mJobsReadyCV;
+    std::mutex mJobsReadyLock;
+    
 
     EngineLoop* pEngine;
 };
