@@ -105,7 +105,7 @@ void JobManager::WorkerThread(Size threadID) {
         else
         {
             std::unique_lock<std::mutex> lock(mJobsReadyLock);
-            mJobsReadyCV.wait(lock); 
+            mJobsReadyCV.wait(lock);
         }
     }
 }
@@ -118,11 +118,11 @@ JobID JobManager::CreateJob(Task task, void *jobData, JobID parent) {
     mJobs[id].task = task;
     mJobs[id].data = jobData;
     mJobs[id].parent = parent;
-    mJobs[id].unfinishedCount = 1;
+    mJobs[id].unfinishedCount.store(1, std::memory_order_relaxed);
 
     if (parent >= 0) 
     {
-        ++mJobs[parent].unfinishedCount;
+        mJobs[parent].unfinishedCount.fetch_add(1, std::memory_order_relaxed);
     }
 
     return id;
@@ -140,6 +140,10 @@ void JobManager::Wait(JobID id) {
 
     while (!IsFinished(id))
     {
+        
+        std::cout << mJobs[id].unfinishedCount.load(std::memory_order_relaxed) << " ";
+        
+
         JobID jobId = GetJob();
         if (jobId >= 0)
         {
@@ -157,14 +161,6 @@ JobID JobManager::GetJob() {
     {
         return id;
     }
-
-
-    // // Size otherThreadID = (sThreadID + 1 + rand() % mNumThreads) % (mNumThreads + 1);
-    // if (mJobQueues[otherThreadID].Steal(id))
-    // {
-    //     return id;
-    // }
-
 
     for (Size i = 1; i<=mNumThreads; i++)
     {
@@ -187,9 +183,9 @@ void JobManager::ExecuteJob(JobID id) {
 
 void JobManager::FinishJob(JobID id) {
 
-    U32 unfinished = mJobs[id].unfinishedCount.fetch_sub(1, std::memory_order_relaxed) - 1;
-    if (unfinished == 0 && mJobs[id].parent >= 0)
-    {
+    U32 count = mJobs[id].unfinishedCount.fetch_sub(1, std::memory_order_relaxed);
+    if (count == 1 && mJobs[id].parent >= 0)
+    {      
         FinishJob(mJobs[id].parent);
     }
 }
