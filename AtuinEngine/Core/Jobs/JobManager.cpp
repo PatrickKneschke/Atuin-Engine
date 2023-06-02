@@ -140,10 +140,6 @@ void JobManager::Wait(JobID id) {
 
     while (!IsFinished(id))
     {
-        
-        std::cout << mJobs[id].unfinishedCount.load(std::memory_order_relaxed) << " ";
-        
-
         JobID jobId = GetJob();
         if (jobId >= 0)
         {
