@@ -14,6 +14,7 @@ class FileManager;
 class Logger;
 class MemoryManager;
 class JobManager;
+class WindowModule;
 
 class EngineLoop {
 
@@ -51,12 +52,15 @@ private:
     bool mRunning;
     Clock mGameClock;
 
-    // engine modules
+    // engine systems
     ConfigManager*  pConfig;
     FileManager*    pFiles;
     Logger*         pLogger;
     MemoryManager*  pMemory;
     JobManager*     pJobs;
+
+    // engine modules
+    WindowModule*   pWindowModule;
 };
 
 

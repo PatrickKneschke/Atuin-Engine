@@ -6,6 +6,7 @@
 #include "Core/Debug/Logger.h"
 #include "Core/Memory/MemoryManager.h"
 #include "Core/Util/StringFormat.h"
+#include "Graphics/WindowModule.h"
 
 #include <iostream>
 
@@ -29,10 +30,14 @@ EngineLoop::EngineLoop() : mRunning {false} {
 
     pMemory = new MemoryManager(this);
     pJobs = new JobManager(this);
+
+    pWindowModule = pMemory->New<WindowModule>();
 }
 
 
 EngineLoop::~EngineLoop() {
+
+    pMemory->Delete(pWindowModule);
 
     // TODO call dtors before deleting memomy manager
     delete pLogger;
@@ -67,12 +72,16 @@ void EngineLoop::StartUp() {
     pLogger->StartUp();
     pJobs->StartUp();
 
+    pWindowModule->StartUp();
+
     mGameClock.Start();
     mRunning = true;
 }
 
 
 void EngineLoop::ShutDown() {
+
+    pWindowModule->ShutDown();
 
     pConfig->Save();
     pLogger->ShutDown();

@@ -49,7 +49,7 @@ public:
     void  Run(JobID id);
     void  Wait(JobID id);
 
-    const Size ThisThread() { return sThreadID; }
+    Size ThisThread() const { return sThreadID; }
 
 private:
 

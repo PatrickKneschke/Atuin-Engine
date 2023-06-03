@@ -16,7 +16,12 @@ add_compile_options(
     "$<$<CONFIG:Release>:${GCC_COMPILE_RELEASE_OPTIONS}>"
 )
 
-include_directories( ./AtuinEngine )
+include_directories( 
+    ./AtuinEngine 
+    ./External/glfw/include    
+)
+
+add_subdirectory(External/glfw)
 
 add_subdirectory(AtuinEngine)
 add_subdirectory(Test)
