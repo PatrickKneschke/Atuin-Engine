@@ -49,7 +49,7 @@ private:
     static CVar<U32>* pMaxSimPerFrame;
 
     bool mRunning;
-    Clock gameClock;
+    Clock mGameClock;
 
     // engine modules
     ConfigManager*  pConfig;

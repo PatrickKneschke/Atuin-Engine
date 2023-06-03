@@ -47,18 +47,17 @@ void EngineLoop::Run() {
 
     StartUp();
 
-    int i = 0;
+    int frame = 0;
     while (mRunning)
     {
         Update();
 
-        if(++i == 100) {
+        if(++frame == 100) {
 
             Quit();
         }
-
     }
-    
+
     ShutDown();
 }
 
@@ -68,7 +67,7 @@ void EngineLoop::StartUp() {
     pLogger->StartUp();
     pJobs->StartUp();
 
-    gameClock.Start();
+    mGameClock.Start();
     mRunning = true;
 }
 
@@ -83,7 +82,7 @@ void EngineLoop::ShutDown() {
 
 void EngineLoop::Update() {
 
-    gameClock.Update();
+    mGameClock.Update();
 }
 
 
