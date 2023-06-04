@@ -31,7 +31,7 @@ EngineLoop::EngineLoop() : mRunning {false} {
     pMemory = new MemoryManager(this);
     pJobs = new JobManager(this);
 
-    pWindowModule = pMemory->New<WindowModule>();
+    pWindowModule = pMemory->New<WindowModule>(this);
 }
 
 
@@ -57,10 +57,7 @@ void EngineLoop::Run() {
     {
         Update();
 
-        if(++frame == 100) {
-
-            Quit();
-        }
+        ++frame;
     }
 
     ShutDown();
@@ -92,6 +89,8 @@ void EngineLoop::ShutDown() {
 void EngineLoop::Update() {
 
     mGameClock.Update();
+
+    pWindowModule->Update();
 }
 
 
