@@ -23,6 +23,10 @@ public:
     void ShutDown();
     void Update();
 
+    std::string WindowTitle()  const { return mTitle; }
+    I32         WindowWidth()  const { return mWidth; }
+    I32         WindowHeight() const { return mHeight; }
+    bool        InFullscreen() const { return mFullscreen; }
 
 private:
 
