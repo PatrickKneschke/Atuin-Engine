@@ -19,10 +19,10 @@ class Queue {
 
 public:
 
-    Queue();
-    Queue(Size capacity);
-    Queue(const std::initializer_list<T> &list);
-    Queue(const Array<T> &array);
+    Queue(MemoryManager *memory = nullptr);
+    Queue(Size capacity, MemoryManager *memory = nullptr);
+    Queue(const std::initializer_list<T> &list, MemoryManager *memory = nullptr);
+    Queue(const Array<T> &array, MemoryManager *memory = nullptr);
     Queue(Array<T> &&array);
 
     Queue(const Queue &other);
@@ -61,22 +61,22 @@ private:
 
 
 template<typename T>
-Queue<T>::Queue() : mData{}, mHead{0}, mTail{0}, mSize{0} {}
+Queue<T>::Queue(MemoryManager *memory = nullptr) : mData(memory), mHead{0}, mTail{0}, mSize{0} {}
 
 
 template<typename T>
-Queue<T>::Queue(Size capacity) : mData{}, mHead{0}, mTail{0}, mSize{0} {
+Queue<T>::Queue(Size capacity, MemoryManager *memory = nullptr) : mData(memory), mHead{0}, mTail{0}, mSize{0} {
 
     mData.Resize(capacity);
 }
 
 
 template<typename T>
-Queue<T>::Queue(const std::initializer_list<T> &list) : mData{list}, mHead{0}, mTail{list.size()}, mSize{list.size()} {}
+Queue<T>::Queue(const std::initializer_list<T> &list, MemoryManager *memory = nullptr) : mData(list, memory), mHead{0}, mTail{list.size()}, mSize{list.size()} {}
 
 
 template<typename T>
-Queue<T>::Queue(const Array<T> &array) : mData{array}, mHead{0}, mTail{array.GetSize()}, mSize{array.GetSize()} {}
+Queue<T>::Queue(const Array<T> &array, MemoryManager *memory = nullptr) : mData(array, memory), mHead{0}, mTail{array.GetSize()}, mSize{array.GetSize()} {}
 
 
 template<typename T>

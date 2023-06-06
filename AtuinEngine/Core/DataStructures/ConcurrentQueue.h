@@ -21,7 +21,7 @@ class ConcurrentQueue {
 public:
 
     ConcurrentQueue() = delete;
-    ConcurrentQueue(Size capacity);
+    ConcurrentQueue(Size capacity, MemoryManager *memory);
     
     ConcurrentQueue(const ConcurrentQueue &other) = delete;
     ConcurrentQueue(ConcurrentQueue &&other);
@@ -51,7 +51,7 @@ private:
 
 
 template<typename T>
-ConcurrentQueue<T>::ConcurrentQueue(Size capacity) : mData(capacity), mHead {1}, mTail {1}, mCapacity {capacity} {
+ConcurrentQueue<T>::ConcurrentQueue(Size capacity, MemoryManager *memory) : mData(capacity, memory), mHead {1}, mTail {1}, mCapacity {capacity} {
 
     mData.Resize(capacity);
 }

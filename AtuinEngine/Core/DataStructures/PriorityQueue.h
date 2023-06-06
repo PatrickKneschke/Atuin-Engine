@@ -20,10 +20,10 @@ class PriorityQueue {
 
 public:
 
-    PriorityQueue();
-    PriorityQueue(Size capacity);
-    PriorityQueue(const std::initializer_list<T> &list);
-    PriorityQueue(const Array<T> &array);
+    PriorityQueue(MemoryManager *memory = nullptr);
+    PriorityQueue(Size capacity, MemoryManager *memory = nullptr);
+    PriorityQueue(const std::initializer_list<T> &list, MemoryManager *memory = nullptr);
+    PriorityQueue(const Array<T> &array, MemoryManager *memory = nullptr);
     PriorityQueue(Array<T> &&array);
 
     PriorityQueue(const PriorityQueue &other);
@@ -64,22 +64,22 @@ private:
 
 
 template<typename T,  class Compare>
-PriorityQueue<T,Compare>::PriorityQueue() : mData() {}
+PriorityQueue<T,Compare>::PriorityQueue(MemoryManager *memory = nullptr) : mData(memory) {}
 
 
 template<typename T, class Compare>
-PriorityQueue<T,Compare>::PriorityQueue(Size capacity) : mData(capacity) {}
+PriorityQueue<T,Compare>::PriorityQueue(Size capacity, MemoryManager *memory = nullptr) : mData(capacity, memory) {}
 
 
 template<typename T, class Compare>
-PriorityQueue<T,Compare>::PriorityQueue(const std::initializer_list<T> &list) : mData {list} {
+PriorityQueue<T,Compare>::PriorityQueue(const std::initializer_list<T> &list, MemoryManager *memory = nullptr) : mData(list, memory) {
 
     MakeHeap(0);
 }
 
 
 template<typename T, class Compare>
-PriorityQueue<T,Compare>::PriorityQueue(const Array<T> &array) : mData {array} {
+PriorityQueue<T,Compare>::PriorityQueue(const Array<T> &array, MemoryManager *memory = nullptr) : mData(array, memory) {
 
     MakeHeap(0);
 }

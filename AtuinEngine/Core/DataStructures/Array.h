@@ -23,15 +23,12 @@ class Array {
 
 public:
 
-    static MemoryManager *pMemory;
+    Array(MemoryManager *memory = nullptr);
+    Array(Size capacity, MemoryManager *memory = nullptr);
+    Array(Size capacity, const T &value, MemoryManager *memory = nullptr);
+    Array(const std::initializer_list<T> &list, MemoryManager *memory = nullptr);
 
-
-    Array();
-    Array(Size capacity);
-    Array(Size capacity, const T &value);
-    Array(const std::initializer_list<T> &list);
-
-    Array(const Array &other);
+    Array(const Array &other, MemoryManager *memory = nullptr);
     Array(Array &&other) noexcept;
 
     Array& operator= (const Array &rhs);
@@ -76,15 +73,13 @@ private:
     void Allocate(Size capacity);
     void Free();
 
+    MemoryManager *pMemory;
+
     Size mSize;
     Size mCapacity;
 
     T* pData;
 };
-
-
-template<typename T>
-MemoryManager* Array<T>::pMemory = nullptr;
 
 
 template<typename T>
@@ -130,18 +125,18 @@ void Array<T>::Free() {
 
 
 template<typename T>
-Array<T>::Array() : mSize {0}, mCapacity {0}, pData {nullptr} {}
+Array<T>::Array(MemoryManager *memory = nullptr) : pMemory {memory}, mSize {0}, mCapacity {0}, pData {nullptr} {}
 
 
 template<typename T>
-Array<T>::Array(Size capacity) : mSize {0}, mCapacity {capacity}, pData {nullptr} {
+Array<T>::Array(Size capacity, MemoryManager *memory = nullptr) : pMemory {memory}, mSize {0}, mCapacity {capacity}, pData {nullptr} {
 
     Allocate(mCapacity);
 }
 
 
 template<typename T>
-Array<T>::Array(Size capacity, const T &value) : mSize {capacity}, mCapacity {capacity}, pData {nullptr} {
+Array<T>::Array(Size capacity, const T &value, MemoryManager *memory = nullptr) : pMemory {memory}, mSize {capacity}, mCapacity {capacity}, pData {nullptr} {
 
     Allocate(mCapacity);
     std::fill_n(pData, mCapacity, value);
@@ -149,7 +144,7 @@ Array<T>::Array(Size capacity, const T &value) : mSize {capacity}, mCapacity {ca
 
 
 template<typename T>
-Array<T>::Array(const std::initializer_list<T> &list) : mSize {0}, mCapacity {list.size()}, pData {nullptr} {
+Array<T>::Array(const std::initializer_list<T> &list, MemoryManager *memory = nullptr) : pMemory {memory}, mSize {0}, mCapacity {list.size()}, pData {nullptr} {
 
     Allocate(mCapacity);
     for(auto it = list.begin(); it != list.end(); it++)
@@ -161,7 +156,7 @@ Array<T>::Array(const std::initializer_list<T> &list) : mSize {0}, mCapacity {li
 
 
 template<typename T>
-Array<T>::Array(const Array &other) : mSize {other.mSize}, mCapacity {other.mCapacity} {
+Array<T>::Array(const Array &other, MemoryManager *memory = nullptr) : pMemory {memory}, mSize {other.mSize}, mCapacity {other.mCapacity} {
 
     Allocate(mCapacity);
     for (Size i = 0; i < mSize; i++)
@@ -172,8 +167,9 @@ Array<T>::Array(const Array &other) : mSize {other.mSize}, mCapacity {other.mCap
 
 
 template<typename T>
-Array<T>::Array(Array &&other) noexcept : mSize {other.mSize}, mCapacity {other.mCapacity}, pData {other.pData} {
+Array<T>::Array(Array &&other) noexcept : pMemory {other.pMemory}, mSize {other.mSize}, mCapacity {other.mCapacity}, pData {other.pData} {
 
+    other.pMemory = nullptr;
     other.mSize = 0;
     other.mCapacity = 0;
     other.pData = nullptr;
@@ -206,6 +202,7 @@ Array<T>& Array<T>::operator= (Array &&rhs) noexcept {
         Clear();
         Free();
 
+        pMemory = rhs.pMemory;
         mSize = rhs.mSize;
         mCapacity = rhs.mCapacity;
         pData = rhs.pData;
