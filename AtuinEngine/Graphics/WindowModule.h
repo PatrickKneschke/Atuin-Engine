@@ -23,6 +23,7 @@ public:
     void ShutDown();
     void Update();
 
+    GLFWwindow* Window()       const { return pWindow; }
     std::string WindowTitle()  const { return mTitle; }
     I32         WindowWidth()  const { return mWidth; }
     I32         WindowHeight() const { return mHeight; }

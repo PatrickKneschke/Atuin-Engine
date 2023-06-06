@@ -21,7 +21,7 @@ class ConcurrentQueue {
 public:
 
     ConcurrentQueue() = delete;
-    ConcurrentQueue(Size capacity, MemoryManager *memory);
+    ConcurrentQueue(Size capacity, MemoryManager *memory = nullptr);
     
     ConcurrentQueue(const ConcurrentQueue &other) = delete;
     ConcurrentQueue(ConcurrentQueue &&other);

@@ -58,7 +58,7 @@ void WindowModule::StartUp() {
         pEngine->Log()->Error(LogChannel::GRAPHICS, "Failed to create glfw window.");
     }    
 
-    glfwSetWindowUserPointer(pWindow, this);
+    // glfwSetWindowUserPointer(pWindow, this);
     glfwMakeContextCurrent(pWindow);
     glfwSetInputMode(pWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 }
@@ -76,9 +76,6 @@ void WindowModule::ShutDown() {
 
 
 void WindowModule::Update() {
-
-    // TODO move to InputModule
-    glfwPollEvents();
 
     if (glfwWindowShouldClose(pWindow)) 
     {

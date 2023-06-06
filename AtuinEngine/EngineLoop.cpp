@@ -7,6 +7,7 @@
 #include "Core/Memory/MemoryManager.h"
 #include "Core/Util/StringFormat.h"
 #include "Graphics/WindowModule.h"
+#include "Input/InputModule.h"
 
 #include <iostream>
 
@@ -31,12 +32,15 @@ EngineLoop::EngineLoop() : mRunning {false} {
     pMemory = new MemoryManager(this);
     pJobs = new JobManager(this);
 
+    // engine modules
     pWindowModule = pMemory->New<WindowModule>(this);
+    pInputModule  = pMemory->New<InputModule>(this);
 }
 
 
 EngineLoop::~EngineLoop() {
 
+    pMemory->Delete(pInputModule);
     pMemory->Delete(pWindowModule);
 
     // TODO call dtors before deleting memomy manager
@@ -70,6 +74,7 @@ void EngineLoop::StartUp() {
     pJobs->StartUp();
 
     pWindowModule->StartUp();
+    pInputModule->StartUp(pWindowModule->Window());
 
     mGameClock.Start();
     mRunning = true;
@@ -78,6 +83,7 @@ void EngineLoop::StartUp() {
 
 void EngineLoop::ShutDown() {
 
+    pInputModule->ShutDown();
     pWindowModule->ShutDown();
 
     pConfig->Save();
@@ -90,6 +96,7 @@ void EngineLoop::Update() {
 
     mGameClock.Update();
 
+    pInputModule->Update();
     pWindowModule->Update();
 }
 

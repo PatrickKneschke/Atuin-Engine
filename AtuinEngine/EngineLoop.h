@@ -14,7 +14,9 @@ class FileManager;
 class Logger;
 class MemoryManager;
 class JobManager;
+
 class WindowModule;
+class InputModule;
 
 class EngineLoop {
 
@@ -61,6 +63,7 @@ private:
 
     // engine modules
     WindowModule*   pWindowModule;
+    InputModule*    pInputModule;
 };
 
 

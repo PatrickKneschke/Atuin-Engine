@@ -125,18 +125,18 @@ void Array<T>::Free() {
 
 
 template<typename T>
-Array<T>::Array(MemoryManager *memory = nullptr) : pMemory {memory}, mSize {0}, mCapacity {0}, pData {nullptr} {}
+Array<T>::Array(MemoryManager *memory) : pMemory {memory}, mSize {0}, mCapacity {0}, pData {nullptr} {}
 
 
 template<typename T>
-Array<T>::Array(Size capacity, MemoryManager *memory = nullptr) : pMemory {memory}, mSize {0}, mCapacity {capacity}, pData {nullptr} {
+Array<T>::Array(Size capacity, MemoryManager *memory) : pMemory {memory}, mSize {0}, mCapacity {capacity}, pData {nullptr} {
 
     Allocate(mCapacity);
 }
 
 
 template<typename T>
-Array<T>::Array(Size capacity, const T &value, MemoryManager *memory = nullptr) : pMemory {memory}, mSize {capacity}, mCapacity {capacity}, pData {nullptr} {
+Array<T>::Array(Size capacity, const T &value, MemoryManager *memory) : pMemory {memory}, mSize {capacity}, mCapacity {capacity}, pData {nullptr} {
 
     Allocate(mCapacity);
     std::fill_n(pData, mCapacity, value);
@@ -144,7 +144,7 @@ Array<T>::Array(Size capacity, const T &value, MemoryManager *memory = nullptr) 
 
 
 template<typename T>
-Array<T>::Array(const std::initializer_list<T> &list, MemoryManager *memory = nullptr) : pMemory {memory}, mSize {0}, mCapacity {list.size()}, pData {nullptr} {
+Array<T>::Array(const std::initializer_list<T> &list, MemoryManager *memory) : pMemory {memory}, mSize {0}, mCapacity {list.size()}, pData {nullptr} {
 
     Allocate(mCapacity);
     for(auto it = list.begin(); it != list.end(); it++)
@@ -156,7 +156,7 @@ Array<T>::Array(const std::initializer_list<T> &list, MemoryManager *memory = nu
 
 
 template<typename T>
-Array<T>::Array(const Array &other, MemoryManager *memory = nullptr) : pMemory {memory}, mSize {other.mSize}, mCapacity {other.mCapacity} {
+Array<T>::Array(const Array &other, MemoryManager *memory) : pMemory {memory}, mSize {other.mSize}, mCapacity {other.mCapacity} {
 
     Allocate(mCapacity);
     for (Size i = 0; i < mSize; i++)

@@ -9,6 +9,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
+#include <utility>
 
 
 namespace Atuin {
@@ -51,6 +53,19 @@ constexpr I32 I32_MAX   = INT32_MAX;
 constexpr I64 I64_MAX   = INT64_MAX;
 
 using UPtr = uintptr_t;
+
+
+struct PairHash {
+    
+    template<class T1, class T2>
+    Size operator () (const std::pair<T1,T2> &p) const {
+
+        auto h1 = std::hash<T1>{}(p.first);
+        auto h2 = std::hash<T2>{}(p.second);
+
+        return h1 ^ (h2 - 1);
+    }
+};
 
 
 } // Atuin

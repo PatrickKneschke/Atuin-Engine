@@ -64,22 +64,22 @@ private:
 
 
 template<typename T,  class Compare>
-PriorityQueue<T,Compare>::PriorityQueue(MemoryManager *memory = nullptr) : mData(memory) {}
+PriorityQueue<T,Compare>::PriorityQueue(MemoryManager *memory) : mData(memory) {}
 
 
 template<typename T, class Compare>
-PriorityQueue<T,Compare>::PriorityQueue(Size capacity, MemoryManager *memory = nullptr) : mData(capacity, memory) {}
+PriorityQueue<T,Compare>::PriorityQueue(Size capacity, MemoryManager *memory) : mData(capacity, memory) {}
 
 
 template<typename T, class Compare>
-PriorityQueue<T,Compare>::PriorityQueue(const std::initializer_list<T> &list, MemoryManager *memory = nullptr) : mData(list, memory) {
+PriorityQueue<T,Compare>::PriorityQueue(const std::initializer_list<T> &list, MemoryManager *memory) : mData(list, memory) {
 
     MakeHeap(0);
 }
 
 
 template<typename T, class Compare>
-PriorityQueue<T,Compare>::PriorityQueue(const Array<T> &array, MemoryManager *memory = nullptr) : mData(array, memory) {
+PriorityQueue<T,Compare>::PriorityQueue(const Array<T> &array, MemoryManager *memory) : mData(array, memory) {
 
     MakeHeap(0);
 }

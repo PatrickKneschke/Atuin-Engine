@@ -1,6 +1,7 @@
 
 add_subdirectory(Core)
 add_subdirectory(Graphics)
+add_subdirectory(Input)
 
 add_executable(${PROJECT_NAME}
     main.cpp
@@ -20,6 +21,7 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE Jobs 
 
     PRIVATE Graphics 
+    PRIVATE Input 
 )
 
 # copy config file to binary directory
