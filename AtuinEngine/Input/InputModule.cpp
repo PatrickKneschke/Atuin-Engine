@@ -4,6 +4,8 @@
 
 #include "GLFW/glfw3.h"
 
+#include <iostream>
+
 
 namespace Atuin {
 
@@ -32,6 +34,9 @@ void InputModule::StartUp(GLFWwindow *window) {
     
     glfwSetInputMode(sWindow, GLFW_STICKY_KEYS, 1);
     glfwSetInputMode(sWindow, GLFW_STICKY_MOUSE_BUTTONS, 1);
+
+    glfwSetKeyCallback(sWindow, KeyListener);
+    glfwSetMouseButtonCallback(sWindow, MouseListener);
 
     glfwSetCursorPosCallback(sWindow, CursorPosListener);
     glfwSetWindowSizeCallback(sWindow, WindowSizeListener);
@@ -82,7 +87,7 @@ std::pair<double, double> InputModule::GetCursorPos() const {
 }
 
 
-void InputModule::KeyListener(GLFWwindow *window, int key, int scancode, int action, int mods) {
+void InputModule::KeyListener(GLFWwindow*, int key, int, int action, int mods) {
 
     if (sKeyBindings.empty())
     {
@@ -105,7 +110,7 @@ void InputModule::KeyListener(GLFWwindow *window, int key, int scancode, int act
 }
 
 
-void InputModule::MouseListener(GLFWwindow *window, int button, int action, int mods) {
+void InputModule::MouseListener(GLFWwindow* , int button, int action, int mods) {
 
     if (sKeyBindings.empty())
     {
@@ -132,7 +137,7 @@ void InputModule::CursorPosListener(GLFWwindow *window, double xpos, double ypos
 
     for (auto &cb : sCursorPosCallbacks)
     {
-        cb(sWindow, xpos, ypos);
+        cb(window, xpos, ypos);
     }
 }
 
@@ -141,7 +146,7 @@ void InputModule::WindowCloseListener(GLFWwindow *window) {
 
     for (auto &cb : sWindowCloseCallbacks)
     {
-        cb(sWindow);
+        cb(window);
     }
 }
 
@@ -150,7 +155,7 @@ void InputModule::WindowSizeListener(GLFWwindow *window, int width, int height) 
 
     for (auto &cb : sWindowSizeCallbacks)
     {
-        cb(sWindow, width, height);
+        cb(window, width, height);
     }
 }
 
