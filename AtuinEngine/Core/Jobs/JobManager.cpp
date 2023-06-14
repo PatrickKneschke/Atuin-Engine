@@ -18,10 +18,10 @@ thread_local Size JobManager::sThreadID = 0;
 JobManager::JobManager(EngineLoop *engine, Size numThreads) : 
     mActive {false},
     mNumJobs {0}, 
-    mJobs( pMaxJobsPerFrame->Get() ), 
+    mJobs( pMaxJobsPerFrame->Get(), engine->Memory() ), 
     mNumThreads {numThreads}, 
-    mThreads {},
-    mJobQueues {},
+    mThreads( engine->Memory() ),
+    mJobQueues( engine->Memory() ),
     pEngine {engine} 
 {
     // allocate thread and job queue arrays
