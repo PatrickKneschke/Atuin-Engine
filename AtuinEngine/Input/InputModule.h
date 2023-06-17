@@ -2,10 +2,15 @@
 #pragma once
 
 
+#include "InputSignals.h"
+#include "RangeConverter.h"
+
+#include "json/json.hpp"
+
 #include <functional>
 
-#include <stack>
 #include <list>
+#include <unordered_map>
 
 
 class GLFWwindow;
@@ -13,8 +18,12 @@ class GLFWwindow;
 namespace Atuin {
 
 
+using MappedInput = std::unordered_map<U64, std::pair<double,double>>; // input -> (state, prev state) 
+using InputHandler = std::function<void(MappedInput&)>;
+
+
 class EngineLoop;
-class KeyBinding;
+class InputContext;
 
 class InputModule {
 
@@ -27,8 +36,13 @@ public:
     void ShutDown();
     void Update();
 
-    void AddKeyBinding(KeyBinding *keyBinding);
-    void RemoveKeyBinding();
+    void LoadContexts(std::string_view contextFilePath);
+    void SaveContexts(std::string_view contextFilePath);
+    void LoadRanges(std::string_view rangesFilePath);
+
+    void PushContext(U64 contextID);
+    void PopContext();
+    void SetInputCallback(InputHandler callback);
 
     bool IsKeyPressed(int key) const;
     bool IsMouseButtonPressed(int button) const;
@@ -41,16 +55,21 @@ private:
     static void MouseListener(GLFWwindow *window, int button, int action, int mods);
     static void CursorPosListener(GLFWwindow *window, double xpos, double ypos);
 
-    static void WindowCloseListener(GLFWwindow *window);
-    static void WindowSizeListener(GLFWwindow *window, int width, int height);
-
     static GLFWwindow* sWindow;
-    static bool sDisableInput;
-    static std::stack<KeyBinding*> sKeyBindings; // TODO replace with custom stack
 
-    static std::list<std::function<void(GLFWwindow*, double, double)>>  sCursorPosCallbacks;
-    static std::list<std::function<void(GLFWwindow*)>>                  sWindowCloseCallbacks;
-    static std::list<std::function<void(GLFWwindow*, int, int)>>        sWindowSizeCallbacks;
+    
+    json::JSON mContextsJSON; // TODO use own JSON class
+
+    std::unordered_map<U64, InputContext*> mContexts; // TODO replace with custom map
+    InputContext* pActiveContext;
+    InputHandler mCallback;
+
+    RangeConverter mRangeConverter;
+
+    // Array<U64> mSignalMap;
+    U64 mSignalMap[(Size)Signal::COUNT];
+    MappedInput mCurrentMappedInput;
+    double x, y;
 
     EngineLoop* pEngine;
 };

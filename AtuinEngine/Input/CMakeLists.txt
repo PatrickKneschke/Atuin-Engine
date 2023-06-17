@@ -1,9 +1,9 @@
 
 add_library(Input
     InputModule.cpp 
-    KeyBinding.cpp 
+    InputSignals.cpp 
     InputModule.h
-    KeyBinding.h 
+    InputSignals.h 
 )
 
 target_link_libraries(Input 

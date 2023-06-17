@@ -18,6 +18,7 @@ add_compile_options(
 
 include_directories( 
     ./AtuinEngine 
+    ./External
     ./External/glfw/include    
 )
 

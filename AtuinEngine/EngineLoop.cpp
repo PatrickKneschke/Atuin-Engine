@@ -12,6 +12,44 @@
 #include <iostream>
 
 
+void testInputHandler(Atuin::MappedInput &input) {
+
+    if (input[Atuin::SID("CameraLeft")].first == 1)
+    {
+        std::cout << "Move cam left\n";
+    }
+    if (input[Atuin::SID("CameraRight")].first == 1)
+    {
+        std::cout << "Move cam right\n";
+    }
+    if (input[Atuin::SID("CameraForward")].first == 1)
+    {
+        std::cout << "Move cam forward\n";
+    }
+    if (input[Atuin::SID("CameraBack")].first == 1)
+    {
+        std::cout << "Move cam back\n";
+    }
+
+    if (input[Atuin::SID("Fire")].first == 1 && input[Atuin::SID("Fire")].second == 0)
+    {
+        std::cout << "Fire!!!\n";
+    }
+    
+    double dYaw = input[Atuin::SID("CameraYaw")].first - input[Atuin::SID("CameraYaw")].second;
+    if (dYaw != 0)
+    {
+        std::cout << "Change yaw by " << dYaw << '\n';
+    }
+    
+    double dPitch = input[Atuin::SID("CameraPitch")].first - input[Atuin::SID("CameraPitch")].second;
+    if (dYaw != 0)
+    {
+        std::cout << "Change pitch by " << dPitch << '\n';
+    }
+}
+
+
 namespace Atuin {
 
 
@@ -75,6 +113,11 @@ void EngineLoop::StartUp() {
 
     pWindowModule->StartUp();
     pInputModule->StartUp(pWindowModule->Window());
+
+
+    pInputModule->PushContext(SID("GamePlayContext"));
+    pInputModule->SetInputCallback(testInputHandler);
+
 
     mGameClock.Start();
     mRunning = true;

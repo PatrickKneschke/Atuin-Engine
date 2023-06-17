@@ -3,13 +3,15 @@
 
 
 #include "Core/Util/Types.h"
-#include "GLFW/glfw3.h"
+#include "Core/Util/StringID.h"
+
+#include <string>
 
 
 namespace Atuin {
 
 
-enum class Key : I32 {
+enum class Signal : I32 {
 
     // unknown input
     UNKNOWN = -1,
@@ -144,7 +146,15 @@ enum class Key : I32 {
     MOUSE_7,
     MOUSE_8,
 
-    // gamepad
+    // mouse move
+    MOUSE_MOVE_X,
+    MOUSE_MOVE_Y,
+    MOUSE_SCROLL_UP,
+    MOUSE_SCROLL_DOWN,
+    MOUSE_SCROLL_RIGHT,
+    MOUSE_SCROLL_LEFT,
+
+    // gamepad button
     GAMEPAD_A,
     GAMEPAD_B,
     GAMEPAD_X,
@@ -160,6 +170,8 @@ enum class Key : I32 {
     GAMEPAD_DPAD_RIGHT,
     GAMEPAD_DPAD_DOWN,
     GAMEPAD_DPAD_LEFT,
+
+    // gamepad axes
     GAMEPAD_AXIS_LEFT_X,
     GAMEPAD_AXIS_LEFT_Y,
     GAMEPAD_AXIS_RIGHT_X,
@@ -170,15 +182,20 @@ enum class Key : I32 {
     // number of keys
     COUNT,
 
-    // key aliases
+    // aliases
     MOUSE_LEFT = MOUSE_1,
     MOUSE_RIGHT = MOUSE_2,
-    MOUSE_MIDDLE = MOUSE_3,
+    MOUSE_MIDDLE = MOUSE_3, 
+
     GAMEPAD_CROSS = GAMEPAD_A,
     GAMEPAD_CIRCLE = GAMEPAD_B,
     GAMEPAD_SQUARE = GAMEPAD_X,
     GAMEPAD_TRIANGLE = GAMEPAD_Y,
 };
+
+
+const std::string ToString(Signal signal);
+Signal StringToSignal(std::string_view signalName);
 
     
 } // Atuin

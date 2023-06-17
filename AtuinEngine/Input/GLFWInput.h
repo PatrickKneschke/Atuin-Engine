@@ -2,7 +2,7 @@
 #pragma once
 
 
-#include "KeyCodes.h"
+#include "InputSignals.h"
 
 #include "GLFW/glfw3.h"
 
@@ -10,500 +10,501 @@
 namespace Atuin {
 
 
-Key GlfwKeyCode(int glfwKey) {
+Signal GlfwKeyCode(int glfwKey) {
 
-    Key key;
+    Signal signal;
     switch (glfwKey)
     {
-        case GLFW_KEY_UNKNOWN :
-            key = Key::UNKNOWN;
-            break;
         case GLFW_KEY_SPACE :
-            key = Key::SPACE;
+            signal = Signal::SPACE;
             break;
         case GLFW_KEY_APOSTROPHE :
-            key = Key::APOSTROPHE;
+            signal = Signal::APOSTROPHE;
             break;
         case GLFW_KEY_COMMA :
-            key = Key::COMMA;
+            signal = Signal::COMMA;
             break;
         case GLFW_KEY_MINUS :
-            key = Key::MINUS;
+            signal = Signal::MINUS;
             break;
         case GLFW_KEY_PERIOD :
-            key = Key::PERIOD;
+            signal = Signal::PERIOD;
             break;
         case GLFW_KEY_SLASH :
-            key = Key::SLASH;
+            signal = Signal::SLASH;
             break;
         case GLFW_KEY_0 :
-            key = Key::NUM0;
+            signal = Signal::NUM0;
             break;
         case GLFW_KEY_1 :
-            key = Key::NUM1;
+            signal = Signal::NUM1;
             break;
         case GLFW_KEY_2 :
-            key = Key::NUM2;
+            signal = Signal::NUM2;
             break;
         case GLFW_KEY_3 :
-            key = Key::NUM3;
+            signal = Signal::NUM3;
             break;
         case GLFW_KEY_4 :
-            key = Key::NUM4;
+            signal = Signal::NUM4;
             break;
         case GLFW_KEY_5 :
-            key = Key::NUM5;
+            signal = Signal::NUM5;
             break;
         case GLFW_KEY_6 :
-            key = Key::NUM6;
+            signal = Signal::NUM6;
             break;
         case GLFW_KEY_7 :
-            key = Key::NUM7;
+            signal = Signal::NUM7;
             break;
         case GLFW_KEY_8 :
-            key = Key::NUM8;
+            signal = Signal::NUM8;
             break;
         case GLFW_KEY_9 :
-            key = Key::NUM9;
+            signal = Signal::NUM9;
             break;
         case GLFW_KEY_SEMICOLON :
-            key = Key::SEMICOLON;
+            signal = Signal::SEMICOLON;
             break;
         case GLFW_KEY_EQUAL :
-            key = Key::EQUAL;
+            signal = Signal::EQUAL;
             break;
         case GLFW_KEY_A :
-            key = Key::A;
+            signal = Signal::A;
             break;
         case GLFW_KEY_B :
-            key = Key::B;
+            signal = Signal::B;
             break;
         case GLFW_KEY_C :
-            key = Key::C;
+            signal = Signal::C;
             break;
         case GLFW_KEY_D :
-            key = Key::D;
+            signal = Signal::D;
             break;
         case GLFW_KEY_E :
-            key = Key::E;
+            signal = Signal::E;
             break;
         case GLFW_KEY_F :
-            key = Key::F;
+            signal = Signal::F;
             break;
         case GLFW_KEY_G :
-            key = Key::G;
+            signal = Signal::G;
             break;
         case GLFW_KEY_H :
-            key = Key::H;
+            signal = Signal::H;
             break;
         case GLFW_KEY_I :
-            key = Key::I;
+            signal = Signal::I;
             break;
         case GLFW_KEY_J :
-            key = Key::J;
+            signal = Signal::J;
             break;
         case GLFW_KEY_K :
-            key = Key::K;
+            signal = Signal::K;
             break;
         case GLFW_KEY_L :
-            key = Key::L;
+            signal = Signal::L;
             break;
         case GLFW_KEY_M :
-            key = Key::M;
+            signal = Signal::M;
             break;
         case GLFW_KEY_N :
-            key = Key::N;
+            signal = Signal::N;
             break;
         case GLFW_KEY_O :
-            key = Key::O;
+            signal = Signal::O;
             break;
         case GLFW_KEY_P :
-            key = Key::P;
+            signal = Signal::P;
             break;
         case GLFW_KEY_Q :
-            key = Key::Q;
+            signal = Signal::Q;
             break;
         case GLFW_KEY_R :
-            key = Key::R;
+            signal = Signal::R;
             break;
         case GLFW_KEY_S :
-            key = Key::S;
+            signal = Signal::S;
             break;
         case GLFW_KEY_T :
-            key = Key::T;
+            signal = Signal::T;
             break;
         case GLFW_KEY_U :
-            key = Key::U;
+            signal = Signal::U;
             break;
         case GLFW_KEY_V :
-            key = Key::V;
+            signal = Signal::V;
             break;
         case GLFW_KEY_W :
-            key = Key::W;
+            signal = Signal::W;
             break;
         case GLFW_KEY_X :
-            key = Key::X;
+            signal = Signal::X;
             break;
         case GLFW_KEY_Y :
-            key = Key::Y;
+            signal = Signal::Y;
             break;
         case GLFW_KEY_Z :
-            key = Key::Z;
+            signal = Signal::Z;
             break;
         case GLFW_KEY_LEFT_BRACKET :
-            key = Key::LEFT_BRACKET;
+            signal = Signal::LEFT_BRACKET;
             break;
         case GLFW_KEY_BACKSLASH :
-            key = Key::BACKSLASH;
+            signal = Signal::BACKSLASH;
             break;
         case GLFW_KEY_RIGHT_BRACKET :
-            key = Key::RIGHT_BRACKET;
+            signal = Signal::RIGHT_BRACKET;
             break;
         case GLFW_KEY_GRAVE_ACCENT :
-            key = Key::GRAVE_ACCENT;
+            signal = Signal::GRAVE_ACCENT;
             break;
         case GLFW_KEY_ESCAPE :
-            key = Key::ESCAPE;
+            signal = Signal::ESCAPE;
             break;
         case GLFW_KEY_ENTER :
-            key = Key::ENTER;
+            signal = Signal::ENTER;
             break;
         case GLFW_KEY_TAB :
-            key = Key::TAB;
+            signal = Signal::TAB;
             break;
         case GLFW_KEY_BACKSPACE :
-            key = Key::BACKSPACE;
+            signal = Signal::BACKSPACE;
             break;
         case GLFW_KEY_INSERT :
-            key = Key::INSERT;
+            signal = Signal::INSERT;
             break;
         case GLFW_KEY_DELETE :
-            key = Key::DELETE;
+            signal = Signal::DELETE;
             break;
         case GLFW_KEY_RIGHT :
-            key = Key::RIGHT;
+            signal = Signal::RIGHT;
             break;
         case GLFW_KEY_LEFT :
-            key = Key::LEFT;
+            signal = Signal::LEFT;
             break;
         case GLFW_KEY_DOWN :
-            key = Key::DOWN;
+            signal = Signal::DOWN;
             break;
         case GLFW_KEY_UP :
-            key = Key::UP;
+            signal = Signal::UP;
             break;
         case GLFW_KEY_PAGE_UP :
-            key = Key::PAGE_UP;
+            signal = Signal::PAGE_UP;
             break;
         case GLFW_KEY_PAGE_DOWN :
-            key = Key::PAGE_DOWN;
+            signal = Signal::PAGE_DOWN;
             break;
         case GLFW_KEY_HOME :
-            key = Key::HOME;
+            signal = Signal::HOME;
             break;
         case GLFW_KEY_END :
-            key = Key::END;
+            signal = Signal::END;
             break;
         case GLFW_KEY_CAPS_LOCK :
-            key = Key::CAPS_LOCK;
+            signal = Signal::CAPS_LOCK;
             break;
         case GLFW_KEY_SCROLL_LOCK :
-            key = Key::SCROLL_LOCK;
+            signal = Signal::SCROLL_LOCK;
             break;
         case GLFW_KEY_NUM_LOCK :
-            key = Key::NUM_LOCK;
+            signal = Signal::NUM_LOCK;
             break;
         case GLFW_KEY_PRINT_SCREEN :
-            key = Key::PRINT_SCREEN;
+            signal = Signal::PRINT_SCREEN;
             break;
         case GLFW_KEY_PAUSE :
-            key = Key::PAUSE;
+            signal = Signal::PAUSE;
             break;
         case GLFW_KEY_F1 :
-            key = Key::F1;
+            signal = Signal::F1;
             break;
         case GLFW_KEY_F2 :
-            key = Key::F2;
+            signal = Signal::F2;
             break;
         case GLFW_KEY_F3 :
-            key = Key::F3;
+            signal = Signal::F3;
             break;
         case GLFW_KEY_F4 :
-            key = Key::F4;
+            signal = Signal::F4;
             break;
         case GLFW_KEY_F5 :
-            key = Key::F5;
+            signal = Signal::F5;
             break;
         case GLFW_KEY_F6 :
-            key = Key::F6;
+            signal = Signal::F6;
             break;
         case GLFW_KEY_F7 :
-            key = Key::F7;
+            signal = Signal::F7;
             break;
         case GLFW_KEY_F8 :
-            key = Key::F8;
+            signal = Signal::F8;
             break;
         case GLFW_KEY_F9 :
-            key = Key::F9;
+            signal = Signal::F9;
             break;
         case GLFW_KEY_F10 :
-            key = Key::F10;
+            signal = Signal::F10;
             break;
         case GLFW_KEY_F11 :
-            key = Key::F11;
+            signal = Signal::F11;
             break;
         case GLFW_KEY_F12 :
-            key = Key::F12;
+            signal = Signal::F12;
             break;
         case GLFW_KEY_F13 :
-            key = Key::F13;
+            signal = Signal::F13;
             break;
         case GLFW_KEY_F14 :
-            key = Key::F14;
+            signal = Signal::F14;
             break;
         case GLFW_KEY_F15 :
-            key = Key::F15;
+            signal = Signal::F15;
             break;
         case GLFW_KEY_F16 :
-            key = Key::F16;
+            signal = Signal::F16;
             break;
         case GLFW_KEY_F17 :
-            key = Key::F17;
+            signal = Signal::F17;
             break;
         case GLFW_KEY_F18 :
-            key = Key::F18;
+            signal = Signal::F18;
             break;
         case GLFW_KEY_F19 :
-            key = Key::F19;
+            signal = Signal::F19;
             break;
         case GLFW_KEY_F20 :
-            key = Key::F20;
+            signal = Signal::F20;
             break;
         case GLFW_KEY_F21 :
-            key = Key::F21;
+            signal = Signal::F21;
             break;
         case GLFW_KEY_F22 :
-            key = Key::F22;
+            signal = Signal::F22;
             break;
         case GLFW_KEY_F23 :
-            key = Key::F23;
+            signal = Signal::F23;
             break;
         case GLFW_KEY_F24 :
-            key = Key::F24;
+            signal = Signal::F24;
             break;
         case GLFW_KEY_F25 :
-            key = Key::F25;
+            signal = Signal::F25;
             break;
         case GLFW_KEY_KP_0 :
-            key = Key::KP0;
+            signal = Signal::KP0;
             break;
         case GLFW_KEY_KP_1 :
-            key = Key::KP1;
+            signal = Signal::KP1;
             break;
         case GLFW_KEY_KP_2 :
-            key = Key::KP2;
+            signal = Signal::KP2;
             break;
         case GLFW_KEY_KP_3 :
-            key = Key::KP3;
+            signal = Signal::KP3;
             break;
         case GLFW_KEY_KP_4 :
-            key = Key::KP4;
+            signal = Signal::KP4;
             break;
         case GLFW_KEY_KP_5 :
-            key = Key::KP5;
+            signal = Signal::KP5;
             break;
         case GLFW_KEY_KP_6 :
-            key = Key::KP6;
+            signal = Signal::KP6;
             break;
         case GLFW_KEY_KP_7 :
-            key = Key::KP7;
+            signal = Signal::KP7;
             break;
         case GLFW_KEY_KP_8 :
-            key = Key::KP8;
+            signal = Signal::KP8;
             break;
         case GLFW_KEY_KP_9 :
-            key = Key::KP9;
+            signal = Signal::KP9;
             break;
         case GLFW_KEY_KP_DECIMAL :
-            key = Key::KP_DECIMAL;
+            signal = Signal::KP_DECIMAL;
             break;
         case GLFW_KEY_KP_DIVIDE :
-            key = Key::KP_DIVIDE;
+            signal = Signal::KP_DIVIDE;
             break;
         case GLFW_KEY_KP_MULTIPLY :
-            key = Key::KP_MULTIPLY;
+            signal = Signal::KP_MULTIPLY;
             break;
         case GLFW_KEY_KP_SUBTRACT :
-            key = Key::KP_SUBTRACT;
+            signal = Signal::KP_SUBTRACT;
             break;
         case GLFW_KEY_KP_ADD :
-            key = Key::KP_ADD;
+            signal = Signal::KP_ADD;
             break;
         case GLFW_KEY_KP_ENTER :
-            key = Key::KP_ENTER;
+            signal = Signal::KP_ENTER;
             break;
         case GLFW_KEY_KP_EQUAL :
-            key = Key::KP_EQUAL;
+            signal = Signal::KP_EQUAL;
             break;
         case GLFW_KEY_LEFT_SHIFT :
-            key = Key::LEFT_SHIFT;
+            signal = Signal::LEFT_SHIFT;
             break;
         case GLFW_KEY_LEFT_CONTROL :
-            key = Key::LEFT_CTRL;
+            signal = Signal::LEFT_CTRL;
             break;
         case GLFW_KEY_LEFT_ALT :
-            key = Key::LEFT_ALT;
+            signal = Signal::LEFT_ALT;
             break;
         case GLFW_KEY_LEFT_SUPER :
-            key = Key::LEFT_SUPER;
+            signal = Signal::LEFT_SUPER;
             break;
         case GLFW_KEY_RIGHT_SHIFT :
-            key = Key::RIGHT_SHIFT;
+            signal = Signal::RIGHT_SHIFT;
             break;
         case GLFW_KEY_RIGHT_CONTROL :
-            key = Key::RIGHT_CTRL;
+            signal = Signal::RIGHT_CTRL;
             break;
         case GLFW_KEY_RIGHT_ALT :
-            key = Key::RIGHT_ALT;
+            signal = Signal::RIGHT_ALT;
             break;
         case GLFW_KEY_RIGHT_SUPER :
-            key = Key::RIGHT_SUPER;
+            signal = Signal::RIGHT_SUPER;
             break;
         case GLFW_KEY_MENU :
-            key = Key::MENU;
+            signal = Signal::MENU;
             break;
         
         default:
+            signal = Signal::UNKNOWN;
             break;
     }
 
-    return key;
+    return signal;
 }
 
 
-Key GlfwMouseButtonCode(int glfwKey) {
+Signal GlfwMouseButtonCode(int glfwKey) {
 
-    Key key;
+    Signal signal;
     switch (glfwKey)
     {
         case GLFW_MOUSE_BUTTON_1 :
-            key = Key::MOUSE_1;
+            signal = Signal::MOUSE_1;
             break;
         case GLFW_MOUSE_BUTTON_2 :
-            key = Key::MOUSE_2;
+            signal = Signal::MOUSE_2;
             break;
         case GLFW_MOUSE_BUTTON_3 :
-            key = Key::MOUSE_3;
+            signal = Signal::MOUSE_3;
             break;
         case GLFW_MOUSE_BUTTON_4 :
-            key = Key::MOUSE_4;
+            signal = Signal::MOUSE_4;
             break;
         case GLFW_MOUSE_BUTTON_5 :
-            key = Key::MOUSE_5;
+            signal = Signal::MOUSE_5;
             break;
         case GLFW_MOUSE_BUTTON_6 :
-            key = Key::MOUSE_6;
+            signal = Signal::MOUSE_6;
             break;
         case GLFW_MOUSE_BUTTON_7 :
-            key = Key::MOUSE_7;
+            signal = Signal::MOUSE_7;
             break;
         case GLFW_MOUSE_BUTTON_8 :
-            key = Key::MOUSE_8;
+            signal = Signal::MOUSE_8;
             break;
         
         default:
+            signal = Signal::UNKNOWN;
             break;
     }
 
-    return key;
+    return signal;
 }
 
 
-Key GlfwGamepadButtonCode(int glfwKey) {
+Signal GlfwGamepadButtonCode(int glfwKey) {
 
-    Key key;
+    Signal signal;
     switch (glfwKey)
     {
         case GLFW_GAMEPAD_BUTTON_A :
-            key = Key::GAMEPAD_A;
+            signal = Signal::GAMEPAD_A;
             break;
         case GLFW_GAMEPAD_BUTTON_B :
-            key = Key::GAMEPAD_B;
+            signal = Signal::GAMEPAD_B;
             break;
         case GLFW_GAMEPAD_BUTTON_X :
-            key = Key::GAMEPAD_X;
+            signal = Signal::GAMEPAD_X;
             break;
         case GLFW_GAMEPAD_BUTTON_Y :
-            key = Key::GAMEPAD_Y;
+            signal = Signal::GAMEPAD_Y;
             break;
         case GLFW_GAMEPAD_BUTTON_LEFT_BUMPER :
-            key = Key::GAMEPAD_LEFT_BUMPER;
+            signal = Signal::GAMEPAD_LEFT_BUMPER;
             break;
         case GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER :
-            key = Key::GAMEPAD_RIGHT_BUMPER;
+            signal = Signal::GAMEPAD_RIGHT_BUMPER;
             break;
         case GLFW_GAMEPAD_BUTTON_BACK :
-            key = Key::GAMEPAD_BACK;
+            signal = Signal::GAMEPAD_BACK;
             break;
         case GLFW_GAMEPAD_BUTTON_START :
-            key = Key::GAMEPAD_GUIDE;
+            signal = Signal::GAMEPAD_GUIDE;
             break;
         case GLFW_GAMEPAD_BUTTON_LEFT_THUMB :
-            key = Key::GAMEPAD_LEFT_THUMB;
+            signal = Signal::GAMEPAD_LEFT_THUMB;
             break;
         case GLFW_GAMEPAD_BUTTON_RIGHT_THUMB :
-            key = Key::GAMEPAD_RIGHT_THUMB;
+            signal = Signal::GAMEPAD_RIGHT_THUMB;
             break;
         case GLFW_GAMEPAD_BUTTON_DPAD_UP :
-            key = Key::GAMEPAD_DPAD_UP;
+            signal = Signal::GAMEPAD_DPAD_UP;
             break;
         case GLFW_GAMEPAD_BUTTON_DPAD_RIGHT :
-            key = Key::GAMEPAD_DPAD_RIGHT;
+            signal = Signal::GAMEPAD_DPAD_RIGHT;
             break;
         case GLFW_GAMEPAD_BUTTON_DPAD_DOWN :
-            key = Key::GAMEPAD_DPAD_DOWN;
+            signal = Signal::GAMEPAD_DPAD_DOWN;
             break;
         case GLFW_GAMEPAD_BUTTON_DPAD_LEFT :
-            key = Key::GAMEPAD_DPAD_LEFT;
+            signal = Signal::GAMEPAD_DPAD_LEFT;
             break;
         
         default:
+            signal = Signal::UNKNOWN;
             break;
     }
 
-    return key;
+    return signal;
 }
 
 
-Key GlfwGamepadAxesCode(int glfwKey) {
+Signal GlfwGamepadAxesCode(int glfwKey) {
 
-    Key key;
+    Signal signal;
     switch (glfwKey)
     {
         case GLFW_GAMEPAD_AXIS_LEFT_X :
-            key = Key::GAMEPAD_AXIS_LEFT_X;
+            signal = Signal::GAMEPAD_AXIS_LEFT_X;
             break;
         case GLFW_GAMEPAD_AXIS_LEFT_Y :
-            key = Key::GAMEPAD_AXIS_LEFT_Y;
+            signal = Signal::GAMEPAD_AXIS_LEFT_Y;
             break;
         case GLFW_GAMEPAD_AXIS_RIGHT_X :
-            key = Key::GAMEPAD_AXIS_RIGHT_X;
+            signal = Signal::GAMEPAD_AXIS_RIGHT_X;
             break;
         case GLFW_GAMEPAD_AXIS_RIGHT_Y :
-            key = Key::GAMEPAD_AXIS_RIGHT_Y;
+            signal = Signal::GAMEPAD_AXIS_RIGHT_Y;
             break;
         case GLFW_GAMEPAD_AXIS_LEFT_TRIGGER :
-            key = Key::GAMEPAD_AXIS_LEFT_TRIGGER;
+            signal = Signal::GAMEPAD_AXIS_LEFT_TRIGGER;
             break;
         case GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER :
-            key = Key::GAMEPAD_AXIS_RIGHT_TRIGGER;
+            signal = Signal::GAMEPAD_AXIS_RIGHT_TRIGGER;
             break;
         
         default:
+            signal = Signal::UNKNOWN;
             break;
     }
 
-    return key;
+    return signal;
 }
 
     
