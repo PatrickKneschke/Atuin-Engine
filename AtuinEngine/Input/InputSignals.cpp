@@ -367,6 +367,111 @@ const std::string ToString(Signal signal) {
         case Signal::MENU :
             signalName = "MENU";
             break;
+        case Signal::MOUSE_1 :
+            signalName = "MOUSE_LEFT";
+            break;
+        case Signal::MOUSE_2 :
+            signalName = "MOUSE_RIGHT";
+            break;
+        case Signal::MOUSE_3 :
+            signalName = "MOUSE_MIDDLE";
+            break;
+        case Signal::MOUSE_4 :
+            signalName = "MOUSE_4";
+            break;
+        case Signal::MOUSE_5 :
+            signalName = "MOUSE_5";
+            break;
+        case Signal::MOUSE_6 :
+            signalName = "MOUSE_6";
+            break;
+        case Signal::MOUSE_7 :
+            signalName = "MOUSE_7";
+            break;
+        case Signal::MOUSE_8 :
+            signalName = "MOUSE_8";
+            break;
+        case Signal::MOUSE_MOVE_X :
+            signalName = "MOUSE_MOVE_X";
+            break;
+        case Signal::MOUSE_MOVE_Y :
+            signalName = "MOUSE_MOVE_Y";
+            break;
+        case Signal::MOUSE_SCROLL_UP :
+            signalName = "MOUSE_SCROLL_UP";
+            break;
+        case Signal::MOUSE_SCROLL_DOWN :
+            signalName = "MOUSE_SCROLL_DOWN";
+            break;
+        case Signal::MOUSE_SCROLL_RIGHT :
+            signalName = "MOUSE_SCROLL_RIGHT";
+            break;
+        case Signal::MOUSE_SCROLL_LEFT :
+            signalName = "MOUSE_SCROLL_LEFT";
+            break;
+        case Signal::GAMEPAD_A :
+            signalName = "GAMEPAD_A";
+            break;
+        case Signal::GAMEPAD_B :
+            signalName = "GAMEPAD_B";
+            break;
+        case Signal::GAMEPAD_X :
+            signalName = "GAMEPAD_X";
+            break;
+        case Signal::GAMEPAD_Y :
+            signalName = "GAMEPAD_Y";
+            break;
+        case Signal::GAMEPAD_LEFT_BUMPER :
+            signalName = "GAMEPAD_LEFT_BUMPER";
+            break;
+        case Signal::GAMEPAD_RIGHT_BUMPER :
+            signalName = "GAMEPAD_RIGHT_BUMPER";
+            break;
+        case Signal::GAMEPAD_BACK :
+            signalName = "GAMEPAD_BACK";
+            break;
+        case Signal::GAMEPAD_START :
+            signalName = "GAMEPAD_START";
+            break;
+        case Signal::GAMEPAD_GUIDE :
+            signalName = "GAMEPAD_GUIDE";
+            break;
+        case Signal::GAMEPAD_LEFT_THUMB :
+            signalName = "GAMEPAD_LEFT_THUMB";
+            break;
+        case Signal::GAMEPAD_RIGHT_THUMB :
+            signalName = "GAMEPAD_RIGHT_THUMB";
+            break;
+        case Signal::GAMEPAD_DPAD_UP :
+            signalName = "GAMEPAD_DPAD_UP";
+            break;
+        case Signal::GAMEPAD_DPAD_RIGHT :
+            signalName = "GAMEPAD_DPAD_RIGHT";
+            break;
+        case Signal::GAMEPAD_DPAD_DOWN :
+            signalName = "GAMEPAD_DPAD_DOWN";
+            break;
+        case Signal::GAMEPAD_DPAD_LEFT :
+            signalName = "GAMEPAD_DPAD_LEFT";
+            break;
+        case Signal::GAMEPAD_AXIS_LEFT_X :
+            signalName = "GAMEPAD_AXIS_LEFT_X";
+            break;
+        case Signal::GAMEPAD_AXIS_LEFT_Y :
+            signalName = "GAMEPAD_AXIS_LEFT_Y";
+            break;
+        case Signal::GAMEPAD_AXIS_RIGHT_X :
+            signalName = "GAMEPAD_AXIS_RIGHT_X";
+            break;
+        case Signal::GAMEPAD_AXIS_RIGHT_Y :
+            signalName = "GAMEPAD_AXIS_RIGHT_Y";
+            break;
+        case Signal::GAMEPAD_AXIS_LEFT_TRIGGER :
+            signalName = "GAMEPAD_AXIS_LEFT_TRIGGER";
+            break;
+        case Signal::GAMEPAD_AXIS_RIGHT_TRIGGER :
+            signalName = "GAMEPAD_AXIS_RIGHT_TRIGGER";
+            break;
         
         default:
             signalName = "Unhandled Signal";
@@ -736,6 +841,118 @@ Signal StringToSignal(std::string_view signalName) {
             break;
         case SID("MENU") :
             signal = Signal::MENU;
+            break;
+        case SID("MOUSE_1") :
+        case SID("MOUSE_LEFT") :
+            signal = Signal::MOUSE_1;
+            break;
+        case SID("MOUSE_2") :
+        case SID("MOUSE_RIGHT") :
+            signal = Signal::MOUSE_2;
+            break;
+        case SID("MOUSE_3") :
+        case SID("MOUSE_MIDDLE") :
+            signal = Signal::MOUSE_MIDDLE;
+            break;
+        case SID("MOUSE_4") :
+            signal = Signal::MOUSE_4;
+            break;
+        case SID("MOUSE_5") :
+            signal = Signal::MOUSE_5;
+            break;
+        case SID("MOUSE_6") :
+            signal = Signal::MOUSE_6;
+            break;
+        case SID("MOUSE_7") :
+            signal = Signal::MOUSE_7;
+            break;
+        case SID("MOUSE_8") :
+            signal = Signal::MOUSE_8;
+            break;
+        case SID("MOUSE_MOVE_X") :
+            signal = Signal::MOUSE_MOVE_X;
+            break;
+        case SID("MOUSE_MOVE_Y") :
+            signal = Signal::MOUSE_MOVE_Y;
+            break;
+        case SID("MOUSE_SCROLL_UP") :
+            signal = Signal::MOUSE_SCROLL_UP;
+            break;
+        case SID("MOUSE_SCROLL_DOWN") :
+            signal = Signal::MOUSE_SCROLL_DOWN;
+            break;
+        case SID("MOUSE_SCROLL_RIGHT") :
+            signal = Signal::MOUSE_SCROLL_RIGHT;
+            break;
+        case SID("MOUSE_SCROLL_LEFT") :
+            signal = Signal::MOUSE_SCROLL_LEFT;
+            break;
+        case SID("GAMEPAD_A") :
+        case SID("GAMEPAD_CROSS") :
+            signal = Signal::GAMEPAD_A;
+            break;
+        case SID("GAMEPAD_B") :
+        case SID("GAMEPAD_CIRCLE") :
+            signal = Signal::GAMEPAD_B;
+            break;
+        case SID("GAMEPAD_X") :
+        case SID("GAMEPAD_SQUARE") :
+            signal = Signal::GAMEPAD_X;
+            break;
+        case SID("GAMEPAD_Y") :
+        case SID("GAMEPAD_TRIANGLE") :
+            signal = Signal::GAMEPAD_Y;
+            break;
+        case SID("GAMEPAD_LEFT_BUMPER") :
+            signal = Signal::GAMEPAD_LEFT_BUMPER;
+            break;
+        case SID("GAMEPAD_RIGHT_BUMPER") :
+            signal = Signal::GAMEPAD_RIGHT_BUMPER;
+            break;
+        case SID("GAMEPAD_BACK") :
+            signal = Signal::GAMEPAD_BACK;
+            break;
+        case SID("GAMEPAD_START") :
+            signal = Signal::GAMEPAD_START;
+            break;
+        case SID("GAMEPAD_GUIDE") :
+            signal = Signal::GAMEPAD_GUIDE;
+            break;
+        case SID("GAMEPAD_LEFT_THUMB") :
+            signal = Signal::GAMEPAD_LEFT_THUMB;
+            break;
+        case SID("GAMEPAD_RIGHT_THUMB") :
+            signal = Signal::GAMEPAD_RIGHT_THUMB;
+            break;
+        case SID("GAMEPAD_DPAD_UP") :
+            signal = Signal::GAMEPAD_DPAD_UP;
+            break;
+        case SID("GAMEPAD_DPAD_RIGHT") :
+            signal = Signal::GAMEPAD_DPAD_RIGHT;
+            break;
+        case SID("GAMEPAD_DPAD_DOWN") :
+            signal = Signal::GAMEPAD_DPAD_DOWN;
+            break;
+        case SID("GAMEPAD_DPAD_LEFT") :
+            signal = Signal::GAMEPAD_DPAD_LEFT;
+            break;
+        case SID("GAMEPAD_AXIS_LEFT_X") :
+            signal = Signal::GAMEPAD_AXIS_LEFT_X;
+            break;
+        case SID("GAMEPAD_AXIS_LEFT_Y") :
+            signal = Signal::GAMEPAD_AXIS_LEFT_Y;
+            break;
+        case SID("GAMEPAD_AXIS_RIGHT_X") :
+            signal = Signal::GAMEPAD_AXIS_RIGHT_X;
+            break;
+        case SID("GAMEPAD_AXIS_RIGHT_Y") :
+            signal = Signal::GAMEPAD_AXIS_RIGHT_Y;
+            break;
+        case SID("GAMEPAD_AXIS_LEFT_TRIGGER") :
+            signal = Signal::GAMEPAD_AXIS_LEFT_TRIGGER;
+            break;
+        case SID("GAMEPAD_AXIS_RIGHT_TRIGGER") :
+            signal = Signal::GAMEPAD_AXIS_RIGHT_TRIGGER;
             break;
         
         default:
