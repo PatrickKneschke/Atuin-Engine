@@ -27,9 +27,9 @@ public:
         // mEvents.Resize(static_cast<Size>(Signal::COUNT), 0);
     }
 
-    void MapSignal(Signal signal, U64 eventID) {
-
-        mSignalMap[signal] = eventID;
+    void MapSignal(Signal signal, U64 inputID) {
+        
+        mSignalMap[signal] = inputID;
     }
 
     std::string Name() const { return mName; }

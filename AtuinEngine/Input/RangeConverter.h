@@ -6,6 +6,8 @@
 
 #include "unordered_map"
 
+#include <iostream>
+
 
 namespace Atuin {
 
@@ -20,7 +22,7 @@ class RangeConverter {
         double maxOut;
 
         double Convert(double inValue) {
-
+            
             inValue = std::min(std::max(inValue, minIn), maxIn);
             double slope = (maxOut - minOut) / (maxIn - minIn);
 

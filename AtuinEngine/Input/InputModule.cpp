@@ -35,9 +35,6 @@ void InputModule::StartUp(GLFWwindow *window) {
     
     glfwSetWindowUserPointer(sWindow, this);
 
-    glfwSetInputMode(sWindow, GLFW_STICKY_KEYS, 1);
-    glfwSetInputMode(sWindow, GLFW_STICKY_MOUSE_BUTTONS, 1);
-
     glfwSetKeyCallback(sWindow, KeyListener);
     glfwSetMouseButtonCallback(sWindow, MouseListener);
     glfwSetCursorPosCallback(sWindow, CursorPosListener);
@@ -56,10 +53,21 @@ void InputModule::ShutDown() {
 
 void InputModule::Update() {
 
+    PushInputStates();
     glfwPollEvents();
     if (mCallback)
     {
         mCallback(mCurrentMappedInput);
+    }
+}
+
+
+void InputModule::PushInputStates() {
+
+    for(auto &[input, state] : mCurrentMappedInput)
+    {
+        state.second = state.first;
+        state.first = 0;
     }
 }
 
@@ -72,13 +80,13 @@ void InputModule::LoadContexts(std::string_view contextFilePath) {
     mContextsJSON = json::JSON::Load(jsonTxt);
     auto contexts = mContextsJSON.ObjectRange();
 
-    for(auto &[name, contextData] : contexts) {
-
+    for(auto &[name, contextData] : contexts) 
+    {
         U64 nameID = SID(name.c_str());
         mContexts[nameID] = pEngine->Memory()->New<InputContext>(name);        
         auto inputMap = contextData.ObjectRange();
-        for(auto &[input, signal] : inputMap) {
-
+        for(auto &[input, signal] : inputMap) 
+        {
             mContexts[nameID]->MapSignal(StringToSignal(signal.ToString()), SID(input.c_str()));
         }
     }
@@ -99,9 +107,9 @@ void InputModule::LoadRanges(std::string_view rangesFilePath) {
     std::string jsonTxt(pEngine->Files()->Read(rangesFilePath));
     json::JSON rangesJSON;
     rangesJSON = json::JSON::Load(jsonTxt);
-    auto ranges = mContextsJSON.ObjectRange();
-    for(auto &[name, rangeData] : ranges) {
-
+    auto ranges = rangesJSON.ObjectRange();
+    for(auto &[name, rangeData] : ranges)
+    {
         U64 rangeID = SID(name.c_str());
         mRangeConverter.AddRange(
             rangeID, 
@@ -161,10 +169,10 @@ bool InputModule::IsMouseButtonPressed(int button) const {
 
 std::pair<double, double> InputModule::GetCursorPos() const {
 
-    double x, y;
-    glfwGetCursorPos(sWindow, &x, &y);
+    // double x, y;
+    // glfwGetCursorPos(sWindow, &x, &y);
 
-    return std::make_pair(x, y);
+    return std::make_pair(mouseX, mouseY);
 }
 
 
@@ -176,15 +184,7 @@ void InputModule::KeyListener(GLFWwindow*, int key, int, int action, int) {
     U64 input = inputModule->mSignalMap[(Size)signal];
     if (input > 0)
     {
-        inputModule->mCurrentMappedInput[input].second = inputModule->mCurrentMappedInput[input].first;
-        if (action == GLFW_RELEASE)
-        {
-            inputModule->mCurrentMappedInput[input].first = 0;
-        }
-        else if (action == GLFW_PRESS)
-        {
-            inputModule->mCurrentMappedInput[input].first = 1;
-        }
+        inputModule->mCurrentMappedInput[input].first = action == GLFW_RELEASE ? 0 : 1;
     }
 }
 
@@ -193,19 +193,11 @@ void InputModule::MouseListener(GLFWwindow* , int button, int action, int) {
 
     auto inputModule = reinterpret_cast<InputModule*>(glfwGetWindowUserPointer(sWindow));
 
-    Signal signal = GlfwKeyCode(button);
+    Signal signal = GlfwMouseButtonCode(button);
     U64 input = inputModule->mSignalMap[(Size)signal];
     if (input > 0)
     {
-        inputModule->mCurrentMappedInput[input].second = inputModule->mCurrentMappedInput[input].first;
-        if (action == GLFW_RELEASE)
-        {
-            inputModule->mCurrentMappedInput[input].first = 0;
-        }
-        else if (action == GLFW_PRESS)
-        {
-            inputModule->mCurrentMappedInput[input].first = 1;
-        }
+        inputModule->mCurrentMappedInput[input].first = action == GLFW_RELEASE ? 0 : 1;
     }
 }
 
@@ -214,18 +206,20 @@ void InputModule::CursorPosListener(GLFWwindow*, double xpos, double ypos) {
 
     auto inputModule = reinterpret_cast<InputModule*>(glfwGetWindowUserPointer(sWindow));
 
-    U64 mouseX = inputModule->mSignalMap[(Size)Signal::MOUSE_MOVE_X];
-    U64 mouseY = inputModule->mSignalMap[(Size)Signal::MOUSE_MOVE_Y];
-    if (mouseX > 0)
+    U64 mouseMoveX = inputModule->mSignalMap[(Size)Signal::MOUSE_MOVE_X];
+    U64 mouseMoveY = inputModule->mSignalMap[(Size)Signal::MOUSE_MOVE_Y];
+
+    if (mouseMoveX > 0)
     {
-        inputModule->mCurrentMappedInput[mouseX].second = inputModule->mCurrentMappedInput[mouseX].first;
-        inputModule->mCurrentMappedInput[mouseX].first = inputModule->mRangeConverter.Convert(mouseX, xpos);
+        inputModule->mCurrentMappedInput[mouseMoveX].first = inputModule->mRangeConverter.Convert(mouseMoveX, xpos - inputModule->mouseX);
     }
-    if (mouseY > 0)
+    if (mouseMoveY > 0)
     {
-        inputModule->mCurrentMappedInput[mouseY].second = inputModule->mCurrentMappedInput[mouseY].first;
-        inputModule->mCurrentMappedInput[mouseY].first = inputModule->mRangeConverter.Convert(mouseY, ypos);
+        inputModule->mCurrentMappedInput[mouseMoveY].first = inputModule->mRangeConverter.Convert(mouseMoveY, ypos - inputModule->mouseY);
     }
+
+    inputModule->mouseX = xpos;
+    inputModule->mouseY = ypos;
 }
 
     

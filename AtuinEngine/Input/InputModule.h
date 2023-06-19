@@ -57,6 +57,7 @@ private:
 
     static GLFWwindow* sWindow;
 
+    void PushInputStates();
     
     json::JSON mContextsJSON; // TODO use own JSON class
 
@@ -69,7 +70,7 @@ private:
     // Array<U64> mSignalMap;
     U64 mSignalMap[(Size)Signal::COUNT];
     MappedInput mCurrentMappedInput;
-    double x, y;
+    double mouseX, mouseY;
 
     EngineLoop* pEngine;
 };
