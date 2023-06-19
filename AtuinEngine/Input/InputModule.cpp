@@ -66,8 +66,8 @@ void InputModule::PushInputStates() {
 
     for(auto &[input, state] : mCurrentMappedInput)
     {
-        state.second = state.first;
-        state.first = 0;
+        state.prev = state.value;
+        state.value = InputState::RELEASE;
     }
 }
 
@@ -184,7 +184,7 @@ void InputModule::KeyListener(GLFWwindow*, int key, int, int action, int) {
     U64 input = inputModule->mSignalMap[(Size)signal];
     if (input > 0)
     {
-        inputModule->mCurrentMappedInput[input].first = action == GLFW_RELEASE ? 0 : 1;
+        inputModule->mCurrentMappedInput[input].value = action == GLFW_RELEASE ? InputState::RELEASE : InputState::PRESS;
     }
 }
 
@@ -197,7 +197,7 @@ void InputModule::MouseListener(GLFWwindow* , int button, int action, int) {
     U64 input = inputModule->mSignalMap[(Size)signal];
     if (input > 0)
     {
-        inputModule->mCurrentMappedInput[input].first = action == GLFW_RELEASE ? 0 : 1;
+        inputModule->mCurrentMappedInput[input].value = action == GLFW_RELEASE ? InputState::RELEASE : InputState::PRESS;
     }
 }
 
@@ -211,11 +211,11 @@ void InputModule::CursorPosListener(GLFWwindow*, double xpos, double ypos) {
 
     if (mouseMoveX > 0)
     {
-        inputModule->mCurrentMappedInput[mouseMoveX].first = inputModule->mRangeConverter.Convert(mouseMoveX, xpos - inputModule->mouseX);
+        inputModule->mCurrentMappedInput[mouseMoveX].value = inputModule->mRangeConverter.Convert(mouseMoveX, xpos - inputModule->mouseX);
     }
     if (mouseMoveY > 0)
     {
-        inputModule->mCurrentMappedInput[mouseMoveY].first = inputModule->mRangeConverter.Convert(mouseMoveY, ypos - inputModule->mouseY);
+        inputModule->mCurrentMappedInput[mouseMoveY].value = inputModule->mRangeConverter.Convert(mouseMoveY, ypos - inputModule->mouseY);
     }
 
     inputModule->mouseX = xpos;

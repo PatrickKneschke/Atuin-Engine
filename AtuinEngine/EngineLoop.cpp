@@ -12,44 +12,49 @@
 #include <iostream>
 
 
+/*  just for testing  */
+
 void testInputHandler(Atuin::MappedInput &input) {
 
     // continous action -> only check curretn state
-    if (input[Atuin::SID("CameraLeft")].first == 1)
+    if (input[Atuin::SID("CameraLeft")].value == Atuin::InputState::PRESS)
     {
         std::cout << "Move cam left\n";
     }
-    if (input[Atuin::SID("CameraRight")].first == 1)
+    if (input[Atuin::SID("CameraRight")].value == Atuin::InputState::PRESS)
     {
         std::cout << "Move cam right\n";
     }
-    if (input[Atuin::SID("CameraForward")].first == 1)
+    if (input[Atuin::SID("CameraForward")].value == Atuin::InputState::PRESS)
     {
         std::cout << "Move cam forward\n";
     }
-    if (input[Atuin::SID("CameraBack")].first == 1)
+    if (input[Atuin::SID("CameraBack")].value == Atuin::InputState::PRESS)
     {
         std::cout << "Move cam back\n";
     }
 
     // one off actions also check prev state
-    if (input[Atuin::SID("Fire")].first == 1 && input[Atuin::SID("Fire")].second == 0)
+    if (input[Atuin::SID("Fire")].value == Atuin::InputState::PRESS && input[Atuin::SID("Fire")].prev == Atuin::InputState::RELEASE)
     {
         std::cout << "Fire!!!\n";
     }
     
-    double dYaw = input[Atuin::SID("CameraYaw")].first;
+    double dYaw = input[Atuin::SID("CameraYaw")].value;
     if (dYaw != 0)
     {
         std::cout << "Change yaw by " << dYaw << '\n';
     }
     
-    double dPitch = input[Atuin::SID("CameraPitch")].first;
+    double dPitch = input[Atuin::SID("CameraPitch")].value;
     if (dYaw != 0)
     {
         std::cout << "Change pitch by " << dPitch << '\n';
     }
 }
+
+/*  just for testing END */
+
 
 
 namespace Atuin {

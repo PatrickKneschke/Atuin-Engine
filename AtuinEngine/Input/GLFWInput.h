@@ -10,7 +10,7 @@
 namespace Atuin {
 
 
-Signal GlfwKeyCode(int glfwKey) {
+inline Signal GlfwKeyCode(int glfwKey) {
 
     Signal signal;
     switch (glfwKey)
@@ -379,7 +379,7 @@ Signal GlfwKeyCode(int glfwKey) {
 }
 
 
-Signal GlfwMouseButtonCode(int glfwKey) {
+inline Signal GlfwMouseButtonCode(int glfwKey) {
 
     Signal signal;
     switch (glfwKey)
@@ -418,7 +418,7 @@ Signal GlfwMouseButtonCode(int glfwKey) {
 }
 
 
-Signal GlfwGamepadButtonCode(int glfwKey) {
+inline Signal GlfwGamepadButtonCode(int glfwKey) {
 
     Signal signal;
     switch (glfwKey)
@@ -475,7 +475,7 @@ Signal GlfwGamepadButtonCode(int glfwKey) {
 }
 
 
-Signal GlfwGamepadAxesCode(int glfwKey) {
+inline Signal GlfwGamepadAxesCode(int glfwKey) {
 
     Signal signal;
     switch (glfwKey)

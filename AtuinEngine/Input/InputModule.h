@@ -9,7 +9,6 @@
 
 #include <functional>
 
-#include <list>
 #include <unordered_map>
 
 
@@ -18,7 +17,16 @@ class GLFWwindow;
 namespace Atuin {
 
 
-using MappedInput = std::unordered_map<U64, std::pair<double,double>>; // input -> (state, prev state) 
+struct InputState {
+
+    constexpr static double RELEASE = 0;
+    constexpr static double PRESS = 1;
+
+    double value = RELEASE;
+    double prev = RELEASE;
+};
+
+using MappedInput = std::unordered_map<U64, InputState>;
 using InputHandler = std::function<void(MappedInput&)>;
 
 
