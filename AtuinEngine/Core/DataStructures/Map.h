@@ -6,6 +6,8 @@
 #include "Core/Util/StringFormat.h"
 #include "Core/DataStructures/Array.h"
 
+#include <iostream>
+
 
 namespace Atuin {
 
@@ -38,24 +40,28 @@ public:
     Map& operator= (const Map &rhs);
     Map& operator= (Map &&rhs);
 
+    ~Map();
+
     Size GetSize() const { return mSize; }
     Size GetNumBuckets() const { return mNumBuckets; }
     float GetMaxLoadFactor() const { return mMaxLoadFactor; }
 
-    MapData* Find(KeyType key);
-    void Insert(KeyType key, ValueType value);
-    void Erase(KeyType key);
+    MapData* Find(const KeyType &key);
+    void Insert(const KeyType &key, const ValueType &value);
+    void Erase(const KeyType &key);
     void Clear();
 
-    ValueType& At(KeyType key);
-    const ValueType& At(KeyType key) const;
-    ValueType& operator[] (KeyType key);
+    ValueType& At(const KeyType &key);
+    const ValueType& At(const KeyType &key) const;
+    ValueType& operator[] (const KeyType &key);
 
 
-private:
+private: 
 
-    Size Hash(KeyType key);
+    Size Hash(const KeyType &key);
     void Rehash();
+    MapData* MakeNode(KeyType key, ValueType value, MapData *prev = nullptr, MapData *next = nullptr);
+    void DeleteNode(MapData *node);
 
     Array<MapData*> mBuckets;
     Size mNumBuckets;
@@ -96,24 +102,19 @@ Map<KeyType, ValueType>::Map(const Map &other, MemoryManager *memory) :
     mMaxLoadFactor {other.mMaxLoadFactor}, 
     pMemory {memory}
 {
-    for (Size i = 0; i < mNumBuckets; i++)
+    // make deep copy of other map
+    for (Size i = 0; i < other.mNumBuckets; i++)
     {
         MapData *head = other.mBuckets[i];
         while (head != nullptr)
         {
-            MapData *newHead;
-            if (pMemory != nullptr)
+            MapData *newHead = MakeNode(head->key, head->value, nullptr, mBuckets[i]);
+            if (mBuckets[i] != nullptr)
             {
-                newHead = pMemory->New<MapData>(head->key, head->value, nullptr, mBuckets[i]);
-            }
-            else
-            {
-                newHead = new MapData(head->key, head->value, nullptr, mBuckets[i]);
-            }
-            mBuckets[i]->prev = newHead;
+                mBuckets[i]->prev = newHead;
+            }            
             mBuckets[i] = newHead;
             head = head->next;
-            ++mSize;
         }
     }
 }
@@ -142,24 +143,18 @@ Map<KeyType, ValueType>& Map<KeyType, ValueType>::operator=(const Map &rhs) {
     mNumBuckets = rhs.mNumBuckets;
     mMaxLoadFactor = rhs.mMaxLoadFactor;    
     mBuckets = Array<MapData*>(mNumBuckets, nullptr, pMemory); 
-    for (Size i = 0; i < mNumBuckets; i++)
+    for (Size i = 0; i < rhs.mNumBuckets; i++)
     {
         MapData *head = rhs.mBuckets[i];
         while (head != nullptr)
         {
-            MapData *newHead;
-            if (pMemory != nullptr)
+            MapData *newHead = MakeNode(head->key, head->value, nullptr, mBuckets[i]);
+            if (mBuckets[i] != nullptr)
             {
-                newHead = pMemory->New<MapData>(head->key, head->value, nullptr, mBuckets[i]);
+                mBuckets[i]->prev = newHead;
             }
-            else
-            {
-                newHead = new MapData(head->key, head->value, nullptr, mBuckets[i]);
-            }
-            mBuckets[i]->prev = newHead;
             mBuckets[i] = newHead;
             head = head->next;
-            ++mSize;
         }
     }
 }
@@ -182,7 +177,14 @@ Map<KeyType, ValueType>& Map<KeyType, ValueType>::operator=(Map &&rhs) {
 
 
 template<typename KeyType, typename ValueType>
-Map<KeyType, ValueType>::MapData* Map<KeyType, ValueType>::Find(KeyType key) {
+Map<KeyType, ValueType>::~Map() {
+    
+    Clear();
+}
+
+
+template<typename KeyType, typename ValueType>
+Map<KeyType, ValueType>::MapData* Map<KeyType, ValueType>::Find(const KeyType &key) {
 
     Size hash = Hash(key);
     MapData *head = mBuckets[hash];
@@ -200,46 +202,31 @@ Map<KeyType, ValueType>::MapData* Map<KeyType, ValueType>::Find(KeyType key) {
 
 
 template<typename KeyType, typename ValueType>
-void Map<KeyType, ValueType>::Insert(KeyType key, ValueType value) {
+void Map<KeyType, ValueType>::Insert(const KeyType &key, const ValueType &value) {
+
+    MapData *found = Find(key);
+    if (found != nullptr)
+    {
+        found->value = value;
+        return;
+    }
     
+    Rehash();
+
     Size hash = Hash(key);
-    MapData *head = mBuckets[hash];
-    while (head != nullptr)
-    {
-        if (head->key == key)
-        {
-            head->value = value;
-            return;
-        }
-        head = head->next;
-    }
-    
     MapData *oldHead = mBuckets[hash];
-    if (pMemory != nullptr)
-    {
-        mBuckets[hash] = pMemory->New<MapData>(key, value, nullptr, oldHead);
-    }
-    else 
-    {
-        mBuckets[hash] = new MapData(key, value, nullptr, oldHead);
-    }
-    
+    mBuckets[hash] = MakeNode(key, value, nullptr, oldHead);    
     if (oldHead != nullptr) 
     {
         oldHead->prev = mBuckets[hash];
     }
-
-    ++mSize;
-
-    Rehash();
 }
 
 
 template<typename KeyType, typename ValueType>
-void Map<KeyType, ValueType>::Erase(KeyType key) {
+void Map<KeyType, ValueType>::Erase(const KeyType &key) {
 
     Size hash = Hash(key);
-
     MapData *head = mBuckets[hash];
     while (head != nullptr)
     {
@@ -258,17 +245,7 @@ void Map<KeyType, ValueType>::Erase(KeyType key) {
             {
                 mBuckets[hash] = next;
             }
-
-            if (pMemory != nullptr)
-            {
-                pMemory->Delete(head);
-            }
-            else
-            {
-                delete head;
-            }
-
-            --mSize;
+            DeleteNode(head);
 
             return;
         }
@@ -286,15 +263,7 @@ void Map<KeyType, ValueType>::Clear() {
         while (head != nullptr)
         {
             mBuckets[i] = head->next;
-
-            if (pMemory != nullptr)
-            {
-                pMemory->Delete(head);
-            }
-            else
-            {
-                delete head;
-            }
+            DeleteNode(head);
 
             if(mBuckets[i] != nullptr)
             {
@@ -304,78 +273,57 @@ void Map<KeyType, ValueType>::Clear() {
             head = mBuckets[i];
         }        
     }
-    mSize = 0;
 }
 
 
 template<typename KeyType, typename ValueType>
-ValueType& Map<KeyType, ValueType>::At(KeyType key) {
+ValueType& Map<KeyType, ValueType>::At(const KeyType &key) {
 
-    Size hash = Hash(key);
-    MapData *head = mBuckets[hash];
-    while (head != nullptr)
+    MapData *found = Find(key);
+    if (found == nullptr)
     {
-        if (head->key == key)
-        {
-            return head->value;
-        }
-        head = head->next;
+        throw std::out_of_range( FormatStr("Trying to access element with key \"%s\", which is not in the map", key) );    
     }
 
-    throw std::out_of_range( FormatStr("Trying to access element with key \"%s\", which is not in the map", key) );    
+    return found->value;
 }
 
 
 template<typename KeyType, typename ValueType>
-const ValueType& Map<KeyType, ValueType>::At(KeyType key) const {
+const ValueType& Map<KeyType, ValueType>::At(const KeyType &key) const {
 
-    Size hash = Hash(key);
-    MapData *head = mBuckets[hash];
-    while (head != nullptr)
+    MapData *found = Find(key);
+    if (found == nullptr)
     {
-        if (head->key == key)
-        {
-            return head->value;
-        }
-        head = head->next;
+        throw std::out_of_range( FormatStr("Trying to access element with key \"%s\", which is not in the map", key) );    
     }
 
-    throw std::out_of_range( FormatStr("Trying to access element with key \"%s\", which is not in the map", key) );    
+    return found->value; 
 }
 
 
 template<typename KeyType, typename ValueType>
-ValueType& Map<KeyType, ValueType>::operator[](KeyType key) {
+ValueType& Map<KeyType, ValueType>::operator[](const KeyType &key) {
 
-    Size hash = Hash(key);
-    MapData *head = mBuckets[hash];
-    while (head != nullptr)
+    MapData *found = Find(key);
+    if (found != nullptr)
     {
-        if (head->key == key)
-        {
-            return head->value;
-        }
-        head = head->next;
+        return found->value;
     }
-
-    if (pMemory != nullptr)
-    {
-        mBuckets[hash] = pMemory->New<MapData>(key, ValueType(), nullptr, mBuckets[hash]);
-    }
-    else
-    {
-        mBuckets[hash] = new MapData(key, ValueType(), nullptr, mBuckets[hash]);
-    }
-    ++mSize;
 
     Rehash();
 
-    return mBuckets[ Hash(key) ]->value;
+    Size hash = Hash(key);
+    mBuckets[hash] = MakeNode(key, ValueType(), nullptr, mBuckets[hash]);
+
+    return mBuckets[hash]->value;
 }
 
 
 template<typename KeyType, typename ValueType>
-Size Map<KeyType, ValueType>::Hash(KeyType key) {
+Size Map<KeyType, ValueType>::Hash(const KeyType &key) {
+
+    assert(mNumBuckets > 0);
 
     return std::hash<KeyType>{}(key) % mNumBuckets;
 }
@@ -384,34 +332,69 @@ Size Map<KeyType, ValueType>::Hash(KeyType key) {
 template<typename KeyType, typename ValueType>
 void Map<KeyType, ValueType>::Rehash() {
 
-    if (mSize <= (Size)(mMaxLoadFactor * (float)mNumBuckets)) {
+    if (mSize < (Size)(mMaxLoadFactor * (float)mNumBuckets)) {
 
         return;
     }
 
-    mNumBuckets *= 2;
-    Array<MapData*> newBuckets(mNumBuckets, nullptr, pMemory);
+    Array<MapData*> newBuckets(2*mNumBuckets, nullptr, pMemory);
     for (Size i = 0; i < mNumBuckets; i++)
     {
         MapData *head = mBuckets[i];
         while (head != nullptr)
         {
-            Size hash = Hash(head->key);
-
             MapData *temp = head->next;
-
+            
+            Size hash = Hash(head->key);
             head->prev = nullptr;
             head->next = newBuckets[hash];
-            newBuckets[hash]->prev = head;
+            if (newBuckets[hash] != nullptr)
+            {
+                newBuckets[hash]->prev = head;
+            }            
             newBuckets[hash] = head;
 
             head = temp;
         }        
     }
 
+    mNumBuckets *= 2;
     mBuckets = std::move(newBuckets);
 }
 
+
+template<typename KeyType, typename ValueType>
+Map<KeyType, ValueType>::MapData* Map<KeyType, ValueType>::MakeNode(KeyType key, ValueType value, MapData *prev, MapData *next) {
+
+    MapData *node = nullptr;
+    if (pMemory != nullptr)
+    {
+        node = pMemory->New<MapData>(key, value, prev, next);
+    }
+    else
+    {
+        node = new MapData(key, value, prev, next);
+    }
+    ++mSize;
+
+    return node;
+}
+
+
+template<typename KeyType, typename ValueType>
+void Map<KeyType, ValueType>::DeleteNode(MapData *node) {
+
+    if (pMemory != nullptr)
+    {
+        pMemory->Delete(node);
+    }
+    else
+    {
+        delete node;
+    }
+    node = nullptr;
+    --mSize;
+}
 
     
 } // Atuin

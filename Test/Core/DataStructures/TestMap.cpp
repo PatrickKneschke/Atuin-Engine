@@ -3,6 +3,8 @@
 
 #include "Core/DataStructures/Map.h"
 
+#include <iostream>
+
 
 using namespace Atuin;
 
@@ -19,25 +21,29 @@ TEST_CASE("create an empty map", "[map]") {
 
 TEST_CASE("copy a map", "[map]") {
 
-	Map<std::string, int> mp;
+	Map<std::string, int> mp(16, 0.8f);
     mp["first"] = 1;
-
-    REQUIRE(mp.GetSize() == 1);
-    REQUIRE(mp["first"] == 1);
+    UPtr ptr1 = reinterpret_cast<UPtr>(mp.Find("first"));
 
     Map<std::string, int> mp2(mp);
+    UPtr ptr2 = reinterpret_cast<UPtr>(mp2.Find("first"));
 
     REQUIRE(mp2.GetSize() == 1);
-    // REQUIRE(mp2["first"] == 1);
-    // REQUIRE(mp2["second"] == 1);
+    REQUIRE(mp2["first"] == 1);
+    REQUIRE(ptr2 != ptr1);
 
     // Map<std::string, int> mp3(std::move(mp));
+    // UPtr ptr3 = reinterpret_cast<UPtr>(mp3.Find("first"));
 
     // REQUIRE(mp3.GetSize() == 1);
-    // REQUIRE(mp3["first"] == 1);
+    // REQUIRE(mp3.GetNumBuckets() == 16);
+    // REQUIRE(mp3.GetMaxLoadFactor() == 0.8f);
     // REQUIRE(mp3.At("first") == 1);
+    // REQUIRE(ptr3 == ptr1);
+
     // REQUIRE(mp.GetSize() == 0);
-    // REQUIRE_THROWS(mp.At("first") == 1);
+    // REQUIRE(mp.GetNumBuckets() == 0);
+    // REQUIRE(mp.GetMaxLoadFactor() == 0);
 }
 
 
@@ -79,15 +85,17 @@ TEST_CASE("modify map", "[map]") {
     mp[3] = 8.f;
 
     REQUIRE(mp.GetSize() == 3);
-    REQUIRE_NOTHROW( mp.Insert(4, 16) );
+
+    mp.Insert(4, 16);
     REQUIRE(mp.GetSize() == 4);
-    REQUIRE_NOTHROW( mp.Erase(2) );
+    
+    mp.Erase(2);
     REQUIRE(mp.GetSize() == 3);
 
     mp[1] = 1.f;
     REQUIRE(mp[1] == 1.f);
 
-    REQUIRE_NOTHROW( mp.Clear() );
+    mp.Clear();
     REQUIRE(mp.GetSize() == 0);
 }
 
@@ -98,9 +106,9 @@ TEST_CASE("rehash map", "[map]") {
 
     REQUIRE(mp.GetNumBuckets() == 2);
 
-    // mp[2.3] = 23;
-    // mp[3.4] = 34;
-    // mp[4.5] = 45;
+    mp[2.3] = 23;
+    mp[3.4] = 34;
+    mp[4.5] = 45;
 
-    // REQUIRE(mp.GetNumBuckets() == 4);
+    REQUIRE(mp.GetNumBuckets() == 4);
 }
