@@ -23,6 +23,142 @@ class Array {
 
 public:
 
+    class iterator {
+
+        public:
+
+            explicit iterator(T *ptr_) : ptr {ptr_} {}
+
+            iterator operator+(int rhs) {
+                
+                iterator it = *this;
+                it.ptr += rhs;
+
+                return it;
+            }
+
+            iterator operator-(int rhs) {
+                
+                iterator it = *this;
+                it.ptr -= rhs;
+                
+                return it;
+            }
+
+            int operator-(iterator rhs) { 
+                
+                return reinterpret_cast<UPtr>(ptr) - reinterpret_cast<UPtr>(rhs.ptr); 
+            }
+            
+            iterator operator++() {
+            
+                ++ptr;
+                return *this;
+            }
+
+            iterator operator++(int) {
+            
+                iterator it = *this;
+                ++ptr;
+
+                return it;
+            }
+
+            iterator operator--() {
+
+                --ptr;
+
+                return *this;
+            }
+
+            iterator operator--(int) {
+
+                iterator it = *this;
+                --ptr;
+
+                return it;
+            }
+
+            T&  operator*() { return *ptr; }
+            T* operator->() { return ptr; }
+            bool operator==(const iterator &rhs) { return ptr == rhs.ptr; }
+            bool operator!=(const iterator &rhs) { return ptr != rhs.ptr; }
+
+        private:
+            T *ptr;
+    };
+
+    class const_iterator {
+
+        public:
+
+            explicit const_iterator(T *ptr_) : ptr {ptr_} {}
+
+            const_iterator operator+(int rhs) {
+                
+                const_iterator it = *this;
+                it.ptr += rhs;
+
+                return it;
+            }
+
+            const_iterator operator-(int rhs) {
+                
+                const_iterator it = *this;
+                it.ptr -= rhs;
+                
+                return it;
+            }
+
+            int operator-(const_iterator rhs) { 
+                
+                return reinterpret_cast<UPtr>(ptr) - reinterpret_cast<UPtr>(rhs.ptr); 
+            }
+            
+            const_iterator operator++() {
+            
+                ++ptr;
+                return *this;
+            }
+
+            const_iterator operator++(int) {
+            
+                const_iterator it = *this;
+                ++ptr;
+
+                return it;
+            }
+
+            const_iterator operator--() {
+
+                --ptr;
+
+                return *this;
+            }
+
+            const_iterator operator--(int) {
+
+                const_iterator it = *this;
+                --ptr;
+
+                return it;
+            }
+
+            const T& operator*() { return *ptr; }
+            const T* operator->() { return ptr; }
+            bool operator==(const const_iterator &rhs) { return ptr == rhs.ptr; }
+            bool operator!=(const const_iterator &rhs) { return ptr != rhs.ptr; }
+
+        private:
+            T *ptr;
+    };
+
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
+
+public:
+
     Array(MemoryManager *memory = nullptr);
     Array(Size capacity, MemoryManager *memory = nullptr);
     Array(Size capacity, const T &value, MemoryManager *memory = nullptr);
@@ -63,6 +199,15 @@ public:
     const T& Back() const;
     T&       operator[](Size idx);
     const T& operator[](Size idx) const;
+
+    iterator         Begin()    { return iterator(pData); }
+    const_iterator   Cbegin()    { return const_iterator(pData); }
+    iterator         End()      { return iterator(pData + mSize); }
+    const_iterator   Cend()      { return const_iterator(pData + mSize); }
+    reverse_iterator Rbegin()   { return reverse_iterator(pData + mSize - 1); }
+    const_iterator   Crbegin()   { return const_reverse_iterator(pData + mSize - 1); }
+    iterator         Rend()     { return reverse_iterator(pData - 1); }
+    const_iterator   Crend()     { return const_iterator(pData - 1); }
 
     bool operator== (const Array &rhs) const;
     bool operator!= (const Array &rhs) const;
@@ -505,6 +650,20 @@ bool Array<T>::operator!= (const Array &rhs) const {
 
     return !( *this == rhs );
 }
+
+
+
+template<typename T>
+Array<T>::iterator begin(Array<T> &arr) { return arr.Begin(); }
+
+template<typename T>
+Array<T>::iterator end(Array<T> &arr) { return arr.End(); }
+
+template<typename T>
+Array<T>::iterator rbegin(Array<T> &arr) { return arr.Rbegin(); }
+
+template<typename T>
+Array<T>::iterator rend(Array<T> &arr) { return arr.Rend(); }
 
 
 } // Atuin
