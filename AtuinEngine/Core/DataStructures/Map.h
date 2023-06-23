@@ -60,7 +60,7 @@ private:
 
     Size Hash(const KeyType &key);
     void Rehash();
-    MapData* MakeNode(KeyType key, ValueType value, MapData *prev = nullptr, MapData *next = nullptr);
+    MapData* MakeNode(const KeyType &key, const ValueType &value, MapData *prev = nullptr, MapData *next = nullptr);
     void DeleteNode(MapData *node);
 
     Array<MapData*> mBuckets;
@@ -77,9 +77,10 @@ Map<KeyType, ValueType>::Map(MemoryManager *memory) :
     mBuckets(64, nullptr, memory), 
     mNumBuckets {64}, 
     mSize {0}, 
-    mMaxLoadFactor {1.0f} 
+    mMaxLoadFactor {1.0f},
+    pMemory {memory}
 {
-
+    
 }
 
 
@@ -88,9 +89,10 @@ Map<KeyType, ValueType>::Map(Size numBuckets, float maxLoadFactor, MemoryManager
     mBuckets(numBuckets, nullptr, memory), 
     mNumBuckets {numBuckets}, 
     mSize {0},
-    mMaxLoadFactor {maxLoadFactor} 
+    mMaxLoadFactor {maxLoadFactor} ,
+    pMemory {memory}
 {
-
+    
 }
 
 
@@ -364,7 +366,7 @@ void Map<KeyType, ValueType>::Rehash() {
 
 
 template<typename KeyType, typename ValueType>
-Map<KeyType, ValueType>::MapData* Map<KeyType, ValueType>::MakeNode(KeyType key, ValueType value, MapData *prev, MapData *next) {
+Map<KeyType, ValueType>::MapData* Map<KeyType, ValueType>::MakeNode(const KeyType &key, const ValueType &value, MapData *prev, MapData *next) {
 
     MapData *node = nullptr;
     if (pMemory != nullptr)
