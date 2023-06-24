@@ -14,7 +14,6 @@ namespace Atuin {
 
 class MemoryManager;
 
-
 /*
     KeyType is any type for which the standard hash struct template is implemented
 */
@@ -30,6 +29,145 @@ class Map {
 
         MapData(KeyType k = KeyType(), ValueType v = ValueType(), MapData *p = nullptr, MapData *n = nullptr) : key{k}, value{v}, prev{p}, next{n} {}
     };
+
+public:
+
+    class iterator {
+
+        public:
+
+            explicit iterator(MapData **first, Size numBuckets, MapData **head, MapData *node) : mFirst {first}, mNumBuckets {numBuckets}, mHead {head}, mNode {node} {}
+            
+            iterator operator++() {
+            
+                mNode = mNode->next;
+                while (mNode == nullptr && mHead < mFirst + mNumBuckets)
+                {
+                    mNode = *(++mHead);
+                }
+
+                return *this;
+            }
+
+            iterator operator++(int) {
+            
+                iterator it = *this;
+
+                mNode = mNode->next;
+                while (mNode == nullptr && mHead < mFirst + mNumBuckets)
+                {
+                    mNode = *(++mHead);
+                }
+
+                return it;
+            }
+
+            iterator operator--() {
+
+                mNode = mNode->next;
+                while (mNode == nullptr && mHead >= mFirst)
+                {
+                    mNode = *(--mHead);
+                }
+
+                return *this;
+            }
+
+            iterator operator--(int) {
+
+                iterator it = *this;
+
+                mNode = mNode->next;
+                while (mNode == nullptr && mHead >= mFirst)
+                {
+                    mNode = *(--mHead);
+                }
+
+                return it;
+            }
+
+            auto operator*() { return std::make_pair(mNode->key, mNode->value); }
+            auto operator->() { return std::make_pair(&(mNode->key), &(mNode->value)); }
+
+            bool operator==(const iterator &rhs) { return mNode == rhs.mNode; }
+            bool operator!=(const iterator &rhs) { return mNode != rhs.mNode; }
+
+        private:
+            MapData **mFirst;
+            Size mNumBuckets;
+            MapData **mHead;
+            MapData *mNode;
+    };
+
+    class const_iterator {
+
+        public:
+
+            explicit const_iterator(MapData **first, Size numBuckets, MapData **head, MapData *node) : mFirst {first}, mNumBuckets {numBuckets}, mHead {head}, mNode {node} {}
+
+            const_iterator operator++() {
+            
+                mNode = mNode->next;
+                while (mNode == nullptr && mHead < mFirst + mNumBuckets)
+                {
+                    mNode = *(++mHead);
+                }
+
+                return *this;
+            }
+
+            const_iterator operator++(int) {
+            
+                const_iterator it = *this;
+
+                mNode = mNode->next;
+                while (mNode == nullptr && mHead < mFirst + mNumBuckets)
+                {
+                    mNode = *(++mHead);
+                }
+
+                return it;
+            }
+
+            const_iterator operator--() {
+
+                mNode = mNode->next;
+                while (mNode == nullptr && mHead >= mFirst)
+                {
+                    mNode = *(--mHead);
+                }
+
+                return *this;
+            }
+
+            const_iterator operator--(int) {
+
+                const_iterator it = *this;
+
+                mNode = mNode->next;
+                while (mNode == nullptr && mHead >= mFirst)
+                {
+                    mNode = *(--mHead);
+                }
+
+                return it;
+            }
+
+            const auto operator*() { return std::make_pair(mNode->key, mNode->value); }
+            const auto operator->() { return std::make_pair(&(mNode->key), &(mNode->value)); }
+
+            bool operator==(const const_iterator &rhs) { return mNode == rhs.mNode; }
+            bool operator!=(const const_iterator &rhs) { return mNode != rhs.mNode; }
+
+        private:
+            MapData **mFirst;
+            Size mNumBuckets;
+            MapData **mHead;
+            MapData *mNode;
+    };
+
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
 public:
     Map(MemoryManager *memory = nullptr);
@@ -54,6 +192,23 @@ public:
     ValueType& At(const KeyType &key);
     const ValueType& At(const KeyType &key) const;
     ValueType& operator[] (const KeyType &key);
+
+    iterator Begin()  { 
+        
+        Size i = 0;
+        for ( ; i<mNumBuckets && mBuckets[i]==nullptr; i++);
+
+        return iterator(mBuckets.Data(), mNumBuckets, mBuckets.Data() + i,  i < mNumBuckets ? mBuckets[i] : nullptr); 
+    }
+    const_iterator Cbegin()  { 
+        
+        Size i = 0;
+        for ( ; i<mNumBuckets && mBuckets[i]==nullptr; i++);
+
+        return const_iterator(mBuckets.Data(), mNumBuckets, mBuckets.Data() + i,  i < mNumBuckets ? mBuckets[i] : nullptr); 
+    }
+    iterator         End()    { return iterator(mBuckets.Data(), mNumBuckets, mBuckets.Data() + mNumBuckets, nullptr); }
+    const_iterator   Cend()   { return const_iterator(mBuckets.Data(), mNumBuckets, mBuckets.Data() + mNumBuckets, nullptr); }
 
 
 private: 
@@ -397,6 +552,14 @@ void Map<KeyType, ValueType>::DeleteNode(MapData *node) {
     node = nullptr;
     --mSize;
 }
+
+
+
+template<typename KeyType, typename ValueType>
+Map<KeyType, ValueType>::iterator begin(Map<KeyType, ValueType> &mp) { return mp.Begin(); }
+
+template<typename KeyType, typename ValueType>
+Map<KeyType, ValueType>::iterator end(Map<KeyType, ValueType> &mp) { return mp.End(); }
 
     
 } // Atuin

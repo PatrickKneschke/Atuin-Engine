@@ -10,7 +10,7 @@
 #include "Input/InputModule.h"
 
 
-#include "Core/DataStructures/Array.h"
+#include "Core/DataStructures/Map.h"
 
 
 #include <iostream>
@@ -102,6 +102,20 @@ EngineLoop::~EngineLoop() {
 
 
 void EngineLoop::Run() {
+    
+
+    Map<int,int> mp;
+    mp.Insert(1, 2);
+    mp.Insert(2, 4);
+    mp.Insert(3, 8);
+    mp.Insert(4, 16);
+
+    for (auto [k,v] : mp)
+    {
+        std::cout << k << "  " << v << '\n';
+    }
+    
+    
 
     StartUp();
 

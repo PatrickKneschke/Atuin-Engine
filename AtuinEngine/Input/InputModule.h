@@ -4,6 +4,7 @@
 
 #include "InputSignals.h"
 #include "RangeConverter.h"
+#include "Core/DataStructures/Map.h"
 
 #include "json/json.hpp"
 
