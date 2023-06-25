@@ -19,11 +19,10 @@ class MemoryManager;
 */
 template<typename KeyType, typename ValueType>
 class Map {
-
-    // TODO make KeyType const and define const versions of all functions where needed
+    
     struct MapData {
 
-        std::pair<KeyType, ValueType> data;
+        std::pair<const KeyType, ValueType> data;
         MapData *prev;
         MapData *next;
 
@@ -86,11 +85,11 @@ public:
                 return it;
             }
 
-            std::pair<KeyType, ValueType>& operator*() { return mNode->data; }
-            std::pair<KeyType, ValueType>* operator->() { return &(mNode->data); }
+            std::pair<const KeyType, ValueType>& operator*() { return mNode->data; }
+            std::pair<const KeyType, ValueType>* operator->() { return &(mNode->data); }
 
-            bool operator==(const iterator &rhs) { return mNode == rhs.mNode; }
-            bool operator!=(const iterator &rhs) { return mNode != rhs.mNode; }
+            bool operator==(const iterator &rhs) const { return mNode == rhs.mNode; }
+            bool operator!=(const iterator &rhs) const { return mNode != rhs.mNode; }
 
         private:
             MapData **mFirst;
@@ -153,11 +152,11 @@ public:
                 return it;
             }
 
-            const std::pair<KeyType, ValueType>& operator*() { return mNode->data; }
-            const std::pair<KeyType, ValueType>* operator->() { return &(mNode->data); }
+            const std::pair<const KeyType, ValueType>& operator*() { return mNode->data; }
+            const std::pair<const KeyType, ValueType>* operator->() { return &(mNode->data); }
 
-            bool operator==(const const_iterator &rhs) { return mNode == rhs.mNode; }
-            bool operator!=(const const_iterator &rhs) { return mNode != rhs.mNode; }
+            bool operator==(const const_iterator &rhs) const { return mNode == rhs.mNode; }
+            bool operator!=(const const_iterator &rhs) const  { return mNode != rhs.mNode; }
 
         private:
             MapData **mFirst;
@@ -180,11 +179,13 @@ public:
 
     ~Map();
 
+    bool IsEmpty() const { return mSize == 0; }
     Size GetSize() const { return mSize; }
     Size GetNumBuckets() const { return mNumBuckets; }
     float GetMaxLoadFactor() const { return mMaxLoadFactor; }
 
     iterator Find(const KeyType &key);
+    const_iterator Find(const KeyType &key) const;
     void Insert(const KeyType &key, const ValueType &value);
     void Erase(const KeyType &key);
     void Clear();
@@ -355,6 +356,24 @@ Map<KeyType, ValueType>::iterator Map<KeyType, ValueType>::Find(const KeyType &k
     }
 
     return End();
+}
+
+
+template<typename KeyType, typename ValueType>
+Map<KeyType, ValueType>::const_iterator Map<KeyType, ValueType>::Find(const KeyType &key) const {
+
+    Size hash = Hash(key);
+    MapData *head = mBuckets[hash];
+    while(head != nullptr) 
+    {
+        if (head->data.first == key)
+        {
+            return const_iterator(mBuckets.Data(), mNumBuckets, mBuckets.Data() + hash, head);
+        }
+        head = head->next;
+    }
+
+    return Cend();
 }
 
 

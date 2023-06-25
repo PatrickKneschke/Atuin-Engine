@@ -52,7 +52,7 @@ TEST_CASE("copy a map", "[map]") {
         float f;
         int i;
 
-        bool operator== (const Foo &rhs) {
+        bool operator== (const Foo &rhs) const {
 
             return f == rhs.f && i == rhs.i;
         }
@@ -113,4 +113,16 @@ TEST_CASE("rehash map", "[map]") {
     mp[4.5] = 45;
 
     REQUIRE(mp.GetNumBuckets() == 4);
+}
+
+
+TEST_CASE("find map element", "[map]") {
+
+    Map<double, U64> mp;
+    mp[1.2] = 12;
+    mp[2.3] = 23;
+
+    REQUIRE(mp.Find(1.2) == mp.Begin());
+    REQUIRE(mp.Find(2.3)->second == 23);
+    REQUIRE(mp.Find(3.4) == mp.End());
 }
