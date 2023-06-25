@@ -23,17 +23,17 @@ TEST_CASE("copy a map", "[map]") {
 
 	Map<std::string, int> mp(16, 0.8f);
     mp["first"] = 1;
-    UPtr ptr1 = reinterpret_cast<UPtr>(mp.Find("first"));
+    UPtr ptr1 = reinterpret_cast<UPtr>(&mp["first"]);
 
     Map<std::string, int> mp2(mp);
-    UPtr ptr2 = reinterpret_cast<UPtr>(mp2.Find("first"));
+    UPtr ptr2 = reinterpret_cast<UPtr>(&mp2["first"]);
 
     REQUIRE(mp2.GetSize() == 1);
     REQUIRE(mp2["first"] == 1);
     REQUIRE(ptr2 != ptr1);
 
     Map<std::string, int> mp3(std::move(mp));
-    UPtr ptr3 = reinterpret_cast<UPtr>(mp3.Find("first"));
+    UPtr ptr3 = reinterpret_cast<UPtr>(&mp3["first"]);
 
     REQUIRE(mp3.GetSize() == 1);
     REQUIRE(mp3.GetNumBuckets() == 16);

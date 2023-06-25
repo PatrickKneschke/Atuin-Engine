@@ -20,14 +20,14 @@ class MemoryManager;
 template<typename KeyType, typename ValueType>
 class Map {
 
+    // TODO make KeyType const and define const versions of all functions where needed
     struct MapData {
 
-        KeyType key;
-        ValueType value;
+        std::pair<KeyType, ValueType> data;
         MapData *prev;
         MapData *next;
 
-        MapData(KeyType k = KeyType(), ValueType v = ValueType(), MapData *p = nullptr, MapData *n = nullptr) : key{k}, value{v}, prev{p}, next{n} {}
+        MapData(const KeyType &k = KeyType(), ValueType v = ValueType(), MapData *p = nullptr, MapData *n = nullptr) : data{k, v}, prev{p}, next{n} {}
     };
 
 public:
@@ -86,8 +86,8 @@ public:
                 return it;
             }
 
-            auto operator*() { return std::make_pair(mNode->key, mNode->value); }
-            auto operator->() { return std::make_pair(&(mNode->key), &(mNode->value)); }
+            std::pair<KeyType, ValueType>& operator*() { return mNode->data; }
+            std::pair<KeyType, ValueType>* operator->() { return &(mNode->data); }
 
             bool operator==(const iterator &rhs) { return mNode == rhs.mNode; }
             bool operator!=(const iterator &rhs) { return mNode != rhs.mNode; }
@@ -153,8 +153,8 @@ public:
                 return it;
             }
 
-            const auto operator*() { return std::make_pair(mNode->key, mNode->value); }
-            const auto operator->() { return std::make_pair(&(mNode->key), &(mNode->value)); }
+            const std::pair<KeyType, ValueType>& operator*() { return mNode->data; }
+            const std::pair<KeyType, ValueType>* operator->() { return &(mNode->data); }
 
             bool operator==(const const_iterator &rhs) { return mNode == rhs.mNode; }
             bool operator!=(const const_iterator &rhs) { return mNode != rhs.mNode; }
@@ -184,7 +184,7 @@ public:
     Size GetNumBuckets() const { return mNumBuckets; }
     float GetMaxLoadFactor() const { return mMaxLoadFactor; }
 
-    MapData* Find(const KeyType &key);
+    iterator Find(const KeyType &key);
     void Insert(const KeyType &key, const ValueType &value);
     void Erase(const KeyType &key);
     void Clear();
@@ -265,7 +265,7 @@ Map<KeyType, ValueType>::Map(const Map &other, MemoryManager *memory) :
         MapData *head = other.mBuckets[i];
         while (head != nullptr)
         {
-            MapData *newHead = MakeNode(head->key, head->value, nullptr, mBuckets[i]);
+            MapData *newHead = MakeNode(head->data.first, head->data.second, nullptr, mBuckets[i]);
             if (mBuckets[i] != nullptr)
             {
                 mBuckets[i]->prev = newHead;
@@ -305,7 +305,7 @@ Map<KeyType, ValueType>& Map<KeyType, ValueType>::operator=(const Map &rhs) {
         MapData *head = rhs.mBuckets[i];
         while (head != nullptr)
         {
-            MapData *newHead = MakeNode(head->key, head->value, nullptr, mBuckets[i]);
+            MapData *newHead = MakeNode(head->data.first, head->data.second, nullptr, mBuckets[i]);
             if (mBuckets[i] != nullptr)
             {
                 mBuckets[i]->prev = newHead;
@@ -341,30 +341,30 @@ Map<KeyType, ValueType>::~Map() {
 
 
 template<typename KeyType, typename ValueType>
-Map<KeyType, ValueType>::MapData* Map<KeyType, ValueType>::Find(const KeyType &key) {
+Map<KeyType, ValueType>::iterator Map<KeyType, ValueType>::Find(const KeyType &key) {
 
     Size hash = Hash(key);
     MapData *head = mBuckets[hash];
     while(head != nullptr) 
     {
-        if (head->key == key)
+        if (head->data.first == key)
         {
-            return head;
+            return iterator(mBuckets.Data(), mNumBuckets, mBuckets.Data() + hash, head);
         }
         head = head->next;
     }
 
-    return nullptr;
+    return End();
 }
 
 
 template<typename KeyType, typename ValueType>
 void Map<KeyType, ValueType>::Insert(const KeyType &key, const ValueType &value) {
 
-    MapData *found = Find(key);
-    if (found != nullptr)
+    iterator it = Find(key);
+    if (it != End())
     {
-        found->value = value;
+        it->second = value;
         return;
     }
     
@@ -387,7 +387,7 @@ void Map<KeyType, ValueType>::Erase(const KeyType &key) {
     MapData *head = mBuckets[hash];
     while (head != nullptr)
     {
-        if (head->key == key)
+        if (head->data.first == key)
         {
             MapData *prev = head->prev, *next = head->next;
             if (next != nullptr)
@@ -436,36 +436,36 @@ void Map<KeyType, ValueType>::Clear() {
 template<typename KeyType, typename ValueType>
 ValueType& Map<KeyType, ValueType>::At(const KeyType &key) {
 
-    MapData *found = Find(key);
-    if (found == nullptr)
+    iterator it = Find(key);
+    if (it == End())
     {
         throw std::out_of_range( FormatStr("Trying to access element with key \"%s\", which is not in the map", key) );    
     }
 
-    return found->value;
+    return it->second;
 }
 
 
 template<typename KeyType, typename ValueType>
 const ValueType& Map<KeyType, ValueType>::At(const KeyType &key) const {
 
-    MapData *found = Find(key);
-    if (found == nullptr)
+    iterator it = Find(key);
+    if (it == End())
     {
         throw std::out_of_range( FormatStr("Trying to access element with key \"%s\", which is not in the map", key) );    
     }
 
-    return found->value; 
+    return it->second;
 }
 
 
 template<typename KeyType, typename ValueType>
 ValueType& Map<KeyType, ValueType>::operator[](const KeyType &key) {
 
-    MapData *found = Find(key);
-    if (found != nullptr)
+    iterator it = Find(key);
+    if (it != End())
     {
-        return found->value;
+        return it->second;
     }
 
     Rehash();
@@ -473,7 +473,7 @@ ValueType& Map<KeyType, ValueType>::operator[](const KeyType &key) {
     Size hash = Hash(key);
     mBuckets[hash] = MakeNode(key, ValueType(), nullptr, mBuckets[hash]);
 
-    return mBuckets[hash]->value;
+    return mBuckets[hash]->data.second;
 }
 
 
@@ -502,7 +502,7 @@ void Map<KeyType, ValueType>::Rehash() {
         {
             MapData *temp = head->next;
             
-            Size hash = Hash(head->key);
+            Size hash = Hash(head->data.first);
             head->prev = nullptr;
             head->next = newBuckets[hash];
             if (newBuckets[hash] != nullptr)

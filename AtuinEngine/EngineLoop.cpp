@@ -115,7 +115,8 @@ void EngineLoop::Run() {
         std::cout << k << "  " << v << '\n';
     }
     
-    
+    auto it = mp.Begin();
+    std::cout << it->first << " " << it->second << '\n';
 
     StartUp();
 
