@@ -18,7 +18,13 @@ namespace Atuin {
 GLFWwindow* InputModule::sWindow = nullptr;
 
 
-InputModule::InputModule(EngineLoop *engine) : pActiveContext {nullptr}, pEngine {engine} {
+InputModule::InputModule(EngineLoop *engine) : 
+    mContexts(engine->Memory()), 
+    pActiveContext {nullptr}, 
+    mRangeConverter(engine->Memory()), 
+    mCurrentMappedInput(engine->Memory()), 
+    pEngine {engine} 
+{
 
 }
 
@@ -86,7 +92,7 @@ void InputModule::LoadContexts(std::string_view contextFilePath) {
     for(auto &[name, contextData] : contexts) 
     {
         U64 nameID = SID(name.c_str());
-        mContexts[nameID] = pEngine->Memory()->New<InputContext>(name); 
+        mContexts[nameID] = pEngine->Memory()->New<InputContext>(name, pEngine->Memory()); 
 
         auto inputMap = contextData.ObjectRange();
         for(auto &[input, signal] : inputMap) 

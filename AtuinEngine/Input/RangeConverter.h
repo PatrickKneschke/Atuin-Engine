@@ -3,8 +3,7 @@
 
 
 #include "Core/Util/Types.h"
-
-#include "unordered_map"
+#include "Core/DataStructures/Map.h"
 
 #include <iostream>
 
@@ -32,6 +31,8 @@ class RangeConverter {
 
 public:
 
+    RangeConverter(MemoryManager *memory = nullptr) : mRanges(memory) {}
+
     void AddRange(U64 range, double minIn, double maxIn, double minOut, double maxOut) {
 
         mRanges[range] = {minIn, maxIn, minOut, maxOut};
@@ -45,7 +46,7 @@ public:
 
 private:
 
-    std::unordered_map<U64, Converter> mRanges; // TODO replace with custom map
+    Map<U64, Converter> mRanges;
 };
 
 

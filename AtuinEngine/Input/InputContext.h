@@ -17,18 +17,18 @@ class InputContext {
 
 public:
 
-    InputContext(std::string_view name, bool blocking = true, InputContext *next_ = nullptr) : 
-        next {next_}, 
+    InputContext(std::string_view name, MemoryManager *memory = nullptr, bool blocking = true) : 
+        next {nullptr}, 
         mName {name.data()}, 
         mNameID {SID(name.data())}, 
-        mSignalMap(), 
+        mSignalMap(memory), 
         mBlocking {blocking}
     {
 
     }
 
     void MapSignal(Signal signal, U64 inputID) {
-        
+
         mSignalMap[signal] = inputID;
     }
 
