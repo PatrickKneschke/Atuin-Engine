@@ -11,6 +11,7 @@
 
 
 #include "Core/DataStructures/Map.h"
+#include "Input/InputContext.h"
 
 
 #include <iostream>
@@ -102,23 +103,6 @@ EngineLoop::~EngineLoop() {
 
 
 void EngineLoop::Run() {
-    
-
-    Map<int,int> mp;
-    mp.Insert(1, 2);
-    mp.Insert(2, 4);
-    mp.Insert(3, 8);
-    mp.Insert(4, 16);
-
-    for (auto [k,v] : mp)
-    {
-        std::cout << k << "  " << v << '\n';
-    }
-    
-    auto it = mp.Find(3);
-    std::cout << it->first << " " << it->second << '\n';
-
-
 
     StartUp();
 

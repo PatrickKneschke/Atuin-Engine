@@ -10,7 +10,6 @@
 #include "GLFW/glfw3.h"
 
 #include <iostream>
-#include <vector>
 
 
 namespace Atuin {
@@ -47,7 +46,11 @@ void InputModule::StartUp(GLFWwindow *window) {
 
 void InputModule::ShutDown() {
 
-
+    for (auto [name, context] : mContexts)
+    {
+        pEngine->Memory()->Delete(context);
+    }
+    
 }
 
 
@@ -59,7 +62,7 @@ void InputModule::Update() {
     {
         mCallback(mCurrentMappedInput);
     }
-}
+};
 
 
 void InputModule::PushInputStates() {
@@ -83,7 +86,8 @@ void InputModule::LoadContexts(std::string_view contextFilePath) {
     for(auto &[name, contextData] : contexts) 
     {
         U64 nameID = SID(name.c_str());
-        mContexts[nameID] = pEngine->Memory()->New<InputContext>(name);        
+        mContexts[nameID] = pEngine->Memory()->New<InputContext>(name); 
+
         auto inputMap = contextData.ObjectRange();
         for(auto &[input, signal] : inputMap) 
         {
@@ -168,9 +172,6 @@ bool InputModule::IsMouseButtonPressed(int button) const {
 
 
 std::pair<double, double> InputModule::GetCursorPos() const {
-
-    // double x, y;
-    // glfwGetCursorPos(sWindow, &x, &y);
 
     return std::make_pair(mouseX, mouseY);
 }

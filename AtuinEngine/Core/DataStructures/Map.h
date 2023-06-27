@@ -35,66 +35,47 @@ public:
 
         public:
 
-            explicit iterator(MapData **first, Size numBuckets, MapData **head, MapData *node) : mFirst {first}, mNumBuckets {numBuckets}, mHead {head}, mNode {node} {}
+            explicit iterator(Array<MapData*> *data, Size bucket = 0) : pData {data}, mBucket {bucket}, mNode {nullptr} {
+
+                while (mNode == nullptr && mBucket < pData->GetSize())
+                {
+                    mNode = (*pData)[mBucket++];
+                }
+            }
             
             iterator operator++() {
             
                 mNode = mNode->next;
-                while (mNode == nullptr && mHead < mFirst + mNumBuckets)
+                while (mNode == nullptr && ++mBucket < pData->GetSize())
                 {
-                    mNode = *(++mHead);
+                    mNode = (*pData)[mBucket];
                 }
 
                 return *this;
             }
 
             iterator operator++(int) {
-            
+
                 iterator it = *this;
 
                 mNode = mNode->next;
-                while (mNode == nullptr && mHead < mFirst + mNumBuckets)
+                while (mNode == nullptr && ++mBucket < pData->GetSize())
                 {
-                    mNode = *(++mHead);
+                    mNode = (*pData)[mBucket];
                 }
 
                 return it;
             }
 
-            iterator operator--() {
-
-                mNode = mNode->next;
-                while (mNode == nullptr && mHead >= mFirst)
-                {
-                    mNode = *(--mHead);
-                }
-
-                return *this;
-            }
-
-            iterator operator--(int) {
-
-                iterator it = *this;
-
-                mNode = mNode->next;
-                while (mNode == nullptr && mHead >= mFirst)
-                {
-                    mNode = *(--mHead);
-                }
-
-                return it;
-            }
-
-            std::pair<const KeyType, ValueType>& operator*() { return mNode->data; }
-            std::pair<const KeyType, ValueType>* operator->() { return &(mNode->data); }
+            std::pair<const KeyType, ValueType>& operator*() const { return mNode->data; }
+            std::pair<const KeyType, ValueType>* operator->() const { return &(mNode->data); }
 
             bool operator==(const iterator &rhs) const { return mNode == rhs.mNode; }
             bool operator!=(const iterator &rhs) const { return mNode != rhs.mNode; }
 
         private:
-            MapData **mFirst;
-            Size mNumBuckets;
-            MapData **mHead;
+            Array<MapData*> *pData;
+            Size mBucket;
             MapData *mNode;
     };
 
@@ -102,71 +83,50 @@ public:
 
         public:
 
-            explicit const_iterator(MapData **first, Size numBuckets, MapData **head, MapData *node) : mFirst {first}, mNumBuckets {numBuckets}, mHead {head}, mNode {node} {}
+            explicit const_iterator(Array<MapData*> *data, Size bucket = 0) : pData {data}, mBucket {bucket}, mNode {nullptr} {
 
+                while (mNode == nullptr && mBucket < pData->GetSize())
+                {
+                    mNode = (*pData)[mBucket++];
+                }
+            }
+            
             const_iterator operator++() {
             
                 mNode = mNode->next;
-                while (mNode == nullptr && mHead < mFirst + mNumBuckets)
+                while (mNode == nullptr && ++mBucket < pData->GetSize())
                 {
-                    mNode = *(++mHead);
+                    mNode = (*pData)[mBucket];
                 }
 
                 return *this;
             }
 
             const_iterator operator++(int) {
-            
+
                 const_iterator it = *this;
 
                 mNode = mNode->next;
-                while (mNode == nullptr && mHead < mFirst + mNumBuckets)
+                while (mNode == nullptr && ++mBucket < pData->GetSize())
                 {
-                    mNode = *(++mHead);
+                    mNode = (*pData)[mBucket];
                 }
 
                 return it;
             }
 
-            const_iterator operator--() {
+            const std::pair<const KeyType, ValueType>& operator*() const { return mNode->data; }
+            const std::pair<const KeyType, ValueType>* operator->() const { return &(mNode->data); }
 
-                mNode = mNode->next;
-                while (mNode == nullptr && mHead >= mFirst)
-                {
-                    mNode = *(--mHead);
-                }
-
-                return *this;
-            }
-
-            const_iterator operator--(int) {
-
-                const_iterator it = *this;
-
-                mNode = mNode->next;
-                while (mNode == nullptr && mHead >= mFirst)
-                {
-                    mNode = *(--mHead);
-                }
-
-                return it;
-            }
-
-            const std::pair<const KeyType, ValueType>& operator*() { return mNode->data; }
-            const std::pair<const KeyType, ValueType>* operator->() { return &(mNode->data); }
-
-            bool operator==(const const_iterator &rhs) const { return mNode == rhs.mNode; }
-            bool operator!=(const const_iterator &rhs) const  { return mNode != rhs.mNode; }
+            bool operator==(const iterator &rhs) const { return mNode == rhs.mNode; }
+            bool operator!=(const iterator &rhs) const { return mNode != rhs.mNode; }
 
         private:
-            MapData **mFirst;
-            Size mNumBuckets;
-            MapData **mHead;
+            Array<MapData*> *pData;
+            Size mBucket;
             MapData *mNode;
     };
 
-    using reverse_iterator = std::reverse_iterator<iterator>;
-    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
 public:
     Map(MemoryManager *memory = nullptr);
@@ -194,22 +154,10 @@ public:
     const ValueType& At(const KeyType &key) const;
     ValueType& operator[] (const KeyType &key);
 
-    iterator Begin()  { 
-        
-        Size i = 0;
-        for ( ; i<mNumBuckets && mBuckets[i]==nullptr; i++);
-
-        return iterator(mBuckets.Data(), mNumBuckets, mBuckets.Data() + i,  i < mNumBuckets ? mBuckets[i] : nullptr); 
-    }
-    const_iterator Cbegin()  { 
-        
-        Size i = 0;
-        for ( ; i<mNumBuckets && mBuckets[i]==nullptr; i++);
-
-        return const_iterator(mBuckets.Data(), mNumBuckets, mBuckets.Data() + i,  i < mNumBuckets ? mBuckets[i] : nullptr); 
-    }
-    iterator         End()    { return iterator(mBuckets.Data(), mNumBuckets, mBuckets.Data() + mNumBuckets, nullptr); }
-    const_iterator   Cend()   { return const_iterator(mBuckets.Data(), mNumBuckets, mBuckets.Data() + mNumBuckets, nullptr); }
+    iterator Begin()  { return iterator(&mBuckets); }
+    const_iterator Cbegin() { return const_iterator(&mBuckets); }
+    iterator         End()    { return iterator(&mBuckets, mBuckets.GetSize()); }
+    const_iterator   Cend()   { return const_iterator(&mBuckets, mBuckets.GetSize()); }
 
 
 private: 
@@ -296,41 +244,52 @@ Map<KeyType, ValueType>::Map(Map &&other) :
 template<typename KeyType, typename ValueType>
 Map<KeyType, ValueType>& Map<KeyType, ValueType>::operator=(const Map &rhs) {
 
-    Clear();
-
-    mNumBuckets = rhs.mNumBuckets;
-    mMaxLoadFactor = rhs.mMaxLoadFactor;    
-    mBuckets = Array<MapData*>(mNumBuckets, nullptr, pMemory); 
-    for (Size i = 0; i < rhs.mNumBuckets; i++)
+    if (this != &rhs)
     {
-        MapData *head = rhs.mBuckets[i];
-        while (head != nullptr)
+        Clear();
+
+        mNumBuckets = rhs.mNumBuckets;
+        mMaxLoadFactor = rhs.mMaxLoadFactor;    
+        mBuckets = Array<MapData*>(mNumBuckets, nullptr, pMemory); 
+        for (Size i = 0; i < rhs.mNumBuckets; i++)
         {
-            MapData *newHead = MakeNode(head->data.first, head->data.second, nullptr, mBuckets[i]);
-            if (mBuckets[i] != nullptr)
+            MapData *head = rhs.mBuckets[i];
+            while (head != nullptr)
             {
-                mBuckets[i]->prev = newHead;
+                MapData *newHead = MakeNode(head->data.first, head->data.second, nullptr, mBuckets[i]);
+                if (mBuckets[i] != nullptr)
+                {
+                    mBuckets[i]->prev = newHead;
+                }
+                mBuckets[i] = newHead;
+                head = head->next;
             }
-            mBuckets[i] = newHead;
-            head = head->next;
         }
     }
+    
 }
 
 
 template<typename KeyType, typename ValueType>
 Map<KeyType, ValueType>& Map<KeyType, ValueType>::operator=(Map &&rhs) {
 
-    mBuckets = std::move(rhs.mBuckets); 
-    mNumBuckets = rhs.mNumBuckets; 
-    mSize = rhs.mSize;
-    mMaxLoadFactor = rhs.mMaxLoadFactor; 
-    pMemory = rhs.pMemory;
+    if (this != &rhs) {
 
-    rhs.mNumBuckets = 0;
-    rhs.mSize = 0;
-    rhs.mMaxLoadFactor = 0;
-    rhs.pMemory = nullptr;
+        Clear();
+
+        mBuckets = std::move(rhs.mBuckets); 
+        mNumBuckets = rhs.mNumBuckets; 
+        mSize = rhs.mSize;
+        mMaxLoadFactor = rhs.mMaxLoadFactor; 
+        pMemory = rhs.pMemory;
+
+        rhs.mNumBuckets = 0;
+        rhs.mSize = 0;
+        rhs.mMaxLoadFactor = 0;
+        rhs.pMemory = nullptr;
+    }
+
+    return *this;
 }
 
 
@@ -345,17 +304,14 @@ template<typename KeyType, typename ValueType>
 Map<KeyType, ValueType>::iterator Map<KeyType, ValueType>::Find(const KeyType &key) {
 
     Size hash = Hash(key);
-    MapData *head = mBuckets[hash];
-    while(head != nullptr) 
+    iterator it = iterator(&mBuckets, hash);
+    iterator end = End();
+    while (it != end && it->first != key)
     {
-        if (head->data.first == key)
-        {
-            return iterator(mBuckets.Data(), mNumBuckets, mBuckets.Data() + hash, head);
-        }
-        head = head->next;
+        ++it;
     }
 
-    return End();
+    return it;
 }
 
 
@@ -363,17 +319,14 @@ template<typename KeyType, typename ValueType>
 Map<KeyType, ValueType>::const_iterator Map<KeyType, ValueType>::Find(const KeyType &key) const {
 
     Size hash = Hash(key);
-    MapData *head = mBuckets[hash];
-    while(head != nullptr) 
+    const_iterator it = const_iterator(&mBuckets, hash);
+    const_iterator end = Cend();
+    while (it != end && it->first != key)
     {
-        if (head->data.first == key)
-        {
-            return const_iterator(mBuckets.Data(), mNumBuckets, mBuckets.Data() + hash, head);
-        }
-        head = head->next;
+        ++it;
     }
 
-    return Cend();
+    return it;
 }
 
 

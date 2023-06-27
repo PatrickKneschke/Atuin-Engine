@@ -10,8 +10,6 @@
 
 #include <functional>
 
-#include <unordered_map>
-
 
 class GLFWwindow;
 
@@ -27,7 +25,7 @@ struct InputState {
     double prev = RELEASE;
 };
 
-using MappedInput = std::unordered_map<U64, InputState>;
+using MappedInput = Map<U64, InputState>;
 using InputHandler = std::function<void(MappedInput&)>;
 
 
@@ -70,14 +68,15 @@ private:
     
     json::JSON mContextsJSON; // TODO use own JSON class
 
-    std::unordered_map<U64, InputContext*> mContexts; // TODO replace with custom map
+    Map<U64, InputContext*> mContexts;
     InputContext* pActiveContext;
     InputHandler mCallback;
 
     RangeConverter mRangeConverter;
 
-    // Array<U64> mSignalMap;
+    // tracks what input a signal corresponds to given the active context(s)
     U64 mSignalMap[(Size)Signal::COUNT];
+    // stores the states of all relevant inputs
     MappedInput mCurrentMappedInput;
     double mouseX, mouseY;
 
