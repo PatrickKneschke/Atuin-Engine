@@ -41,7 +41,6 @@ CMakeCache.txt
 CMakeFiles
 CMakeScripts
 Testing
-Resources
 Makefile
 cmake_install.cmake
 install_manifest.txt
@@ -65,3 +64,5 @@ _deps
 
 Doc/*
 *[Bb]uild*
+*[Rr]esources*
+*[Ss]cripts*

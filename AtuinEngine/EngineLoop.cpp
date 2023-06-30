@@ -10,8 +10,7 @@
 #include "Input/InputModule.h"
 
 
-#include "Core/DataStructures/Map.h"
-#include "Input/InputContext.h"
+#include "Core/DataStructures/Json.h"
 
 
 #include <iostream>
@@ -104,7 +103,29 @@ EngineLoop::~EngineLoop() {
 
 void EngineLoop::Run() {
 
+
     StartUp();
+
+    std::string text = 
+    "{                                                  \n"
+    "    \"array\" : [true, \"Two\", 3, 4.000000],      \n"
+    "    \"array2\" : [false, \"three\"],               \n"
+    "    \"new\" : {                                    \n"
+    "        \"some\" : {                               \n"
+    "            \"deep\" : {                           \n"
+    "                \"key\" : \"Value\"                \n"
+    "            }                                      \n"
+    "        }                                          \n"
+    "    },                                             \n"
+    "    \"obj\" : {                                    \n"
+    "        \"inner\" : \"Inside\"                     \n"
+    "    },                                             \n"
+    "    \"parsed\" : [ { \"Key\" : \"Value\" }, false] \n"
+    "}";
+
+    Json json = Json::Load(text);
+    std::cout << json.Print() << '\n';
+
 
     int frame = 0;
     while (mRunning)

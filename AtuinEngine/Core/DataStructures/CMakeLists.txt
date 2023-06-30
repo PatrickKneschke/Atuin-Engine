@@ -4,12 +4,14 @@ add_library(DataStructures
     Queue.cpp 
     PriorityQueue.cpp 
     ConcurrentQueue.cpp 
-    Map.cpp 
+    Map.cpp
+    Json.cpp
     Array.h 
     Queue.h 
     PriorityQueue.h 
     ConcurrentQueue.h 
     Map.h 
+    Json.h 
 )
 
 target_link_libraries(DataStructures
