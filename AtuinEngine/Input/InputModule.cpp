@@ -3,6 +3,7 @@
 #include "GLFWInput.h"
 #include "InputContext.h"
 #include "EngineLoop.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Files/FileManager.h"
 #include "Core/Memory/MemoryManager.h"
 #include "Core/Util/StringID.h"
@@ -16,6 +17,9 @@ namespace Atuin {
 
 
 GLFWwindow* InputModule::sWindow = nullptr;
+
+CVar<std::string>* InputModule::pInputContextsPath = ConfigManager::RegisterCVar("Input", "INPUT_CONTEXTS_PATH", std::string("../../Resources/input_contexts.json"));
+CVar<std::string>* InputModule::pInputRangesPath   = ConfigManager::RegisterCVar("Input", "INPUT_RANGES_PATH", std::string("../../Resources/input_ranges.json"));
 
 
 InputModule::InputModule(EngineLoop *engine) : 
@@ -45,8 +49,8 @@ void InputModule::StartUp(GLFWwindow *window) {
     glfwSetCursorPosCallback(sWindow, CursorPosListener);
 
     // TODO config variable for file paths ?
-    LoadContexts("../../Resources/input_contexts.json");
-    LoadRanges("../../Resources/input_ranges.json");
+    LoadContexts( pInputContextsPath->Get() );
+    LoadRanges( pInputRangesPath->Get() );
 }
 
 

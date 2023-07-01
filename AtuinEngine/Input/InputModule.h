@@ -4,6 +4,7 @@
 
 #include "InputSignals.h"
 #include "RangeConverter.h"
+#include "Core/Config/CVar.h"
 #include "Core/DataStructures/Map.h"
 #include "Core/DataStructures/Json.h"
 
@@ -64,6 +65,10 @@ private:
     static void CursorPosListener(GLFWwindow *window, double xpos, double ypos);
 
     static GLFWwindow* sWindow;
+
+    static CVar<std::string>* pInputContextsPath;
+    static CVar<std::string>* pInputRangesPath; 
+
 
     void PushInputStates();
     

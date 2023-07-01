@@ -45,7 +45,7 @@ private:
 
     std::string mName;
     U64 mNameID;
-    Map<Signal, U64> mSignalMap; // TODO replace with custom map
+    Map<Signal, U64> mSignalMap; 
     bool mBlocking;
 };
 
