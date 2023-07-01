@@ -83,21 +83,19 @@ void InputModule::PushInputStates() {
 
 void InputModule::LoadContexts(std::string_view contextFilePath) {
 
-    // TODO use own JSON class
-
     std::string jsonTxt(pEngine->Files()->Read(contextFilePath));
-    mContextsJSON = json::JSON::Load(jsonTxt);
-    auto contexts = mContextsJSON.ObjectRange();
+    mContextsJSON = Json::Load(jsonTxt);
 
+    auto contexts = mContextsJSON.GetDict();
     for(auto &[name, contextData] : contexts) 
     {
         U64 nameID = SID(name.c_str());
         mContexts[nameID] = pEngine->Memory()->New<InputContext>(name, pEngine->Memory()); 
 
-        auto inputMap = contextData.ObjectRange();
+        auto inputMap = contextData.GetDict();
         for(auto &[input, signal] : inputMap) 
         {
-            mContexts[nameID]->MapSignal(StringToSignal(signal.ToString()), SID(input.c_str()));
+            mContexts[nameID]->MapSignal( StringToSignal(signal.ToString()), SID(input.c_str()) );
         }
     }
 }
@@ -105,19 +103,17 @@ void InputModule::LoadContexts(std::string_view contextFilePath) {
 
 void InputModule::SaveContexts(std::string_view contextFilePath) {
 
-    std::string str = mContextsJSON.dump();
+    std::string str = mContextsJSON.Print();
     pEngine->Files()->Write(contextFilePath, str);
 }
 
 
 void InputModule::LoadRanges(std::string_view rangesFilePath) {
 
-    // TODO use own JSON class
-
     std::string jsonTxt(pEngine->Files()->Read(rangesFilePath));
-    json::JSON rangesJSON;
-    rangesJSON = json::JSON::Load(jsonTxt);
-    auto ranges = rangesJSON.ObjectRange();
+    Json rangesJSON = Json::Load(jsonTxt);
+
+    auto ranges = rangesJSON.GetDict();
     for(auto &[name, rangeData] : ranges)
     {
         U64 rangeID = SID(name.c_str());

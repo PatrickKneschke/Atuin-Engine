@@ -105,26 +105,14 @@ void EngineLoop::Run() {
 
 
     StartUp();
+    
 
-    std::string text = 
-    "{                                                  \n"
-    "    \"array\" : [true, \"Two\", 3, 4.000000],      \n"
-    "    \"array2\" : [false, \"three\"],               \n"
-    "    \"new\" : {                                    \n"
-    "        \"some\" : {                               \n"
-    "            \"deep\" : {                           \n"
-    "                \"key\" : \"Value\"                \n"
-    "            }                                      \n"
-    "        }                                          \n"
-    "    },                                             \n"
-    "    \"obj\" : {                                    \n"
-    "        \"inner\" : \"Inside\"                     \n"
-    "    },                                             \n"
-    "    \"parsed\" : [ { \"Key\" : \"Value\" }, false] \n"
-    "}";
-
-    Json json = Json::Load(text);
-    std::cout << json.Print() << '\n';
+    Json json = Json::MakeObj();
+    json["bool"] = false;
+    json["int"] = 1L;
+    json["float"] = 4.6;
+    json["string"] = "hello";
+    std::cout << json << '\n';
 
 
     int frame = 0;

@@ -5,8 +5,9 @@
 #include "InputSignals.h"
 #include "RangeConverter.h"
 #include "Core/DataStructures/Map.h"
+#include "Core/DataStructures/Json.h"
 
-#include "json/json.hpp"
+// #include "json/json.hpp"
 
 #include <functional>
 
@@ -66,7 +67,7 @@ private:
 
     void PushInputStates();
     
-    json::JSON mContextsJSON; // TODO use own JSON class
+    Json mContextsJSON;
 
     Map<U64, InputContext*> mContexts;
     InputContext* pActiveContext;

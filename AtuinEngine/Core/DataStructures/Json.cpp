@@ -237,7 +237,7 @@ const Json& Json::operator[] (Size idx) const {
 }
 
 
-bool Json::ToBool() {
+bool Json::ToBool() const {
 
     if (mData.index() != (Size)JsonType::BOOL )
     {
@@ -248,7 +248,7 @@ bool Json::ToBool() {
 }
 
 
-I64 Json::ToInt() {
+I64 Json::ToInt() const {
 
     if (mData.index() != (Size)JsonType::INT )
     {
@@ -259,7 +259,7 @@ I64 Json::ToInt() {
 }
 
 
-double Json::ToFloat() {
+double Json::ToFloat() const {
 
     if (mData.index() != (Size)JsonType::FLOAT )
     {
@@ -270,7 +270,7 @@ double Json::ToFloat() {
 }
 
 
-std::string Json::ToString() {
+std::string Json::ToString() const {
 
     if (mData.index() != (Size)JsonType::STRING )
     {
@@ -278,6 +278,28 @@ std::string Json::ToString() {
     }
 
     return *(std::get< (Size)JsonType::STRING >(mData));
+}
+
+
+const Json::JsonList& Json::GetList() const {
+
+    if (mData.index() != (Size)JsonType::LIST )
+    {
+        throw std::runtime_error("Tried to get json list from non-list json object");
+    }
+
+    return *std::get< (Size)JsonType::LIST >(mData);
+}
+
+
+const Json::JsonObj& Json::GetDict() const {
+
+    if (mData.index() != (Size)JsonType::DICT )
+    {
+        throw std::runtime_error("Tried to get dictionary from non-dictionary json object");
+    }
+
+    return *std::get< (Size)JsonType::DICT >(mData);
 }
 
 

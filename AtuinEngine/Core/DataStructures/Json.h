@@ -107,10 +107,12 @@ public:
     Json& operator[] (Size idx);
     const Json& operator[] (Size idx) const;
 
-    bool ToBool();
-    I64 ToInt();
-    double ToFloat();
-    std::string ToString();
+    bool ToBool() const;
+    I64 ToInt() const;
+    double ToFloat() const;
+    std::string ToString() const;
+    const JsonList& GetList() const;
+    const JsonObj& GetDict() const;
 
     JsonType GetType() { return (JsonType)mData.index(); }
 

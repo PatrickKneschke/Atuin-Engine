@@ -154,10 +154,10 @@ public:
     const ValueType& At(const KeyType &key) const;
     ValueType& operator[] (const KeyType &key);
 
-    iterator Begin()  { return iterator(&mBuckets); }
-    const_iterator Cbegin() { return const_iterator(&mBuckets); }
-    iterator         End()    { return iterator(&mBuckets, mBuckets.GetSize()); }
-    const_iterator   Cend()   { return const_iterator(&mBuckets, mBuckets.GetSize()); }
+    iterator Begin() { return iterator(&mBuckets); }
+    const_iterator Cbegin() const { return const_iterator(&mBuckets); }
+    iterator End() { return iterator(&mBuckets, mBuckets.GetSize()); }
+    const_iterator Cend() const { return const_iterator(&mBuckets, mBuckets.GetSize()); }
 
 
 private: 
@@ -531,7 +531,13 @@ template<typename KeyType, typename ValueType>
 Map<KeyType, ValueType>::iterator begin(Map<KeyType, ValueType> &mp) { return mp.Begin(); }
 
 template<typename KeyType, typename ValueType>
+Map<KeyType, ValueType>::const_iterator begin(const Map<KeyType, ValueType> &mp) { return mp.Cbegin(); }
+
+template<typename KeyType, typename ValueType>
 Map<KeyType, ValueType>::iterator end(Map<KeyType, ValueType> &mp) { return mp.End(); }
+
+template<typename KeyType, typename ValueType>
+Map<KeyType, ValueType>::const_iterator end(const Map<KeyType, ValueType> &mp) { return mp.Cend(); }
 
     
 } // Atuin
