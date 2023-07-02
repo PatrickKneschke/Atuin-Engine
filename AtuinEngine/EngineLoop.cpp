@@ -20,7 +20,7 @@
 
 void testInputHandler(Atuin::MappedInput &input) {
 
-    // continous action -> only check curretn state
+    // continous action -> only check current state
     if (input[Atuin::SID("CameraLeft")].value == Atuin::InputState::PRESS)
     {
         std::cout << "Move cam left\n";
@@ -44,6 +44,7 @@ void testInputHandler(Atuin::MappedInput &input) {
         std::cout << "Fire!!!\n";
     }
     
+    // ranges use value as is
     double dYaw = input[Atuin::SID("CameraYaw")].value;
     if (dYaw != 0)
     {

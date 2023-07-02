@@ -22,6 +22,7 @@ public:
     MemoryManager(EngineLoop *engine);
     ~MemoryManager() = default;
 
+    // TODO make these thread-safe!!!
 
     void* Allocate(Size size, U8 alignment);
     void  Free(void *ptr);
@@ -48,7 +49,7 @@ private:
     // TODO ? add entity pool
     // TODO ? add pool for colliders
     // TODO ? add pools for graphic assets and sound clips
-    // -> everything updated together stays together in memory for cache friendlyness ?
+    // -> everything updated together stays together in memory for cache friendliness ?
 
     EngineLoop* pEngine;
 };

@@ -25,6 +25,7 @@ public:
     char* Read(std::string_view fileName);
     void Write(std::string_view fileName, std::string_view buffer, std::ios::openmode mode = std::ios::out);
 
+    //TODO add asynch read and write 
 
 private:
 
