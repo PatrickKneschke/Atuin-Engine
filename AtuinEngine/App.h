@@ -17,8 +17,7 @@ class App {
 
 public:
 
-    static void Start();
-    static void Quit();
+    static App& Get();
 
     static FileManager*   Files()  { return Get().pFiles; }
     static ConfigManager* Config() { return Get().pConfig; }
@@ -29,9 +28,12 @@ public:
     static EngineLoop*    Engine() { return Get().pEngine; }
     
 
+    void Start();
+    void Quit();
+
+
 private:
 
-    static App& Get();
 
     static App* sInstance;
 

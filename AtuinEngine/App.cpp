@@ -45,33 +45,33 @@ App& App::Get() {
 
 void App::Start() {
 
-    Get().Log()->StartUp();
-    Get().Jobs()->StartUp();
+    pLog->StartUp();
+    pJobs->StartUp();
 
-    Get().Config()->Read("AtuinEngine/config.ini");
+    pConfig->Read("AtuinEngine/config.ini");
 
     try
     {
-        Get().Engine()->Run();
+        pEngine->Run();
     }
     catch(const std::exception& e)
     {
         std::cerr << e.what() << '\n';
-        Get().Engine()->ShutDown();
+        pEngine->ShutDown();
     }
 }
 
 
 void App::Quit() {
 
-    if (Get().Engine() != nullptr)
+    if (pEngine != nullptr)
     {
-        Get().Engine()->Quit();
+        pEngine->Quit();
     }
 
-    Get().Config()->Save();
-    Get().Log()->ShutDown();
-    Get().Jobs()->ShutDown(); 
+    pConfig->Save();
+    pLog->ShutDown();
+    pJobs->ShutDown(); 
 }
 
 
