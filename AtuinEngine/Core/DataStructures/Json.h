@@ -3,6 +3,7 @@
 
 
 #include "Core/Util/Types.h"
+#include "Core/Memory/MemoryManager.h"
 #include "Core/DataStructures/Array.h"
 #include "Core/DataStructures/Map.h"
 
@@ -17,8 +18,8 @@ namespace Atuin {
 class Json {
 
     using JsonList = Array<Json>;
-    using JsonObj  = Map<std::string, Json>;
-    using Internal = std::variant<bool, I64, double, std::string*, JsonList*, JsonObj*, nullptr_t>;
+    using JsonDict  = Map<std::string, Json>;
+    using Internal = std::variant<bool, I64, double, std::string, JsonList, JsonDict, nullptr_t>;
 
 public:
 
@@ -35,24 +36,6 @@ public:
 
 public:
 
-    // TODO use MemoryManager
-
-    static Json MakeList() {
-
-        Json out;
-        out.mData = new Array<Json>();
-
-        return out;
-    }
-
-    static Json MakeObj() {
-
-        Json out;
-        out.mData = new Map<std::string, Json>();
-
-        return out;
-    }
-
     static Json Load(std::string_view file);
 
 
@@ -63,19 +46,27 @@ public:
     Json(bool b) : mData(b) {}
     Json(I64 i) : mData(i) {}
     Json(double d) : mData(d) {}
-    Json(const std::string &s);
-    Json(std::string &&s);
+    Json(const std::string &s) : mData(s) {}
+    Json(std::string &&s) : mData(std::move(s)) {}
     Json(const char* s) : Json(std::string(s)) {}
+    Json(const JsonList &list) : mData(list) {}
+    Json(JsonList &&list) : mData(std::move(list)) {}
+    Json(const JsonDict &dict) : mData(dict) {}
+    Json(JsonDict &&dict) : mData(std::move(dict)) {}
     
     Json& operator= (const Json &rhs);
     Json& operator= (Json &&rhs);
 
-    Json& operator= (bool b);
-    Json& operator= (I64 i);
-    Json& operator= (double d);
-    Json& operator= (const std::string &s);
-    Json& operator= (std::string &&s);
+    Json& operator= (bool b) { mData = b; return *this; }
+    Json& operator= (I64 i) { mData = i; return *this; }
+    Json& operator= (double d) { mData = d; return *this; }
+    Json& operator= (const std::string &s) { mData = s; return *this; }
+    Json& operator= (std::string &&s) { mData = std::move(s); return *this; }
     Json& operator= (const char* s) { return operator=(std::string(s)); }
+    Json& operator= (const JsonList &list) { mData = list; return *this; }
+    Json& operator= (JsonList &&list) { mData = std::move(list); return *this; }
+    Json& operator= (const JsonDict &dict) { mData = dict; return *this; }
+    Json& operator= (JsonDict &&dict) { mData = std::move(dict); return *this; }
 
     ~Json();
 
@@ -114,7 +105,7 @@ public:
     double ToFloat() const;
     std::string ToString() const;
     const JsonList& GetList() const;
-    const JsonObj& GetDict() const;
+    const JsonDict& GetDict() const;
 
     JsonType GetType() { return (JsonType)mData.index(); }
 
