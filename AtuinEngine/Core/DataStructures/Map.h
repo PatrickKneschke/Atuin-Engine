@@ -83,7 +83,7 @@ public:
 
         public:
 
-            explicit const_iterator(Array<MapData*> *data, Size bucket = 0) : pData {data}, mBucket {bucket}, mNode {nullptr} {
+            explicit const_iterator(const Array<MapData*> *data, Size bucket = 0) : pData {data}, mBucket {bucket}, mNode {nullptr} {
 
                 while (mNode == nullptr && mBucket < pData->GetSize())
                 {
@@ -118,11 +118,11 @@ public:
             const std::pair<const KeyType, ValueType>& operator*() const { return mNode->data; }
             const std::pair<const KeyType, ValueType>* operator->() const { return &(mNode->data); }
 
-            bool operator==(const iterator &rhs) const { return mNode == rhs.mNode; }
-            bool operator!=(const iterator &rhs) const { return mNode != rhs.mNode; }
+            bool operator==(const const_iterator &rhs) const { return mNode == rhs.mNode; }
+            bool operator!=(const const_iterator &rhs) const { return mNode != rhs.mNode; }
 
         private:
-            Array<MapData*> *pData;
+            const Array<MapData*> *pData;
             Size mBucket;
             MapData *mNode;
     };
@@ -162,7 +162,7 @@ public:
 
 private: 
 
-    Size Hash(const KeyType &key);
+    Size Hash(const KeyType &key) const;
     void Rehash();
     MapData* MakeNode(const KeyType &key, const ValueType &value, MapData *prev = nullptr, MapData *next = nullptr);
     void DeleteNode(MapData *node);
@@ -267,6 +267,7 @@ Map<KeyType, ValueType>& Map<KeyType, ValueType>::operator=(const Map &rhs) {
         }
     }
     
+    return *this;
 }
 
 
@@ -421,8 +422,8 @@ ValueType& Map<KeyType, ValueType>::At(const KeyType &key) {
 template<typename KeyType, typename ValueType>
 const ValueType& Map<KeyType, ValueType>::At(const KeyType &key) const {
 
-    iterator it = Find(key);
-    if (it == End())
+    const_iterator it = Find(key);
+    if (it == Cend())
     {
         throw std::out_of_range( FormatStr("Trying to access element with key \"%s\", which is not in the map", key) );    
     }
@@ -450,7 +451,7 @@ ValueType& Map<KeyType, ValueType>::operator[](const KeyType &key) {
 
 
 template<typename KeyType, typename ValueType>
-Size Map<KeyType, ValueType>::Hash(const KeyType &key) {
+Size Map<KeyType, ValueType>::Hash(const KeyType &key) const {
 
     assert(mNumBuckets > 0);
 

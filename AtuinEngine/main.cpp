@@ -1,5 +1,5 @@
 
-#include "App.h"
+#include "Application.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -9,7 +9,7 @@ int main() {
 
     try
     {
-        Atuin::App::Get().Start();
+        Atuin::Application::Start();
     }
     catch(const std::exception& e)
     {
