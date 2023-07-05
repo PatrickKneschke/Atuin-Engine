@@ -19,23 +19,25 @@ class Json {
 
     using JsonList = Array<Json>;
     using JsonDict  = Map<std::string, Json>;
-    using Internal = std::variant<bool, I64, double, std::string, JsonList, JsonDict, nullptr_t>;
+    using Internal = std::variant<std::monostate, bool, I64, double, std::string, JsonList, JsonDict>;
 
 public:
 
     enum class JsonType {
 
+        EMPTY = 0, 
         BOOL,
         INT,
         FLOAT,
         STRING,
         LIST,
-        DICT,
-        EMPTY
+        DICT
     };
 
 public:
 
+    static Json MakeList() { Json list; list.mData = JsonList(); return list; }
+    static Json MakeDict() { Json dict; dict.mData = JsonDict(); return dict; }
     static Json Load(std::string_view file);
 
 
@@ -84,7 +86,7 @@ public:
             throw std::runtime_error("Tried to append values to non-list type json object.");
         }
 
-        get< (Size)JsonType::LIST >(mData)->EmplaceBack(std::forward<T>(t));
+        get< (Size)JsonType::LIST >(mData).EmplaceBack(std::forward<T>(t));
     }
 
     template<typename T, typename... Args>
@@ -120,7 +122,7 @@ private:
     static std::string JsonEscape(const std::string &in);
 
     static Json Parse(std::string_view, Size &offset);
-    static Json ParseObj(std::string_view, Size &offset);
+    static Json ParseDict(std::string_view, Size &offset);
     static Json ParseList(std::string_view, Size &offset);
     static Json ParseString(std::string_view, Size &offset);
     static Json ParseNumber(std::string_view, Size &offset);

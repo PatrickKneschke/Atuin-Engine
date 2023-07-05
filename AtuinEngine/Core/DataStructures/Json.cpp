@@ -8,13 +8,13 @@
 namespace Atuin {
 
 
-Json::Json() : mData(nullptr) {}
+Json::Json() : mData() {}
 
 
 Json::Json(const Json &other) : mData(other.mData) {}
 
 
-Json::Json(Json &&other) : mData(std::move(other.mData)) { other.mData = nullptr; }
+Json::Json(Json &&other) : mData(std::move(other.mData)) { other.mData = Internal(); }
 
 
 Json& Json::operator= (const Json &rhs) {
@@ -28,7 +28,6 @@ Json& Json::operator= (const Json &rhs) {
 Json& Json::operator= (Json &&rhs) {
 
     mData = std::move(rhs.mData);
-    rhs.mData = nullptr;
 
     return *this;
 }
@@ -41,7 +40,7 @@ Json::~Json() {
 
 void Json::Clear() {
 
-    mData = nullptr;
+    mData = Internal();
 }
 
 
@@ -211,7 +210,7 @@ std::string Json::Print(Size depth, std::string tab) const {
         {
             std::string s = "{\n";
             bool first = true;
-            auto mp = std::get< (Size)JsonType::DICT >(mData);
+            auto &mp = std::get< (Size)JsonType::DICT >(mData);
             for (auto &[key, val] : mp ) 
             {
                 if( !first ) {
@@ -228,7 +227,7 @@ std::string Json::Print(Size depth, std::string tab) const {
         {
             std::string s = "[";
             bool first = true;
-            auto list = std::get< (Size)JsonType::LIST >(mData);
+            auto &list = std::get< (Size)JsonType::LIST >(mData);
             for( auto &val : list ) 
             {
                 if( !first ) 
@@ -326,13 +325,15 @@ std::string Json::JsonEscape(const std::string &in) {
 
 Json Json::Parse(std::string_view str, Size &offset) {
 
+    std::cout << "parse ";
+
     char value;
     SkipWhiteSpace( str, offset );
     value = str[offset];
     switch (value) 
     {
         case '{' : 
-            return ParseObj( str, offset );
+            return ParseDict( str, offset );
         case '[' : 
             return ParseList( str, offset );
         case '\"': 
@@ -345,7 +346,7 @@ Json Json::Parse(std::string_view str, Size &offset) {
         default  : 
             if( ( value >= '0' && value <= '9' ) || value == '-' )
             {
-                return std::move( ParseNumber( str, offset ) );
+                return ParseNumber( str, offset );
             }
     }
     
@@ -355,7 +356,9 @@ Json Json::Parse(std::string_view str, Size &offset) {
 }
 
 
-Json Json::ParseObj(std::string_view str, Size &offset) {
+Json Json::ParseDict(std::string_view str, Size &offset) {
+
+    std::cout << "dict \n";
 
     Json out = JsonDict();
 
@@ -375,7 +378,7 @@ Json Json::ParseObj(std::string_view str, Size &offset) {
             throw std::runtime_error( FormatStr("Json :  Expected ':' , found '%c'",  str[offset]) );
             break;
         }
-        Json value = Parse(str, ++offset);
+        Json value = Parse(str, ++offset);        
         out[key.ToString()] = value;
 
         SkipWhiteSpace(str, offset);
@@ -396,13 +399,17 @@ Json Json::ParseObj(std::string_view str, Size &offset) {
         }
     }
 
+    std::cout << out << '\n';
+
     return out;  
 }
 
 
 Json Json::ParseList(std::string_view str, Size &offset) {
 
-    Json out = JsonList();
+    std::cout << "list \n";
+
+    Json out = JsonList(4);
   
     ++offset;
     SkipWhiteSpace(str, offset);
@@ -414,6 +421,7 @@ Json Json::ParseList(std::string_view str, Size &offset) {
     while (true) 
     {
         out.Append( std::move(Parse(str, offset)) );
+
         SkipWhiteSpace(str, offset);
         if( str[offset] == ',' ) 
         {
@@ -431,11 +439,15 @@ Json Json::ParseList(std::string_view str, Size &offset) {
         }
     }
 
+    std::cout << out << '\n';
+
     return out; 
 }
 
 
 Json Json::ParseString(std::string_view str, Size &offset) {
+
+    std::cout << "string \n";
 
     Json out;
 
@@ -500,11 +512,15 @@ Json Json::ParseString(std::string_view str, Size &offset) {
     ++offset;
     out = val;
 
+    std::cout << out << '\n';
+
     return out;   
 }
 
 
 Json Json::ParseNumber(std::string_view str, Size &offset) {
+
+    std::cout << "number \n";
 
     Json out;
 
@@ -572,6 +588,8 @@ Json Json::ParseNumber(std::string_view str, Size &offset) {
     {
         out = stol(valStr) * exp;
     }
+
+    std::cout << out << '\n';
     
     return out; 
 }

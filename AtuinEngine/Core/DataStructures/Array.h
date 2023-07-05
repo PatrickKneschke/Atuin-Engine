@@ -12,6 +12,8 @@
 #include <stdexcept>
 #include <utility>
 
+#include <iostream>
+
 
 namespace Atuin {
 
@@ -413,6 +415,8 @@ void Array<T>::Reserve(Size capacity) {
         Array<T> temp(capacity);
         for (Size i = 0; i < mSize; i++)
         {
+            std::cout << "move old " << i << '\n';
+
             temp.PushBack( std::move(pData[i]) );
         }
         *this = std::move(temp);
@@ -475,6 +479,8 @@ void Array<T>::PushBack(T &&value) {
     {
         Reserve( Math::NextPowerOfTwo(mCapacity) );
     }
+    
+    std::cout << "move push\n";
 
     pData[mSize++] = std::move(value);
 }

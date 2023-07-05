@@ -108,7 +108,7 @@ void EngineLoop::Run() {
     StartUp();
     
 
-    Json json = Json::MakeObj();
+    Json json = Json::MakeDict();
     json["bool"] = false;
     json["int"] = 1L;
     json["float"] = 4.6;
