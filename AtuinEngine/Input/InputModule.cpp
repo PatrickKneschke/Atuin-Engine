@@ -87,10 +87,10 @@ void InputModule::PushInputStates() {
 
 void InputModule::LoadContexts(std::string_view contextFilePath) {
 
-    std::string jsonTxt(pEngine->Files()->Read(contextFilePath));
+    std::string jsonTxt( pEngine->Files()->Read(contextFilePath) );
     mContextsJSON = Json::Load(jsonTxt);
 
-    auto contexts = mContextsJSON.GetDict();
+    auto &contexts = mContextsJSON.GetDict();
     for(auto &[name, contextData] : contexts) 
     {
         U64 nameID = SID(name.c_str());
@@ -114,10 +114,10 @@ void InputModule::SaveContexts(std::string_view contextFilePath) {
 
 void InputModule::LoadRanges(std::string_view rangesFilePath) {
 
-    std::string jsonTxt(pEngine->Files()->Read(rangesFilePath));
+    std::string jsonTxt( pEngine->Files()->Read(rangesFilePath) );
     Json rangesJSON = Json::Load(jsonTxt);
 
-    auto ranges = rangesJSON.GetDict();
+    auto &ranges = rangesJSON.GetDict();
     for(auto &[name, rangeData] : ranges)
     {
         U64 rangeID = SID(name.c_str());

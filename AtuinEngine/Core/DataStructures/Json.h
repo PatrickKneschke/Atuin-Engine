@@ -3,7 +3,6 @@
 
 
 #include "Core/Util/Types.h"
-#include "Core/Memory/MemoryManager.h"
 #include "Core/DataStructures/Array.h"
 #include "Core/DataStructures/Map.h"
 
@@ -18,14 +17,14 @@ namespace Atuin {
 class Json {
 
     using JsonList = Array<Json>;
-    using JsonDict  = Map<std::string, Json>;
-    using Internal = std::variant<std::monostate, bool, I64, double, std::string, JsonList, JsonDict>;
+    using JsonDict = Map<std::string, Json>;
+    using Internal = std::variant<std::monostate, bool, I64, double, std::string*, JsonList*, JsonDict*>;
 
 public:
 
     enum class JsonType {
 
-        EMPTY = 0, 
+        EMPTY, 
         BOOL,
         INT,
         FLOAT,
@@ -36,8 +35,24 @@ public:
 
 public:
 
-    static Json MakeList() { Json list; list.mData = JsonList(); return list; }
-    static Json MakeDict() { Json dict; dict.mData = JsonDict(); return dict; }
+    // TODO use MemoryManager
+
+    static Json MakeList() {
+
+        Json out;
+        out.mData = new JsonList();
+
+        return out;
+    }
+
+    static Json MakeDict() {
+
+        Json out;
+        out.mData = new JsonDict();
+
+        return out;
+    }
+
     static Json Load(std::string_view file);
 
 
@@ -48,27 +63,19 @@ public:
     Json(bool b) : mData(b) {}
     Json(I64 i) : mData(i) {}
     Json(double d) : mData(d) {}
-    Json(const std::string &s) : mData(s) {}
-    Json(std::string &&s) : mData(std::move(s)) {}
+    Json(const std::string &s) { mData = new std::string(s); }
+    Json(std::string &&s) { mData = new std::string(std::move(s)); }
     Json(const char* s) : Json(std::string(s)) {}
-    Json(const JsonList &list) : mData(list) {}
-    Json(JsonList &&list) : mData(std::move(list)) {}
-    Json(const JsonDict &dict) : mData(dict) {}
-    Json(JsonDict &&dict) : mData(std::move(dict)) {}
     
     Json& operator= (const Json &rhs);
     Json& operator= (Json &&rhs);
 
-    Json& operator= (bool b) { mData = b; return *this; }
-    Json& operator= (I64 i) { mData = i; return *this; }
-    Json& operator= (double d) { mData = d; return *this; }
-    Json& operator= (const std::string &s) { mData = s; return *this; }
-    Json& operator= (std::string &&s) { mData = std::move(s); return *this; }
+    Json& operator= (bool b) { Clear(); mData = b; return *this; }
+    Json& operator= (I64 i) { Clear(); mData = i; return *this; }
+    Json& operator= (double d) { Clear(); mData = d; return *this; }
+    Json& operator= (const std::string &s) { Clear(); mData = new std::string(s); return *this; }
+    Json& operator= (std::string &&s) { Clear(); mData = new std::string(std::move(s)); return *this; }
     Json& operator= (const char* s) { return operator=(std::string(s)); }
-    Json& operator= (const JsonList &list) { mData = list; return *this; }
-    Json& operator= (JsonList &&list) { mData = std::move(list); return *this; }
-    Json& operator= (const JsonDict &dict) { mData = dict; return *this; }
-    Json& operator= (JsonDict &&dict) { mData = std::move(dict); return *this; }
 
     ~Json();
 
@@ -86,13 +93,13 @@ public:
             throw std::runtime_error("Tried to append values to non-list type json object.");
         }
 
-        get< (Size)JsonType::LIST >(mData).EmplaceBack(std::forward<T>(t));
+        get< (Size)JsonType::LIST >(mData)->EmplaceBack(std::forward<T>(t));
     }
 
     template<typename T, typename... Args>
     void Append(T &&t, Args&&... args) {
 
-        Append(t); Append(args...);
+        Append( std::forward<T>(t) ); Append( std::forward<Args>(args)... );
     }
 
     Json& operator[] (const std::string &key);

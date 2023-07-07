@@ -10,9 +10,6 @@
 #include "Input/InputModule.h"
 
 
-#include "Core/DataStructures/Json.h"
-
-
 #include <iostream>
 
 
@@ -103,18 +100,9 @@ EngineLoop::~EngineLoop() {
 
 
 void EngineLoop::Run() {
-
-
-    StartUp();
     
 
-    Json json = Json::MakeDict();
-    json["bool"] = false;
-    json["int"] = 1L;
-    json["float"] = 4.6;
-    json["string"] = "hello";
-    std::cout << json << '\n';
-
+    StartUp();
 
     int frame = 0;
     while (mRunning)
