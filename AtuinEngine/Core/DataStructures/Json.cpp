@@ -11,25 +11,7 @@ namespace Atuin {
 Json::Json() {}
 
 
-Json::Json(const Json &other) {
-    
-    switch (other.mData.index())
-    {
-        case (Size)JsonType::STRING:
-            mData = new std::string( *(get< std::string* >(other.mData)) );
-            break;
-        case (Size)JsonType::LIST:
-            mData = new JsonList( *(get< JsonList* >(other.mData)) );
-            break;
-        case (Size)JsonType::DICT:
-            mData = new JsonDict( *(get< JsonDict* >(other.mData)) );
-            break;
-
-        default:
-            mData = other.mData;
-            break;
-    }
-}
+Json::Json(const Json &other) : mData(other.mData) {}
 
 
 Json::Json(Json &&other) : mData(std::move(other.mData)) { other.mData = std::monostate{}; }
@@ -37,23 +19,7 @@ Json::Json(Json &&other) : mData(std::move(other.mData)) { other.mData = std::mo
 
 Json& Json::operator= (const Json &rhs) {
 
-    Clear();
-    switch (rhs.mData.index())
-    {
-        case (Size)JsonType::STRING:
-            mData = new std::string( *(get< std::string* >(rhs.mData)) );
-            break;
-        case (Size)JsonType::LIST:
-            mData = new JsonList( *(get< JsonList* >(rhs.mData)) );
-            break;
-        case (Size)JsonType::DICT:
-            mData = new JsonDict( *(get< JsonDict* >(rhs.mData)) );
-            break;
-
-        default:
-            mData = rhs.mData;
-            break;
-    }
+    mData = rhs.mData;
 
     return *this;
 }
@@ -61,7 +27,6 @@ Json& Json::operator= (const Json &rhs) {
 
 Json& Json::operator= (Json &&rhs) {
 
-    Clear();
     mData = std::move(rhs.mData);
     rhs.mData = std::monostate{};
 
@@ -71,27 +36,10 @@ Json& Json::operator= (Json &&rhs) {
 
 Json::~Json() {
 
-    Clear();
 }
 
 
 void Json::Clear() {
-
-    switch (mData.index())
-    {
-        case (Size)JsonType::STRING:
-            delete std::get< std::string* >(mData);
-            break;
-        case (Size)JsonType::LIST:
-            delete std::get< JsonList* >(mData);
-            break;
-        case (Size)JsonType::DICT:
-            delete std::get< JsonDict* >(mData);
-            break;
-
-        default:
-            break;
-    }
 
     mData = std::monostate{};
 }
@@ -101,12 +49,12 @@ Size Json::GetSize() const {
 
     if (mData.index() == (Size)JsonType::LIST)
     {
-        return std::get< (Size)JsonType::LIST >(mData)->GetSize();
+        return std::get< (Size)JsonType::LIST >(mData).GetSize();
     }
 
     if (mData.index() == (Size)JsonType::DICT)
     {
-        return std::get< (Size)JsonType::DICT >(mData)->GetSize();
+        return std::get< (Size)JsonType::DICT >(mData).GetSize();
     }
 
     return 0;
@@ -117,8 +65,8 @@ bool Json::HasKey(const std::string &key) const {
 
     if (mData.index() == (Size)JsonType::DICT)
     {
-        auto mp = std::get< (Size)JsonType::DICT >(mData);
-        return mp->Find(key) != mp->End();
+        auto &mp = std::get< (Size)JsonType::DICT >(mData);
+        return mp.Find(key) != mp.Cend();
     }
 
     return false;
@@ -132,7 +80,7 @@ Json& Json::operator[] (const std::string &key) {
         throw std::runtime_error("Cannot access key in non-dictionary type json object.");
     }
 
-    return std::get< (Size)JsonType::DICT >(mData)->operator[](key.data());
+    return std::get< (Size)JsonType::DICT >(mData)[key.data()];
 }
 
 
@@ -143,7 +91,7 @@ Json& Json::At(const std::string &key) {
         throw std::runtime_error("Cannot access key in non-dictionary type json object.");
     }
 
-    return std::get< (Size)JsonType::DICT >(mData)->At(key.data());
+    return std::get< (Size)JsonType::DICT >(mData).At(key.data());
 }
 
 
@@ -154,7 +102,7 @@ const Json& Json::At(const std::string &key) const {
         throw std::runtime_error("Cannot access key in non-dictionary type json object.");
     }
 
-    return std::get< (Size)JsonType::DICT >(mData)->At(key.data());
+    return std::get< (Size)JsonType::DICT >(mData).At(key.data());
 }
 
     
@@ -165,7 +113,7 @@ Json& Json::operator[] (Size idx) {
         throw std::runtime_error("Cannot access index in non-list type json object.");
     }
 
-    return std::get< (Size)JsonType::LIST >(mData)->operator[](idx);
+    return std::get< (Size)JsonType::LIST >(mData)[idx];
 }
 
     
@@ -176,7 +124,7 @@ const Json& Json::operator[] (Size idx) const {
         throw std::runtime_error("Cannot access index in non-list type json object.");
     }
 
-    return std::get< (Size)JsonType::LIST >(mData)->operator[](idx);
+    return std::get< (Size)JsonType::LIST >(mData)[idx];
 }
 
 
@@ -220,7 +168,7 @@ std::string Json::ToString() const {
         throw std::runtime_error("Tried to extract string value from non-string json object");
     }
 
-    return *(std::get< (Size)JsonType::STRING >(mData));
+    return std::get< (Size)JsonType::STRING >(mData);
 }
 
 
@@ -231,7 +179,7 @@ const Json::JsonList& Json::GetList() const {
         throw std::runtime_error("Tried to get json list from non-list json object");
     }
 
-    return *std::get< (Size)JsonType::LIST >(mData);
+    return std::get< (Size)JsonType::LIST >(mData);
 }
 
 
@@ -242,7 +190,7 @@ const Json::JsonDict& Json::GetDict() const {
         throw std::runtime_error("Tried to get dictionary from non-dictionary json object");
     }
 
-    return *std::get< (Size)JsonType::DICT >(mData);
+    return std::get< (Size)JsonType::DICT >(mData);
 }
 
 
@@ -263,7 +211,7 @@ std::string Json::Print(Size depth, std::string tab) const {
         {
             std::string s = "{\n";
             bool first = true;
-            const JsonDict &mp = *std::get< (Size)JsonType::DICT >(mData);
+            const JsonDict &mp = std::get< (Size)JsonType::DICT >(mData);
             for (auto &[key, val] : mp ) 
             {
                 if( !first ) {
@@ -280,7 +228,7 @@ std::string Json::Print(Size depth, std::string tab) const {
         {
             std::string s = "[";
             bool first = true;
-            const JsonList &list = *std::get< (Size)JsonType::LIST >(mData);
+            const JsonList &list = std::get< (Size)JsonType::LIST >(mData);
             for( auto &val : list ) 
             {
                 if( !first ) 
@@ -294,7 +242,7 @@ std::string Json::Print(Size depth, std::string tab) const {
             return s;
         }
         case (Size)JsonType::STRING:
-            return "\"" + JsonEscape( *std::get< (Size)JsonType::STRING >(mData) ) + "\"";
+            return "\"" + JsonEscape( std::get< (Size)JsonType::STRING >(mData) ) + "\"";
 
         case (Size)JsonType::FLOAT:
             return std::to_string( std::get< (Size)JsonType::FLOAT >(mData) );
@@ -427,8 +375,7 @@ Json Json::ParseDict(std::string_view str, Size &offset) {
             throw std::runtime_error( FormatStr("Json :  Expected ':' , found '%c'",  str[offset]) );
             break;
         }
-        Json value = Parse(str, ++offset);
-        out[key.ToString()] = value;
+        out[key.ToString()] = Parse(str, ++offset);
 
         SkipWhiteSpace(str, offset);
         if (str[offset] == ',') 

@@ -18,7 +18,7 @@ class Json {
 
     using JsonList = Array<Json>;
     using JsonDict = Map<std::string, Json>;
-    using Internal = std::variant<std::monostate, bool, I64, double, std::string*, JsonList*, JsonDict*>;
+    using Internal = std::variant<std::monostate, bool, I64, double, std::string, JsonList, JsonDict>;
 
 public:
 
@@ -40,7 +40,7 @@ public:
     static Json MakeList() {
 
         Json out;
-        out.mData = new JsonList();
+        out.mData = JsonList();
 
         return out;
     }
@@ -48,7 +48,7 @@ public:
     static Json MakeDict() {
 
         Json out;
-        out.mData = new JsonDict();
+        out.mData = JsonDict();
 
         return out;
     }
@@ -63,18 +63,18 @@ public:
     Json(bool b) : mData(b) {}
     Json(I64 i) : mData(i) {}
     Json(double d) : mData(d) {}
-    Json(const std::string &s) { mData = new std::string(s); }
-    Json(std::string &&s) { mData = new std::string(std::move(s)); }
+    Json(const std::string &s) { mData = s; }
+    Json(std::string &&s) { mData = std::move(s); }
     Json(const char* s) : Json(std::string(s)) {}
     
     Json& operator= (const Json &rhs);
     Json& operator= (Json &&rhs);
 
-    Json& operator= (bool b) { Clear(); mData = b; return *this; }
-    Json& operator= (I64 i) { Clear(); mData = i; return *this; }
-    Json& operator= (double d) { Clear(); mData = d; return *this; }
-    Json& operator= (const std::string &s) { Clear(); mData = new std::string(s); return *this; }
-    Json& operator= (std::string &&s) { Clear(); mData = new std::string(std::move(s)); return *this; }
+    Json& operator= (bool b) { mData = b; return *this; }
+    Json& operator= (I64 i) { mData = i; return *this; }
+    Json& operator= (double d) { mData = d; return *this; }
+    Json& operator= (const std::string &s) { mData = s; return *this; }
+    Json& operator= (std::string &&s) { mData = std::move(s); return *this; }
     Json& operator= (const char* s) { return operator=(std::string(s)); }
 
     ~Json();
@@ -93,7 +93,7 @@ public:
             throw std::runtime_error("Tried to append values to non-list type json object.");
         }
 
-        get< (Size)JsonType::LIST >(mData)->EmplaceBack(std::forward<T>(t));
+        get< (Size)JsonType::LIST >(mData).EmplaceBack(std::forward<T>(t));
     }
 
     template<typename T, typename... Args>

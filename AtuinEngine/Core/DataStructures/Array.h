@@ -461,24 +461,14 @@ void Array<T>::Resize(Size newSize, const T &value) {
 template<typename T>
 void Array<T>::PushBack(const T &value) {
 
-    if (mSize == mCapacity)
-    {
-        Reserve( Math::NextPowerOfTwo(mCapacity) );
-    }
-
-    pData[mSize++] = value;
+    EmplaceBack(value);
 }
 
 
 template<typename T>
 void Array<T>::PushBack(T &&value) {
 
-    if (mSize == mCapacity)
-    {
-        Reserve( Math::NextPowerOfTwo(mCapacity) );
-    }
-
-    pData[mSize++] = std::move(value);
+    EmplaceBack( std::move(value) );
 }
 
 
