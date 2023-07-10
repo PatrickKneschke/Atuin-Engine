@@ -3,6 +3,7 @@
 
 
 #include "Core/Util/Types.h"
+#include "Core/Debug/Log.h"
 #include "Core/DataStructures/Array.h"
 #include "Core/DataStructures/Map.h"
 
@@ -90,7 +91,7 @@ public:
 
         if (mData.index() != (Size)JsonType::LIST)
         {
-            throw std::runtime_error("Tried to append values to non-list type json object.");
+            mLog.Error( LogChannel::GENERAL, "Tried to append values to non-list type json object." );
         }
 
         get< (Size)JsonType::LIST >(mData).EmplaceBack(std::forward<T>(t));
@@ -138,6 +139,8 @@ private:
     
 
     Internal mData;
+
+    Log mLog;
 };
 
     

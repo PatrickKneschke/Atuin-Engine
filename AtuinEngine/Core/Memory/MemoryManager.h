@@ -5,6 +5,7 @@
 #include "Core/Config/CVar.h"
 #include "Core/Util/Types.h"
 #include "Core/Memory/FreeListAllocator.h"
+#include "Core/Debug/Log.h"
 
 #include <memory>
 
@@ -19,7 +20,7 @@ class MemoryManager {
 
 public:
 
-    MemoryManager(EngineLoop *engine);
+    MemoryManager();
     ~MemoryManager() = default;
 
     // TODO make these thread-safe!!!
@@ -28,7 +29,7 @@ public:
     void  Free(void *ptr);
 
     template<typename T, typename... Args>
-    T* New(const Args&... args);
+    T* New(Args&&... args);
 
     template<typename T>
     T* NewArray(Size size);
@@ -51,15 +52,15 @@ private:
     // TODO ? add pools for graphic assets and sound clips
     // -> everything updated together stays together in memory for cache friendliness ?
 
-    EngineLoop* pEngine;
+    Log mLog;
 };
 
 
 template<typename T, typename... Args>
-T* MemoryManager::New(const Args&... args) {
+T* MemoryManager::New(Args&&... args) {
 
     void *mem = Allocate(sizeof(T), alignof(T));
-    return new (mem) T(args...);
+    return new (mem) T(std::forward<Args>(args)...);
 }
 
 

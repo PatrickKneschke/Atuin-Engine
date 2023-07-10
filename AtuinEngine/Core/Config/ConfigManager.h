@@ -2,21 +2,19 @@
 #pragma once
 
 
-#include "Core/Util/Types.h"
 #include "CVar.h"
+#include "Core/Util/Types.h"
+#include "Core/Debug/Log.h"
+#include "Core/Files/Files.h"
 
 #include <unordered_set>
 #include <string>
 #include <unordered_map>
 #include <utility>
 
-#include <iostream>
-
 
 namespace Atuin {
 
-
-class EngineLoop;
 
 class ConfigManager {
 
@@ -34,7 +32,7 @@ public:
     template<typename T>
     static CVar<T>* RegisterCVar(std::string_view block, std::string_view name, T &&value);
 
-    ConfigManager(EngineLoop *parent) : pEngine {parent} {}
+    ConfigManager() : mFiles(), mLog() {}
     ~ConfigManager() = default;
 
     void Read(std::string_view configFile);
@@ -55,7 +53,8 @@ private:
 
     std::string mConfigFile;
 
-    EngineLoop* pEngine;
+    Files mFiles;
+    Log mLog;
 };
 
 

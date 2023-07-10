@@ -1,5 +1,6 @@
 
 #include "FileManager.h"
+#include "Files.h"
 #include "EngineLoop.h"
 #include "Core/Debug/Logger.h"
 #include "Core/Util/StringFormat.h"
@@ -10,6 +11,12 @@
 
 
 namespace Atuin {
+
+
+FileManager::FileManager() : mRootPath {std::filesystem::current_path()}, mLog(), mJobs() {
+
+    Files::sFileManager = this;
+}
 
 
 void FileManager::MakeDir(std::string_view dirName) {
@@ -24,7 +31,7 @@ char* FileManager::Read(std::string_view fileName) {
     std::ifstream file(filePath);
     if (!file.is_open())
     {
-        pEngine->Log()->Error(LogChannel::FILES, FormatStr("Unable to open file : %s", fileName.data()));
+        mLog.Error(LogChannel::FILES, FormatStr("Unable to open file : %s", fileName.data()));
 
         return nullptr;
     }
@@ -37,7 +44,7 @@ char* FileManager::Read(std::string_view fileName) {
     char* buffer = new char[size+1];
     if (!file.read(buffer, size))
     {
-        pEngine->Log()->Error(LogChannel::FILES, FormatStr("Unable to read file : %s", fileName.data()));
+        mLog.Error(LogChannel::FILES, FormatStr("Unable to read file : %s", fileName.data()));
         return nullptr;
     }
     buffer[size] = '\0';
@@ -52,13 +59,13 @@ void FileManager::Write(std::string_view fileName, std::string_view buffer, std:
     std::ofstream file(filePath, mode);
     if (!file.is_open())
     {
-        pEngine->Log()->Error(LogChannel::FILES, FormatStr("Unable to open file : %s", fileName.data()));
+        mLog.Error(LogChannel::FILES, FormatStr("Unable to open file : %s", fileName.data()));
         return;
     }
 
     if (!file.write(buffer.data(), buffer.length()))
     {
-        pEngine->Log()->Error(LogChannel::FILES, FormatStr("Unable to write to file : %s", fileName.data()));
+        mLog.Error(LogChannel::FILES, FormatStr("Unable to write to file : %s", fileName.data()));
         return;
     }    
 }

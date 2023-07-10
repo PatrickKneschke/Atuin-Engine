@@ -5,6 +5,7 @@
 #include "Core/Debug/Definitions.h"
 #include "Core/Config/CVar.h"
 #include "Core/Util/Types.h"
+#include "Core/Files/Files.h"
 
 #include <bitset>
 #include <source_location>
@@ -28,7 +29,7 @@ class Logger {
 
 public:
 
-    Logger(EngineLoop *engine): mLevelMask {~0UL}, mChannelMask {~0UL},  pEngine {engine} {}
+    Logger();
     ~Logger();
     
 
@@ -60,7 +61,7 @@ private:
     LogWriter mFullLog;
     LogWriter mChannelsLog;
 
-    EngineLoop* pEngine;
+    Files mFiles;
 };
 
 

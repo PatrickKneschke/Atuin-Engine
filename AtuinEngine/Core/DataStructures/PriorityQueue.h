@@ -5,6 +5,7 @@
 #include "Array.h"
 #include "Core/Util/Types.h"
 #include "Core/Util/Math.h"
+#include "Core/Debug/Log.h"
 
 #include <algorithm>
 #include <initializer_list>
@@ -20,10 +21,10 @@ class PriorityQueue {
 
 public:
 
-    PriorityQueue(MemoryManager *memory = nullptr);
-    PriorityQueue(Size capacity, MemoryManager *memory = nullptr);
-    PriorityQueue(const std::initializer_list<T> &list, MemoryManager *memory = nullptr);
-    PriorityQueue(const Array<T> &array, MemoryManager *memory = nullptr);
+    PriorityQueue();
+    PriorityQueue(Size capacity);
+    PriorityQueue(const std::initializer_list<T> &list);
+    PriorityQueue(const Array<T> &array);
     PriorityQueue(Array<T> &&array);
 
     PriorityQueue(const PriorityQueue &other);
@@ -60,44 +61,46 @@ private:
 
     Array<T> mData;
     Compare mCompare;
+
+    Log mLog;
 };
 
 
 template<typename T,  class Compare>
-PriorityQueue<T,Compare>::PriorityQueue(MemoryManager *memory) : mData(memory) {}
+PriorityQueue<T,Compare>::PriorityQueue() : mData(), mLog() {}
 
 
 template<typename T, class Compare>
-PriorityQueue<T,Compare>::PriorityQueue(Size capacity, MemoryManager *memory) : mData(capacity, memory) {}
+PriorityQueue<T,Compare>::PriorityQueue(Size capacity) : mData(capacity), mLog() {}
 
 
 template<typename T, class Compare>
-PriorityQueue<T,Compare>::PriorityQueue(const std::initializer_list<T> &list, MemoryManager *memory) : mData(list, memory) {
+PriorityQueue<T,Compare>::PriorityQueue(const std::initializer_list<T> &list) : mData(list), mLog() {
 
     MakeHeap(0);
 }
 
 
 template<typename T, class Compare>
-PriorityQueue<T,Compare>::PriorityQueue(const Array<T> &array, MemoryManager *memory) : mData(array, memory) {
+PriorityQueue<T,Compare>::PriorityQueue(const Array<T> &array) : mData(array), mLog() {
 
     MakeHeap(0);
 }
 
 
 template<typename T, class Compare>
-PriorityQueue<T,Compare>::PriorityQueue(Array<T> &&array) : mData {std::move(array)} {
+PriorityQueue<T,Compare>::PriorityQueue(Array<T> &&array) : mData {std::move(array)}, mLog() {
 
     MakeHeap(0);
 }
 
 
 template<typename T, class Compare>
-PriorityQueue<T,Compare>::PriorityQueue(const PriorityQueue<T,Compare> &other) : mData {other.mData} {}
+PriorityQueue<T,Compare>::PriorityQueue(const PriorityQueue<T,Compare> &other) : mData {other.mData}, mLog() {}
 
 
 template<typename T, class Compare>
-PriorityQueue<T,Compare>::PriorityQueue(PriorityQueue<T,Compare> &&other) : mData {std::move(other.mData)} {}
+PriorityQueue<T,Compare>::PriorityQueue(PriorityQueue<T,Compare> &&other) : mData {std::move(other.mData)}, mLog() {}
 
 
 template<typename T, class Compare>
@@ -160,7 +163,7 @@ T& PriorityQueue<T,Compare>::Top() {
 
     if ( mData.IsEmpty() )
     {
-        throw std::out_of_range("PriorityQueue::Top called on empty queue.");
+        mLog.Error( LogChannel::GENERAL, "PriorityQueue::Top called on empty queue." );
     }
 
     return mData[0];
@@ -172,7 +175,7 @@ const T& PriorityQueue<T,Compare>::Top() const {
 
     if ( mData.IsEmpty() )
     {
-        throw std::out_of_range("PriorityQueue::Top called on empty queue.");
+        mLog.Error( LogChannel::GENERAL, "PriorityQueue::Top called on empty queue." );
     }
 
     return mData[0];

@@ -5,6 +5,8 @@
 #include "InputSignals.h"
 #include "RangeConverter.h"
 #include "Core/Config/CVar.h"
+#include "Core/Files/Files.h"
+#include "Core/Memory/Memory.h"
 #include "Core/DataStructures/Map.h"
 #include "Core/DataStructures/Json.h"
 
@@ -31,14 +33,13 @@ using MappedInput = Map<U64, InputState>;
 using InputHandler = std::function<void(MappedInput&)>;
 
 
-class EngineLoop;
 class InputContext;
 
 class InputModule {
 
 public:
 
-    InputModule(EngineLoop *engine);
+    InputModule();
     ~InputModule();
 
     void StartUp(GLFWwindow *window);
@@ -86,7 +87,8 @@ private:
     MappedInput mCurrentMappedInput;
     double mouseX, mouseY;
 
-    EngineLoop* pEngine;
+    Files mFiles;
+    Memory mMemory;
 };
 
     

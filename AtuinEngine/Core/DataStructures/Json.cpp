@@ -8,13 +8,13 @@
 namespace Atuin {
 
 
-Json::Json() {}
+Json::Json() : mLog() {}
 
 
-Json::Json(const Json &other) : mData(other.mData) {}
+Json::Json(const Json &other) : mData(other.mData), mLog() {}
 
 
-Json::Json(Json &&other) : mData(std::move(other.mData)) { other.mData = std::monostate{}; }
+Json::Json(Json &&other) : mData(std::move(other.mData)), mLog() { other.mData = std::monostate{}; }
 
 
 Json& Json::operator= (const Json &rhs) {
@@ -77,7 +77,7 @@ Json& Json::operator[] (const std::string &key) {
 
     if (mData.index() != (Size)JsonType::DICT)
     {
-        throw std::runtime_error("Cannot access key in non-dictionary type json object.");
+        mLog.Error( LogChannel::GENERAL, "Cannot access key in non-dictionary type json object." );
     }
 
     return std::get< (Size)JsonType::DICT >(mData)[key.data()];
@@ -88,7 +88,7 @@ Json& Json::At(const std::string &key) {
 
     if (mData.index() != (Size)JsonType::DICT)
     {
-        throw std::runtime_error("Cannot access key in non-dictionary type json object.");
+        mLog.Error( LogChannel::GENERAL, "Cannot access key in non-dictionary type json object." );
     }
 
     return std::get< (Size)JsonType::DICT >(mData).At(key.data());
@@ -99,7 +99,7 @@ const Json& Json::At(const std::string &key) const {
 
     if (mData.index() != (Size)JsonType::DICT)
     {
-        throw std::runtime_error("Cannot access key in non-dictionary type json object.");
+        mLog.Error( LogChannel::GENERAL, "Cannot access key in non-dictionary type json object." );
     }
 
     return std::get< (Size)JsonType::DICT >(mData).At(key.data());
@@ -110,7 +110,7 @@ Json& Json::operator[] (Size idx) {
 
     if (mData.index() != (Size)JsonType::LIST)
     {
-        throw std::runtime_error("Cannot access index in non-list type json object.");
+        mLog.Error( LogChannel::GENERAL, "Cannot access index in non-list type json object." );
     }
 
     return std::get< (Size)JsonType::LIST >(mData)[idx];
@@ -121,7 +121,7 @@ const Json& Json::operator[] (Size idx) const {
 
     if (mData.index() != (Size)JsonType::LIST)
     {
-        throw std::runtime_error("Cannot access index in non-list type json object.");
+        mLog.Error( LogChannel::GENERAL, "Cannot access index in non-list type json object.");
     }
 
     return std::get< (Size)JsonType::LIST >(mData)[idx];
@@ -132,7 +132,7 @@ bool Json::ToBool() const {
 
     if (mData.index() != (Size)JsonType::BOOL )
     {
-        throw std::runtime_error("Tried to extract bool value from non-bool json object.");
+        mLog.Error( LogChannel::GENERAL, "Tried to extract bool value from non-bool json object.");
     }
 
     return std::get< (Size)JsonType::BOOL >(mData);
@@ -143,7 +143,7 @@ I64 Json::ToInt() const {
 
     if (mData.index() != (Size)JsonType::INT )
     {
-        throw std::runtime_error("Tried to extract int value from non-int json object.");
+        mLog.Error( LogChannel::GENERAL, "Tried to extract int value from non-int json object.");
     }
 
     return std::get< (Size)JsonType::INT >(mData);
@@ -154,7 +154,7 @@ double Json::ToFloat() const {
 
     if (mData.index() != (Size)JsonType::FLOAT )
     {
-        throw std::runtime_error("Tried to extract floating point value from non-floating point json object.");
+        mLog.Error( LogChannel::GENERAL, "Tried to extract floating point value from non-floating point json object.");
     }
 
     return std::get< (Size)JsonType::FLOAT >(mData);
@@ -165,7 +165,7 @@ std::string Json::ToString() const {
 
     if (mData.index() != (Size)JsonType::STRING )
     {
-        throw std::runtime_error("Tried to extract string value from non-string json object");
+        mLog.Error( LogChannel::GENERAL, "Tried to extract string value from non-string json object");
     }
 
     return std::get< (Size)JsonType::STRING >(mData);
@@ -176,7 +176,7 @@ const Json::JsonList& Json::GetList() const {
 
     if (mData.index() != (Size)JsonType::LIST )
     {
-        throw std::runtime_error("Tried to get json list from non-list json object");
+        mLog.Error( LogChannel::GENERAL, "Tried to get json list from non-list json object");
     }
 
     return std::get< (Size)JsonType::LIST >(mData);
@@ -187,7 +187,7 @@ const Json::JsonDict& Json::GetDict() const {
 
     if (mData.index() != (Size)JsonType::DICT )
     {
-        throw std::runtime_error("Tried to get dictionary from non-dictionary json object");
+        mLog.Error( LogChannel::GENERAL, "Tried to get dictionary from non-dictionary json object");
     }
 
     return std::get< (Size)JsonType::DICT >(mData);

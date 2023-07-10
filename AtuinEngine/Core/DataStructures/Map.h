@@ -4,15 +4,14 @@
 
 #include "Core/Util/Types.h"
 #include "Core/Util/StringFormat.h"
+#include "Core/Memory/Memory.h"
+#include "Core/Debug/Log.h"
 #include "Core/DataStructures/Array.h"
 
 #include <iostream>
 
 
 namespace Atuin {
-
-
-class MemoryManager;
 
 /*
     KeyType is any type for which the standard hash struct template is implemented
@@ -129,9 +128,9 @@ public:
 
 
 public:
-    Map(MemoryManager *memory = nullptr);
-    Map(Size numBuckets, float maxLoadFactor, MemoryManager *memory = nullptr);
-    Map(const Map &other, MemoryManager *memory = nullptr);
+    Map();
+    Map(Size numBuckets, float maxLoadFactor);
+    Map(const Map &other);
     Map(Map &&other);
 
     Map& operator= (const Map &rhs);
@@ -172,41 +171,45 @@ private:
     Size mSize;
     float mMaxLoadFactor;
 
-    MemoryManager *pMemory;
+    Log mLog;
+    Memory mMemory;
 };
 
 
 template<typename KeyType, typename ValueType>
-Map<KeyType, ValueType>::Map(MemoryManager *memory) : 
-    mBuckets(64, nullptr, memory), 
+Map<KeyType, ValueType>::Map() : 
+    mBuckets(64, nullptr), 
     mNumBuckets {64}, 
     mSize {0}, 
     mMaxLoadFactor {1.0f},
-    pMemory {memory}
+    mLog(), 
+    mMemory() 
 {
     
 }
 
 
 template<typename KeyType, typename ValueType>
-Map<KeyType, ValueType>::Map(Size numBuckets, float maxLoadFactor, MemoryManager *memory) : 
-    mBuckets(numBuckets, nullptr, memory), 
+Map<KeyType, ValueType>::Map(Size numBuckets, float maxLoadFactor) : 
+    mBuckets(numBuckets, nullptr), 
     mNumBuckets {numBuckets}, 
     mSize {0},
-    mMaxLoadFactor {maxLoadFactor} ,
-    pMemory {memory}
+    mMaxLoadFactor {maxLoadFactor},
+    mLog(), 
+    mMemory() 
 {
     
 }
 
 
 template<typename KeyType, typename ValueType>
-Map<KeyType, ValueType>::Map(const Map &other, MemoryManager *memory) :
-    mBuckets(other.mNumBuckets, nullptr, memory), 
+Map<KeyType, ValueType>::Map(const Map &other) :
+    mBuckets(other.mNumBuckets, nullptr), 
     mNumBuckets {other.mNumBuckets}, 
     mSize {0}, 
-    mMaxLoadFactor {other.mMaxLoadFactor}, 
-    pMemory {memory}
+    mMaxLoadFactor {other.mMaxLoadFactor},
+    mLog(), 
+    mMemory() 
 {
     // make deep copy of other map
     for (Size i = 0; i < other.mNumBuckets; i++)
@@ -231,13 +234,13 @@ Map<KeyType, ValueType>::Map(Map &&other) :
     mBuckets(std::move(other.mBuckets)), 
     mNumBuckets {other.mNumBuckets}, 
     mSize {other.mSize}, 
-    mMaxLoadFactor {other.mMaxLoadFactor}, 
-    pMemory {other.pMemory}
+    mMaxLoadFactor {other.mMaxLoadFactor},
+    mLog(), 
+    mMemory(other.mMemory) 
 {
     other.mNumBuckets = 0;
     other.mSize = 0;
     other.mMaxLoadFactor = 0;
-    other.pMemory = nullptr;
 }
 
 
@@ -250,7 +253,7 @@ Map<KeyType, ValueType>& Map<KeyType, ValueType>::operator=(const Map &rhs) {
 
         mNumBuckets = rhs.mNumBuckets;
         mMaxLoadFactor = rhs.mMaxLoadFactor;    
-        mBuckets = Array<MapData*>(mNumBuckets, nullptr, pMemory); 
+        mBuckets = Array<MapData*>(mNumBuckets, nullptr); 
         for (Size i = 0; i < rhs.mNumBuckets; i++)
         {
             MapData *head = rhs.mBuckets[i];
@@ -282,12 +285,11 @@ Map<KeyType, ValueType>& Map<KeyType, ValueType>::operator=(Map &&rhs) {
         mNumBuckets = rhs.mNumBuckets; 
         mSize = rhs.mSize;
         mMaxLoadFactor = rhs.mMaxLoadFactor; 
-        pMemory = rhs.pMemory;
+        mMemory = rhs.mMemory;
 
         rhs.mNumBuckets = 0;
         rhs.mSize = 0;
         rhs.mMaxLoadFactor = 0;
-        rhs.pMemory = nullptr;
     }
 
     return *this;
@@ -412,7 +414,7 @@ ValueType& Map<KeyType, ValueType>::At(const KeyType &key) {
     iterator it = Find(key);
     if (it == End())
     {
-        throw std::out_of_range( FormatStr("Trying to access element with key \"%s\", which is not in the map", key) );    
+        mLog.Error( LogChannel::GENERAL, FormatStr("Trying to access element with key \"%s\", which is not in the map", key) );  
     }
 
     return it->second;
@@ -425,7 +427,7 @@ const ValueType& Map<KeyType, ValueType>::At(const KeyType &key) const {
     const_iterator it = Find(key);
     if (it == Cend())
     {
-        throw std::out_of_range( FormatStr("Trying to access element with key \"%s\", which is not in the map", key) );    
+        mLog.Error( LogChannel::GENERAL, FormatStr("Trying to access element with key \"%s\", which is not in the map", key) );
     }
 
     return it->second;
@@ -467,7 +469,7 @@ void Map<KeyType, ValueType>::Rehash() {
         return;
     }
 
-    Array<MapData*> newBuckets(2*mNumBuckets, nullptr, pMemory);
+    Array<MapData*> newBuckets(2*mNumBuckets, nullptr);
     for (Size i = 0; i < mNumBuckets; i++)
     {
         MapData *head = mBuckets[i];
@@ -496,15 +498,7 @@ void Map<KeyType, ValueType>::Rehash() {
 template<typename KeyType, typename ValueType>
 Map<KeyType, ValueType>::MapData* Map<KeyType, ValueType>::MakeNode(const KeyType &key, const ValueType &value, MapData *prev, MapData *next) {
 
-    MapData *node = nullptr;
-    if (pMemory != nullptr)
-    {
-        node = pMemory->New<MapData>(key, value, prev, next);
-    }
-    else
-    {
-        node = new MapData(key, value, prev, next);
-    }
+    MapData *node = mMemory.New<MapData>(key, value, prev, next);
     ++mSize;
 
     return node;
@@ -514,14 +508,7 @@ Map<KeyType, ValueType>::MapData* Map<KeyType, ValueType>::MakeNode(const KeyTyp
 template<typename KeyType, typename ValueType>
 void Map<KeyType, ValueType>::DeleteNode(MapData *node) {
 
-    if (pMemory != nullptr)
-    {
-        pMemory->Delete(node);
-    }
-    else
-    {
-        delete node;
-    }
+    mMemory.Delete(node);
     node = nullptr;
     --mSize;
 }

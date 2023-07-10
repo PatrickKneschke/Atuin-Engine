@@ -68,20 +68,20 @@ CVar<U32>* EngineLoop::pMaxSimPerFrame   = ConfigManager::RegisterCVar("Engine L
 
 EngineLoop::EngineLoop() : mRunning {false} {
 
-    pFiles = new FileManager(this);
-    pConfig = new ConfigManager(this);
-    pLogger = new Logger(this);
+    pFiles = new FileManager();
+    pLogger = new Logger();
+    pConfig = new ConfigManager();
 
     // read engine config file
     // TODO (optional) have separate config files for engine and game (and key bindings)
     pConfig->Read("AtuinEngine/config.ini");
 
-    pMemory = new MemoryManager(this);
-    pJobs = new JobManager(this);
+    pMemory = new MemoryManager();
+    pJobs = new JobManager();
 
     // engine modules
     pWindowModule = pMemory->New<WindowModule>(this);
-    pInputModule  = pMemory->New<InputModule>(this);
+    pInputModule  = pMemory->New<InputModule>();
 }
 
 

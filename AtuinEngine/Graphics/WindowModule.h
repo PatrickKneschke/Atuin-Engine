@@ -3,6 +3,7 @@
 
 
 #include "Core/Config/CVar.h"
+#include "Core/Debug/Log.h"
 
 #include "GLFW/glfw3.h"
 
@@ -44,6 +45,7 @@ private:
     bool        mFullscreen;
 
     EngineLoop* pEngine;
+    Log mLog;
 };
 
 

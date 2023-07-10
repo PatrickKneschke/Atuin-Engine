@@ -4,6 +4,7 @@
 
 #include "Array.h"
 #include "Core/Util/Types.h"
+#include "Core/Debug/Log.h"
 
 #include <algorithm>
 #include <initializer_list>
@@ -19,10 +20,10 @@ class Queue {
 
 public:
 
-    Queue(MemoryManager *memory = nullptr);
-    Queue(Size capacity, MemoryManager *memory = nullptr);
-    Queue(const std::initializer_list<T> &list, MemoryManager *memory = nullptr);
-    Queue(const Array<T> &array, MemoryManager *memory = nullptr);
+    Queue();
+    Queue(Size capacity);
+    Queue(const std::initializer_list<T> &list);
+    Queue(const Array<T> &array);
     Queue(Array<T> &&array);
 
     Queue(const Queue &other);
@@ -57,38 +58,40 @@ private:
     Size mHead;
     Size mTail;
     Size mSize;
+
+    Log mLog;
 };
 
 
 template<typename T>
-Queue<T>::Queue(MemoryManager *memory) : mData(memory), mHead{0}, mTail{0}, mSize{0} {}
+Queue<T>::Queue() : mData(), mHead{0}, mTail{0}, mSize{0}, mLog() {}
 
 
 template<typename T>
-Queue<T>::Queue(Size capacity, MemoryManager *memory) : mData(memory), mHead{0}, mTail{0}, mSize{0} {
+Queue<T>::Queue(Size capacity) : mData(), mHead{0}, mTail{0}, mSize{0}, mLog() {
 
     mData.Resize(capacity);
 }
 
 
 template<typename T>
-Queue<T>::Queue(const std::initializer_list<T> &list, MemoryManager *memory) : mData(list, memory), mHead{0}, mTail{list.size()}, mSize{list.size()} {}
+Queue<T>::Queue(const std::initializer_list<T> &list) : mData(list), mHead{0}, mTail{list.size()}, mSize{list.size()}, mLog() {}
 
 
 template<typename T>
-Queue<T>::Queue(const Array<T> &array, MemoryManager *memory) : mData(array, memory), mHead{0}, mTail{array.GetSize()}, mSize{array.GetSize()} {}
+Queue<T>::Queue(const Array<T> &array) : mData(array), mHead{0}, mTail{array.GetSize()}, mSize{array.GetSize()}, mLog() {}
 
 
 template<typename T>
-Queue<T>::Queue(Array<T> &&array) : mData{std::move(array)}, mHead{0}, mTail{array.GetSize()}, mSize{array.GetSize()} {}
+Queue<T>::Queue(Array<T> &&array) : mData{std::move(array)}, mHead{0}, mTail{array.GetSize()}, mSize{array.GetSize()}, mLog() {}
 
 
 template<typename T>
-Queue<T>::Queue(const Queue &other) : mData{other.mData}, mHead{other.mHead}, mTail{other.mTail}, mSize{other.mSize} {}
+Queue<T>::Queue(const Queue &other) : mData{other.mData}, mHead{other.mHead}, mTail{other.mTail}, mSize{other.mSize}, mLog() {}
 
 
 template<typename T>
-Queue<T>::Queue(Queue &&other) : mData{std::move(other.mData)}, mHead{other.mHead}, mTail{other.mTail}, mSize{other.mSize} {
+Queue<T>::Queue(Queue &&other) : mData{std::move(other.mData)}, mHead{other.mHead}, mTail{other.mTail}, mSize{other.mSize}, mLog() {
 
     other.mHead = 0;
     other.mTail = 0;
@@ -186,7 +189,7 @@ T& Queue<T>::Front() {
 
     if (mSize == 0)
     {
-        throw std::out_of_range("Queue::Front called on empty queue.");
+        mLog.Error( LogChannel::GENERAL, "Queue::Front called on empty queue." );
     }     
 
     return mData[mHead];
@@ -198,7 +201,7 @@ const T& Queue<T>::Front() const {
 
     if (mSize == 0)
     {
-        throw std::out_of_range("Queue::Front called on empty queue.");
+        mLog.Error( LogChannel::GENERAL, "Queue::Front called on empty queue." );
     }  
 
     return mData[mHead];
@@ -210,7 +213,7 @@ T& Queue<T>::Back() {
 
     if (mSize == 0)
     {
-        throw std::out_of_range("Queeu::Back called on empty queue.");
+        mLog.Error( LogChannel::GENERAL, "Queue::Back called on empty queue." );
     }  
 
     if (mTail == 0)
@@ -227,7 +230,7 @@ const T& Queue<T>::Back() const {
 
     if (mSize == 0)
     {
-        throw std::out_of_range("Queue::Back called on empty queue.");
+        mLog.Error( LogChannel::GENERAL, "Queue::Back called on empty queue." );
     }  
 
     if (mTail == 0)

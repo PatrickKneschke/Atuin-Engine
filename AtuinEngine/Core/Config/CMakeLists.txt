@@ -8,4 +8,5 @@ add_library(Config
 
 target_link_libraries(Config
     PRIVATE Files 
+    PRIVATE Debug 
 )

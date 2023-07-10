@@ -1,8 +1,10 @@
 
 add_library(Debug 
     Logger.cpp 
+    Log.cpp 
     Definitions.cpp 
     Logger.h 
+    Log.h 
     Definitions.h
 )
 

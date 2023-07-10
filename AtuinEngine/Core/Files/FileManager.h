@@ -3,6 +3,8 @@
 
 
 #include "Core/Util/Types.h"
+#include "Core/Debug/Log.h"
+#include "Core/Jobs/Jobs.h"
 
 #include <filesystem>
 #include <string>
@@ -17,7 +19,7 @@ class EngineLoop;
 class FileManager {
 
 public:
-    FileManager(EngineLoop *parent) : mRootPath {std::filesystem::current_path()}, pEngine {parent} {}
+    FileManager();
     ~FileManager() = default;
 
     void MakeDir(std::string_view dirName);
@@ -32,7 +34,8 @@ private:
     // absolute path to the executable
     std::filesystem::path mRootPath;
 
-    EngineLoop* pEngine;
+    Log mLog;
+    Jobs mJobs;
 };
 
     

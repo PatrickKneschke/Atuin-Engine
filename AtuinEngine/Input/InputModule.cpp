@@ -2,7 +2,6 @@
 #include "InputModule.h"
 #include "GLFWInput.h"
 #include "InputContext.h"
-#include "EngineLoop.h"
 #include "Core/Config/ConfigManager.h"
 #include "Core/Files/FileManager.h"
 #include "Core/Memory/MemoryManager.h"
@@ -22,12 +21,13 @@ CVar<std::string>* InputModule::pInputContextsPath = ConfigManager::RegisterCVar
 CVar<std::string>* InputModule::pInputRangesPath   = ConfigManager::RegisterCVar("Input", "INPUT_RANGES_PATH", std::string("../../Resources/input_ranges.json"));
 
 
-InputModule::InputModule(EngineLoop *engine) : 
-    mContexts(engine->Memory()), 
+InputModule::InputModule() : 
+    mContexts(), 
     pActiveContext {nullptr}, 
-    mRangeConverter(engine->Memory()), 
-    mCurrentMappedInput(engine->Memory()), 
-    pEngine {engine} 
+    mRangeConverter(), 
+    mCurrentMappedInput(), 
+    mFiles(), 
+    mMemory()
 {
 
 }
@@ -58,7 +58,7 @@ void InputModule::ShutDown() {
 
     for (auto [name, context] : mContexts)
     {
-        pEngine->Memory()->Delete(context);
+        mMemory.Delete(context);
     }
     
 }
@@ -87,14 +87,14 @@ void InputModule::PushInputStates() {
 
 void InputModule::LoadContexts(std::string_view contextFilePath) {
 
-    std::string jsonTxt( pEngine->Files()->Read(contextFilePath) );
+    std::string jsonTxt( mFiles.Read(contextFilePath) );
     mContextsJSON = Json::Load(jsonTxt);
 
     auto &contexts = mContextsJSON.GetDict();
     for(auto &[name, contextData] : contexts) 
     {
         U64 nameID = SID(name.c_str());
-        mContexts[nameID] = pEngine->Memory()->New<InputContext>(name, pEngine->Memory()); 
+        mContexts[nameID] = mMemory.New<InputContext>(name); 
 
         auto inputMap = contextData.GetDict();
         for(auto &[input, signal] : inputMap) 
@@ -108,13 +108,13 @@ void InputModule::LoadContexts(std::string_view contextFilePath) {
 void InputModule::SaveContexts(std::string_view contextFilePath) {
 
     std::string str = mContextsJSON.Print();
-    pEngine->Files()->Write(contextFilePath, str);
+    mFiles.Write(contextFilePath, str);
 }
 
 
 void InputModule::LoadRanges(std::string_view rangesFilePath) {
 
-    std::string jsonTxt( pEngine->Files()->Read(rangesFilePath) );
+    std::string jsonTxt( mFiles.Read(rangesFilePath) );
     Json rangesJSON = Json::Load(jsonTxt);
 
     auto &ranges = rangesJSON.GetDict();

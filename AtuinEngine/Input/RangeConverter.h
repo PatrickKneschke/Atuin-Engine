@@ -31,8 +31,6 @@ class RangeConverter {
 
 public:
 
-    RangeConverter(MemoryManager *memory = nullptr) : mRanges(memory) {}
-
     void AddRange(U64 range, double minIn, double maxIn, double minOut, double maxOut) {
 
         mRanges[range] = {minIn, maxIn, minOut, maxOut};

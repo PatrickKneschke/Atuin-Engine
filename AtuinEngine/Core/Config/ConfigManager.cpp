@@ -1,16 +1,12 @@
 
 #include "ConfigManager.h"
-#include "EngineLoop.h"
 #include "ICVar.h"
-#include "Core/Debug/Logger.h"
-#include "Core/Files/FileManager.h"
 #include "Core/Util/Types.h"
 #include "Core/Util/StringID.h"
 #include "Core/Util/StringFormat.h"
 
+#include <iomanip>
 #include <string>
-
-#include <iostream>
 
 
 namespace Atuin {
@@ -27,7 +23,7 @@ void ConfigManager::Read(std::string_view configFile) {
 
     mConfigFile = configFile;
 
-    const char *content = pEngine->Files()->Read(configFile);
+    const char *content = mFiles.Read(configFile);
     ProcessConfigFile(content);
 }
 
@@ -44,7 +40,7 @@ void ConfigManager::Save() const {
         }
     }
 
-    pEngine->Files()->Write(mConfigFile, oss.str());
+    mFiles.Write(mConfigFile, oss.str());
 }
 
 
@@ -55,13 +51,13 @@ void ConfigManager::SetCVar(std::string_view blockName, std::string_view cvarNam
     U64 cvarId = SID(cvarName.data());
     if (registry->find(blockId) == registry->end())
     {
-        pEngine->Log()->Warning(LogChannel::GENERAL, FormatStr("%s is not a known block of CVars!", blockName.data()));
+        mLog.Warning(LogChannel::GENERAL, FormatStr("%s is not a known block of CVars!", blockName.data()));
         return;
     }
 
     if (registry->at(blockId).cvars.find(cvarId) == registry->at(blockId).cvars.end())
     {
-        pEngine->Log()->Warning(LogChannel::GENERAL, FormatStr("%s is not registered CVar!", cvarName.data()));
+        mLog.Warning(LogChannel::GENERAL, FormatStr("%s is not registered CVar!", cvarName.data()));
         return;
     }
 
@@ -76,13 +72,13 @@ const ICVar* ConfigManager::GetCVar(std::string_view blockName, std::string_view
     U64 cvarId = SID(cvarName.data());
     if (registry->find(blockId) == registry->end())
     {
-        pEngine->Log()->Error(LogChannel::GENERAL, FormatStr("%s is not a known block of CVars!", blockName.data()));
+        mLog.Error(LogChannel::GENERAL, FormatStr("%s is not a known block of CVars!", blockName.data()));
         return nullptr;
     }
     
     if (registry->at(blockId).cvars.find(cvarId) == registry->at(blockId).cvars.end())
     {
-        pEngine->Log()->Error(LogChannel::GENERAL, FormatStr("%s is not registered CVar!", cvarName.data()));
+        mLog.Error(LogChannel::GENERAL, FormatStr("%s is not registered CVar!", cvarName.data()));
         return nullptr;
     }
 

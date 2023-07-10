@@ -9,4 +9,6 @@ add_library(Input
 target_link_libraries(Input 
     PRIVATE glfw
     PRIVATE DataStructures 
+    PRIVATE Files
+    PRIVATE Memory
 )

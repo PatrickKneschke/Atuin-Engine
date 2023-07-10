@@ -3,9 +3,10 @@
 
 
 #include "Core/Util/Types.h"
-#include "Core/Memory/MemoryManager.h"
 #include "Core/Util/Math.h"
 #include "Core/Util/StringFormat.h"
+#include "Core/Memory/Memory.h"
+#include "Core/Debug/Log.h"
 
 #include <algorithm>
 #include <initializer_list>
@@ -17,8 +18,6 @@
 
 namespace Atuin {
 
-
-class MemoryManager;
 
 template<typename T>
 class Array {
@@ -161,12 +160,12 @@ public:
 
 public:
 
-    Array(MemoryManager *memory = nullptr);
-    Array(Size capacity, MemoryManager *memory = nullptr);
-    Array(Size capacity, const T &value, MemoryManager *memory = nullptr);
-    Array(const std::initializer_list<T> &list, MemoryManager *memory = nullptr);
+    Array();
+    Array(Size capacity);
+    Array(Size capacity, const T &value);
+    Array(const std::initializer_list<T> &list);
 
-    Array(const Array &other, MemoryManager *memory = nullptr);
+    Array(const Array &other);
     Array(Array &&other) noexcept;
 
     Array& operator= (const Array &rhs);
@@ -220,12 +219,13 @@ private:
     void Allocate(Size capacity);
     void Free();
 
-    MemoryManager *pMemory;
-
     Size mSize;
     Size mCapacity;
 
     T* pData;
+
+    Log mLog;
+    Memory mMemory;
 };
 
 
@@ -237,14 +237,7 @@ void Array<T>::Allocate(Size capacity) {
         return;
     }
 
-    if (pMemory == nullptr)
-    {
-        pData = static_cast<T*>( malloc(mCapacity * sizeof(T)) );
-    }
-    else
-    {
-        pData = static_cast<T*>( pMemory->Allocate(mCapacity * sizeof(T), alignof(T)) );
-    }
+    pData = static_cast<T*>( mMemory.Allocate( mCapacity * sizeof(T), alignof(T)) );
     mCapacity = capacity;
 }
 
@@ -257,41 +250,33 @@ void Array<T>::Free() {
         return;
     }    
 
-    if (pMemory == nullptr)
-    {
-        free(static_cast<void*>(pData));
-    }
-    else
-    {
-        pMemory->Free(static_cast<void*>(pData));
-    }
-
+    mMemory.Free(pData);
     mCapacity = 0;
     pData = nullptr;
 }
 
 
 template<typename T>
-Array<T>::Array(MemoryManager *memory) : pMemory {memory}, mSize {0}, mCapacity {0}, pData {nullptr} {}
+Array<T>::Array() : mSize {0}, mCapacity {0}, pData {nullptr}, mLog(), mMemory() {}
 
 
 template<typename T>
-Array<T>::Array(Size capacity, MemoryManager *memory) : pMemory {memory}, mSize {0}, mCapacity {capacity}, pData {nullptr} {
+Array<T>::Array(Size capacity) : mSize {0}, mCapacity {capacity}, pData {nullptr}, mLog(), mMemory() {
 
     Allocate(mCapacity);
 }
 
 
 template<typename T>
-Array<T>::Array(Size capacity, const T &value, MemoryManager *memory) : pMemory {memory}, mSize {capacity}, mCapacity {capacity}, pData {nullptr} {
-
+Array<T>::Array(Size capacity, const T &value) : mSize {capacity}, mCapacity {capacity}, pData {nullptr}, mLog(), mMemory() {
+    
     Allocate(mCapacity);
     std::fill_n(pData, mCapacity, value);
 }
 
 
 template<typename T>
-Array<T>::Array(const std::initializer_list<T> &list, MemoryManager *memory) : pMemory {memory}, mSize {0}, mCapacity {list.size()}, pData {nullptr} {
+Array<T>::Array(const std::initializer_list<T> &list) : mSize {0}, mCapacity {list.size()}, pData {nullptr}, mLog(), mMemory() {
 
     Allocate(mCapacity);
     for(auto it = list.begin(); it != list.end(); it++)
@@ -303,7 +288,7 @@ Array<T>::Array(const std::initializer_list<T> &list, MemoryManager *memory) : p
 
 
 template<typename T>
-Array<T>::Array(const Array &other, MemoryManager *memory) : pMemory {memory}, mSize {other.mSize}, mCapacity {other.mCapacity} {
+Array<T>::Array(const Array &other) : mSize {other.mSize}, mCapacity {other.mCapacity}, mLog(), mMemory() {
 
     Allocate(mCapacity);
     for (Size i = 0; i < mSize; i++)
@@ -314,9 +299,8 @@ Array<T>::Array(const Array &other, MemoryManager *memory) : pMemory {memory}, m
 
 
 template<typename T>
-Array<T>::Array(Array &&other) noexcept : pMemory {other.pMemory}, mSize {other.mSize}, mCapacity {other.mCapacity}, pData {other.pData} {
+Array<T>::Array(Array &&other) noexcept : mSize {other.mSize}, mCapacity {other.mCapacity}, pData {other.pData} , mLog(), mMemory(other.mMemory) {
 
-    other.pMemory = nullptr;
     other.mSize = 0;
     other.mCapacity = 0;
     other.pData = nullptr;
@@ -349,10 +333,10 @@ Array<T>& Array<T>::operator= (Array &&rhs) noexcept {
         Clear();
         Free();
 
-        pMemory = rhs.pMemory;
         mSize = rhs.mSize;
         mCapacity = rhs.mCapacity;
         pData = rhs.pData;
+        mMemory = rhs.mMemory;
 
         rhs.mSize = 0;
         rhs.mCapacity = 0;
@@ -408,7 +392,7 @@ void Array<T>::Reserve(Size capacity) {
 
     if constexpr (!std::is_copy_assignable_v<T> && !std::is_move_assignable_v<T>)
     {
-        throw std::logic_error("Cannot reserve more space for array of non-copyable, non-movable type.");
+        mLog.Error(LogChannel::GENERAL, "Cannot reserve more space for array of non-copyable, non-movable type.");
     }
     else
     {
@@ -550,7 +534,7 @@ T& Array<T>::Front() {
 
     if (mSize == 0)
     {
-        throw std::out_of_range("Array::Front called on empty array.");
+        mLog.Error(LogChannel::GENERAL, "Array::Front called on empty array.");
     }    
 
     return pData[0];
@@ -562,7 +546,7 @@ const T& Array<T>::Front() const {
 
     if (mSize == 0)
     {
-        throw std::out_of_range("Array::Front called on empty array.");
+        mLog.Error(LogChannel::GENERAL, "Array::Front called on empty array.");
     }    
 
     return pData[0];
@@ -574,7 +558,7 @@ T& Array<T>::Back() {
 
     if (mSize == 0)
     {
-        throw std::out_of_range("Array::Back called on empty array.");
+        mLog.Error(LogChannel::GENERAL, "Array::Back called on empty array.");
     }    
 
     return pData[mSize-1];
@@ -586,7 +570,7 @@ const T& Array<T>::Back() const {
 
     if (mSize == 0)
     {
-        throw std::out_of_range("Array::Back called on empty array.");
+        mLog.Error(LogChannel::GENERAL, "Array::Back called on empty array.");
     }    
 
     return pData[mSize-1];
@@ -598,7 +582,7 @@ T& Array<T>::operator[](Size idx) {
 
     if (idx >= mSize)
     {
-        throw std::out_of_range( FormatStr("Array::operator[] index  %d  out of range [0 ... %d].", idx, mSize-1) );
+        mLog.Error(LogChannel::GENERAL, FormatStr("Array::operator[] index  %d  out of range [0 ... %d].", idx, mSize-1) );
     }    
 
     return pData[idx];
@@ -610,7 +594,7 @@ const T& Array<T>::operator[](Size idx) const {
 
     if (idx >= mSize)
     {
-        throw std::out_of_range( FormatStr("Array::operator[] index  %d  out of range [0 ... %d].", idx, mSize-1) );
+        mLog.Error(LogChannel::GENERAL, FormatStr("Array::operator[] index  %d  out of range [0 ... %d].", idx, mSize-1) );
     }    
 
     return pData[idx];

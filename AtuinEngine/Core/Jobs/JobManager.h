@@ -4,6 +4,7 @@
 
 #include "Core/Config/CVar.h"
 #include "Core/Util/Types.h"
+#include "Core/Debug/Log.h"
 #include "Core/DataStructures/Array.h"
 #include "Core/DataStructures/ConcurrentQueue.h"
 
@@ -38,7 +39,7 @@ struct Job {
 
 public:
 
-    JobManager(EngineLoop *engine, Size numThreads = 0);
+    JobManager(Size numThreads = 0);
     ~JobManager();
 
 
@@ -77,9 +78,8 @@ private:
 
     std::condition_variable mJobsReadyCV;
     std::mutex mJobsReadyLock;
-    
 
-    EngineLoop* pEngine;
+    Log mLog;
 };
 
     

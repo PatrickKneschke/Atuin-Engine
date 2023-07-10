@@ -1,5 +1,6 @@
 
 #include "JobManager.h"
+#include "Jobs.h"
 #include "EngineLoop.h"
 #include "Core/Config/ConfigManager.h"
 #include "Core/Debug/Logger.h"
@@ -15,14 +16,14 @@ CVar<Size>* JobManager::pMaxJobsPerFrame = ConfigManager::RegisterCVar("Multithr
 thread_local Size JobManager::sThreadID = 0;
 
 
-JobManager::JobManager(EngineLoop *engine, Size numThreads) : 
+JobManager::JobManager(Size numThreads) : 
     mActive {false},
     mNumJobs {0}, 
-    mJobs( pMaxJobsPerFrame->Get(), engine->Memory() ), 
+    mJobs( pMaxJobsPerFrame->Get()), 
     mNumThreads {numThreads}, 
-    mThreads( engine->Memory() ),
-    mJobQueues( engine->Memory() ),
-    pEngine {engine} 
+    mThreads(),
+    mJobQueues(), 
+    mLog()
 {
     // allocate thread and job queue arrays
     if (mNumThreads == 0)
@@ -65,11 +66,13 @@ void JobManager::StartUp() {
     catch(const std::exception& e)
     {
         ShutDown();
-        pEngine->Log()->Error(LogChannel::GENERAL, e.what());
+        mLog.Error(LogChannel::GENERAL, e.what());
     }
 
     // main thread has the last queue in the array
     sThreadID = mNumThreads;
+
+    Jobs::sJobManager = this;
 }
 
 

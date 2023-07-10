@@ -2,7 +2,6 @@
 #include "WindowModule.h"
 #include "EngineLoop.h"
 #include "Core/Config/ConfigManager.h"
-#include "Core/Debug/Logger.h"
 
 
 namespace Atuin {
@@ -19,7 +18,8 @@ WindowModule::WindowModule(EngineLoop *engine) :
     mTitle {pWindowTitle->Get()}, 
     mWidth {pWindowWidth->Get()}, 
     mHeight {pWindowHeight->Get()}, 
-    pEngine {engine} 
+    pEngine {engine}, 
+    mLog()
 {
 
 }
@@ -35,7 +35,7 @@ void WindowModule::StartUp() {
     // init glfw
     if (!glfwInit())
     {
-        pEngine->Log()->Error(LogChannel::GRAPHICS, "Failed to init glfw.");
+        mLog.Error(LogChannel::GRAPHICS, "Failed to init glfw.");
     }
 
     // configure GLFW window
@@ -55,7 +55,7 @@ void WindowModule::StartUp() {
     pWindow = glfwCreateWindow(1200, 800, "Window Title", nullptr, nullptr);
     if (pWindow == nullptr)
     {
-        pEngine->Log()->Error(LogChannel::GRAPHICS, "Failed to create glfw window.");
+        mLog.Error(LogChannel::GRAPHICS, "Failed to create glfw window.");
     }    
 
     // glfwSetWindowUserPointer(pWindow, this);
@@ -79,7 +79,7 @@ void WindowModule::Update() {
 
     if (glfwWindowShouldClose(pWindow)) 
     {
-        pEngine->Quit();
+        pEngine->Quit();        // TODO maybe eliminate ptr to Engineloop later
     }
     glfwSwapBuffers(pWindow);
 }

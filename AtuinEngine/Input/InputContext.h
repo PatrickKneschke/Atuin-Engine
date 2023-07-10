@@ -17,11 +17,11 @@ class InputContext {
 
 public:
 
-    InputContext(std::string_view name, MemoryManager *memory = nullptr, bool blocking = true) : 
+    InputContext(std::string_view name, bool blocking = true) : 
         next {nullptr}, 
         mName {name.data()}, 
         mNameID {SID(name.data())}, 
-        mSignalMap(memory), 
+        mSignalMap(), 
         mBlocking {blocking}
     {
 

@@ -1,5 +1,6 @@
 
 #include "Logger.h"
+#include "Log.h"
 #include "EngineLoop.h"
 #include "Core/Config/ConfigManager.h"
 #include "Core/Files/FileManager.h"
@@ -18,6 +19,12 @@ CVar<Size>*         Logger::pMaxMessageChars = ConfigManager::RegisterCVar("Logg
 CVar<Size>*         Logger::pBytesToBuffer = ConfigManager::RegisterCVar("Logger", "BYTES_TO_BUFFER", 4096UL);
 
 
+Logger::Logger(): mLevelMask {~0UL}, mChannelMask {~0UL}, mFiles() {
+
+    Log::sLogger = this;
+}
+
+
 Logger::~Logger() {
 
     // in case of crash remaining messenges still get written to log file
@@ -30,7 +37,7 @@ void Logger::StartUp() {
     assert(pLogDir->Get().length() > 0);
 
     // create log directory
-    pEngine->Files()->MakeDir(pLogDir->Get());
+    mFiles.MakeDir(pLogDir->Get());
     
     // assemble log file names
     auto timeStamp = Clock::GetDateTimeStr();
@@ -43,7 +50,7 @@ void Logger::ShutDown() {
 
     mFullLog.stream.flush();
     // TODO use async write instead
-    pEngine->Files()->Write(mFullLog.fileName, mFullLog.stream.str(), std::ios::app);
+    mFiles.Write(mFullLog.fileName, mFullLog.stream.str(), std::ios::app);
 
     mFullLog.stream.str("");
     mFullLog.stream.clear();
@@ -51,7 +58,7 @@ void Logger::ShutDown() {
 
     mChannelsLog.stream.flush();
     // TODO use async write instead
-    pEngine->Files()->Write(mChannelsLog.fileName, mChannelsLog.stream.str(), std::ios::app);
+    mFiles.Write(mChannelsLog.fileName, mChannelsLog.stream.str(), std::ios::app);
 
     mChannelsLog.stream.str("");
     mChannelsLog.stream.clear();
@@ -114,12 +121,12 @@ void Logger::Debug(LogLevel level, LogChannel channel, std::string_view message,
     writer.stream << buffer;
     writer.stream.seekp(0, std::ios::end);
     // write to file if file manager is created and enough characters have been buffered
-    if ( static_cast<Size>(writer.stream.tellp()) >= pBytesToBuffer->Get() && pEngine->Files() != nullptr )
+    if ( static_cast<Size>(writer.stream.tellp()) >= pBytesToBuffer->Get() && mFiles.Ready() )
     {
         writer.stream.flush();
  
         // TODO use async write instead
-        pEngine->Files()->Write(writer.fileName, writer.stream.str(), std::ios::app);
+        mFiles.Write(writer.fileName, writer.stream.str(), std::ios::app);
 
         writer.stream.str("");
         writer.stream.clear();
