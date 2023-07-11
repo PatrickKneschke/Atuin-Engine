@@ -5,8 +5,9 @@ add_subdirectory(Input)
 
 add_executable(${PROJECT_NAME}
     main.cpp
+    App.cpp 
     EngineLoop.cpp
-    Application.h
+    App.h 
     EngineLoop.h
 )
 

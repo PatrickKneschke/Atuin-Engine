@@ -2,8 +2,7 @@
 #pragma once
 
 
-namespace Atuin
-{
+namespace Atuin {
     
 
 class ConfigManager;
@@ -15,28 +14,9 @@ class MemoryManager;
 
 class App {
 
-public:
+public: 
 
-    static App& Get();
-
-    static FileManager*   Files()  { return Get().pFiles; }
-    static ConfigManager* Config() { return Get().pConfig; }
-    static Logger*        Log()    { return Get().pLog; }
-    static MemoryManager* Memory() { return Get().pMemory; }
-    static JobManager*    Jobs()   { return Get().pJobs; }
-
-    static EngineLoop*    Engine() { return Get().pEngine; }
-    
-
-    void Start();
-    void Quit();
-
-
-private:
-
-
-    static App* sInstance;
-
+    static void Quit();
 
     App();
     App(const App &other) = delete;
@@ -44,6 +24,14 @@ private:
     App& operator= (const App &other) = delete;
     App& operator= (App &&other) = delete;
     ~App();
+
+    void StartUp();
+    void ShutDown();
+
+
+private:
+
+    static App* sInstance;
 
     FileManager*   pFiles;
     ConfigManager* pConfig;

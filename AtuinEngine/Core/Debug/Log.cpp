@@ -58,15 +58,15 @@ void Log::Debug(LogLevel level, LogChannel channel, std::string_view message, co
     }
     else
     {
-        std::string message( ToString(level) + " , " + ToString(channel) + " : " + message.data() + '\n' );
+        std::string fullMessage( ToString(level) + " , " + ToString(channel) + " : " + message.data() + '\n' );
 
         if (level == LogLevel::ERROR)
         {
-            throw message;
+            throw fullMessage;
         }
         else
         {
-            std::cerr << message;
+            std::cerr << fullMessage;
         }
     }
 }

@@ -17,7 +17,7 @@ class WindowModule {
 
 public:
 
-    WindowModule(EngineLoop *engine);
+    WindowModule();
     ~WindowModule();
 
     void StartUp();
@@ -44,7 +44,6 @@ private:
     I32         mHeight;
     bool        mFullscreen;
 
-    EngineLoop* pEngine;
     Log mLog;
 };
 

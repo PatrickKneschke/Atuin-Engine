@@ -11,13 +11,30 @@
 namespace Atuin {
 
 
+App* App::sInstance = nullptr;
+
+
+void App::Quit() {
+
+    if (sInstance != nullptr)
+    {
+        sInstance->ShutDown();
+    }
+}
+
+
 App::App() {
 
-    pFiles  = new FileManager( pEngine );
-    pConfig = new ConfigManager( pEngine );
-    pLog    = new Logger( pEngine );
-    pMemory = new MemoryManager( pEngine );
-    pJobs   = new JobManager( pEngine );
+    sInstance = this;
+
+    pFiles  = new FileManager();
+    pLog    = new Logger();
+
+    pConfig = new ConfigManager();
+    pConfig->Read("AtuinEngine/config.ini");
+
+    pMemory = new MemoryManager();
+    pJobs   = new JobManager();
 
     pEngine = new EngineLoop();
 }
@@ -33,22 +50,12 @@ App::~App() {
     delete pJobs;
     delete pMemory;
 }
+   
 
-
-App& App::Get() {
-
-    static App instance;
-
-    return instance;
-}
-    
-
-void App::Start() {
+void App::StartUp() {
 
     pLog->StartUp();
     pJobs->StartUp();
-
-    pConfig->Read("AtuinEngine/config.ini");
 
     try
     {
@@ -62,7 +69,7 @@ void App::Start() {
 }
 
 
-void App::Quit() {
+void App::ShutDown() {
 
     if (pEngine != nullptr)
     {

@@ -66,36 +66,18 @@ CVar<U32>* EngineLoop::pMaxFps           = ConfigManager::RegisterCVar("Engine L
 CVar<U32>* EngineLoop::pMaxSimPerFrame   = ConfigManager::RegisterCVar("Engine Loop", "MAX_SIM_PER_FRAME", 1U);
 
 
-EngineLoop::EngineLoop() : mRunning {false} {
-
-    pFiles = new FileManager();
-    pLogger = new Logger();
-    pConfig = new ConfigManager();
-
-    // read engine config file
-    // TODO (optional) have separate config files for engine and game (and key bindings)
-    pConfig->Read("AtuinEngine/config.ini");
-
-    pMemory = new MemoryManager();
-    pJobs = new JobManager();
+EngineLoop::EngineLoop() : mRunning {false}, mLog(), mMemory(), mJobs()  {
 
     // engine modules
-    pWindowModule = pMemory->New<WindowModule>(this);
-    pInputModule  = pMemory->New<InputModule>();
+    pWindowModule = mMemory.New<WindowModule>();
+    pInputModule  = mMemory.New<InputModule>();
 }
 
 
-EngineLoop::~EngineLoop() {
+EngineLoop::~EngineLoop(){
 
-    pMemory->Delete(pInputModule);
-    pMemory->Delete(pWindowModule);
-
-    // TODO call dtors before deleting memomy manager
-    delete pLogger;
-    delete pConfig;
-    delete pFiles;
-    delete pJobs;
-    delete pMemory;
+    mMemory.Delete(pInputModule);
+    mMemory.Delete(pWindowModule);
 }
 
 
@@ -118,9 +100,6 @@ void EngineLoop::Run() {
 
 void EngineLoop::StartUp() {
 
-    pLogger->StartUp();
-    pJobs->StartUp();
-
     pWindowModule->StartUp();
     pInputModule->StartUp(pWindowModule->Window());
 
@@ -138,10 +117,6 @@ void EngineLoop::ShutDown() {
 
     pInputModule->ShutDown();
     pWindowModule->ShutDown();
-
-    pConfig->Save();
-    pLogger->ShutDown();
-    pJobs->ShutDown();
 }
 
 

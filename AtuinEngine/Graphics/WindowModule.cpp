@@ -1,6 +1,6 @@
 
 #include "WindowModule.h"
-#include "EngineLoop.h"
+#include "App.h"
 #include "Core/Config/ConfigManager.h"
 
 
@@ -14,11 +14,10 @@ CVar<bool>* WindowModule::pSetFullscreen        = ConfigManager::RegisterCVar("W
 
     
 
-WindowModule::WindowModule(EngineLoop *engine) : 
+WindowModule::WindowModule() : 
     mTitle {pWindowTitle->Get()}, 
     mWidth {pWindowWidth->Get()}, 
     mHeight {pWindowHeight->Get()}, 
-    pEngine {engine}, 
     mLog()
 {
 
@@ -79,7 +78,7 @@ void WindowModule::Update() {
 
     if (glfwWindowShouldClose(pWindow)) 
     {
-        pEngine->Quit();        // TODO maybe eliminate ptr to Engineloop later
+        App::Quit();
     }
     glfwSwapBuffers(pWindow);
 }

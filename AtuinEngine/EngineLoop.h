@@ -4,6 +4,9 @@
 
 #include "Core/Time/Clock.h"
 #include "Core/Config/CVar.h"
+#include "Core/Debug/Log.h"
+#include "Core/Jobs/Jobs.h"
+#include "Core/Memory/Memory.h"
 
 
 namespace Atuin {
@@ -36,15 +39,6 @@ public:
     void FixedUpdate();
     void VariableUpdate();
 
-    // TODO direct access to private members might be problematic -> interface access ?
-    // engine module access
-    ConfigManager*  Config() const { return pConfig; }
-    FileManager*    Files() const { return pFiles; }
-    Logger*         Log() const  { return pLogger; }
-    MemoryManager*  Memory() const { return pMemory; }
-    JobManager*     Jobs() const { return pJobs; }
-
-
 private:
 
     // config variables
@@ -54,12 +48,9 @@ private:
     bool mRunning;
     Clock mGameClock;
 
-    // engine systems
-    ConfigManager*  pConfig;
-    FileManager*    pFiles;
-    Logger*         pLogger;
-    MemoryManager*  pMemory;
-    JobManager*     pJobs;
+    Log mLog;
+    Memory mMemory;
+    Jobs mJobs;
 
     // engine modules
     WindowModule*   pWindowModule;
