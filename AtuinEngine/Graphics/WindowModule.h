@@ -5,13 +5,11 @@
 #include "Core/Config/CVar.h"
 #include "Core/Debug/Log.h"
 
-#include "GLFW/glfw3.h"
 
+class GLFWwindow;
 
 namespace Atuin {
 
-
-class EngineLoop;
 
 class WindowModule {
 

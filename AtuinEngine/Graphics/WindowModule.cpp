@@ -3,6 +3,9 @@
 #include "App.h"
 #include "Core/Config/ConfigManager.h"
 
+#define GLFW_INCLUDE_VULKAN
+#include "GLFW/glfw3.h"
+
 
 namespace Atuin {
 
@@ -41,7 +44,7 @@ void WindowModule::StartUp() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 
-	// glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // for vulkan
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // for vulkan
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
     glfwWindowHint(GLFW_RED_BITS, 8);

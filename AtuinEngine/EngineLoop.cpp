@@ -7,6 +7,7 @@
 #include "Core/Memory/MemoryManager.h"
 #include "Core/Util/StringFormat.h"
 #include "Graphics/WindowModule.h"
+#include "Graphics/RenderModule.h"
 #include "Input/InputModule.h"
 
 
@@ -71,11 +72,13 @@ EngineLoop::EngineLoop() : mRunning {false}, mLog(), mMemory(), mJobs()  {
     // engine modules
     pWindowModule = mMemory.New<WindowModule>();
     pInputModule  = mMemory.New<InputModule>();
+    pRenderModule = mMemory.New<RenderModule>();
 }
 
 
 EngineLoop::~EngineLoop(){
 
+    mMemory.Delete(pRenderModule);
     mMemory.Delete(pInputModule);
     mMemory.Delete(pWindowModule);
 }
@@ -101,11 +104,12 @@ void EngineLoop::Run() {
 void EngineLoop::StartUp() {
 
     pWindowModule->StartUp();
-    pInputModule->StartUp(pWindowModule->Window());
+    pInputModule->StartUp( pWindowModule->Window() );
+    pRenderModule->StartUp( pWindowModule->Window() );
 
 
-    pInputModule->PushContext(SID("GamePlayContext"));
-    pInputModule->SetInputCallback(testInputHandler);
+    // pInputModule->PushContext(SID("GamePlayContext"));
+    // pInputModule->SetInputCallback(testInputHandler);
 
 
     mGameClock.Start();
@@ -115,6 +119,7 @@ void EngineLoop::StartUp() {
 
 void EngineLoop::ShutDown() {
 
+    pRenderModule->ShutDown();
     pInputModule->ShutDown();
     pWindowModule->ShutDown();
 }
@@ -126,6 +131,7 @@ void EngineLoop::Update() {
 
     pInputModule->Update();
     pWindowModule->Update();
+    pRenderModule->Update();
 }
 
 

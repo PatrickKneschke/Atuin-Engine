@@ -20,6 +20,7 @@ class JobManager;
 
 class WindowModule;
 class InputModule;
+class RenderModule;
 
 class EngineLoop {
 
@@ -55,6 +56,7 @@ private:
     // engine modules
     WindowModule*   pWindowModule;
     InputModule*    pInputModule;
+    RenderModule*   pRenderModule;
 };
 
 
