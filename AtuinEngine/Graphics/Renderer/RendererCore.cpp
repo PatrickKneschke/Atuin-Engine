@@ -3,6 +3,7 @@
 #include "Core/Util/Types.h"
 
 #include "GLFW/glfw3.h"
+#include <vector>
 
 
 // unique definition of default dispatch loader
@@ -20,7 +21,9 @@ RendererCore::RendererCore(GLFWwindow *window) : pWindow {window} {
     VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
 
 	CreateInstance();
+#ifndef NDEBUG
     CreateDebugMessenger();
+#endif
     CreateSurface();
     ChooseGPU();
 }
@@ -39,11 +42,13 @@ RendererCore::~RendererCore() {
     }
 
 	// debug messenger
+#ifndef NDEBUG
 	if(mDebugMessenger)
     {
         mInstance.destroyDebugUtilsMessengerEXT(mDebugMessenger, nullptr);
     }
-	
+#endif
+
 	// instance
 	if(mInstance)
     {
@@ -62,8 +67,12 @@ void RendererCore::CreateInstance() {
     U32 glfwExtensionCount = 0;
     auto glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
     std::vector<const char*> glfwExtensionsVector(glfwExtensions, glfwExtensions + glfwExtensionCount);
+    std::vector<const char*> layers;
+
+#ifndef NDEBUG
     glfwExtensionsVector.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-    auto layers = std::vector<const char*>{ "VK_LAYER_KHRONOS_validation" };
+    layers.push_back("VK_LAYER_KHRONOS_validation");
+#endif
 
     auto instanceInfo = vk::InstanceCreateInfo{}
         .setPApplicationInfo( &appInfo )
@@ -120,15 +129,23 @@ void RendererCore::CreateSurface() {
 
 void RendererCore::ChooseGPU() {
 
+    // choose first dedicated gpu found, otherwise choose integrated gpu
+    // TODO account for multiple dedicated gpus by scoring and pick best one?
     auto gpus = mInstance.enumeratePhysicalDevices();
 	for(auto &gpu : gpus) 
     {	
-		
-		//score gpu
-		mGpu = gpu;
+        auto properties = gpu.getProperties();
+
+        if (properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu)
+        {
+            mGpu = gpu;
+            return;
+        }
+        else if (properties.deviceType == vk::PhysicalDeviceType::eIntegratedGpu) {
+
+            mGpu = gpu;
+        }
 	}
-	
-	// pick best gpu
 
 	if(!mGpu) {
 		throw std::runtime_error("Failed to find suitable GPU!");

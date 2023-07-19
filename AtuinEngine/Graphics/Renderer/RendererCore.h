@@ -12,6 +12,11 @@ class GLFWwindow;
 
 namespace Atuin {
 
+// required vulkan extensions
+const std::vector<const char*> requiredExtensions {
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME
+};
+
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
