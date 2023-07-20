@@ -37,7 +37,7 @@ RendererCore::~RendererCore() {
     {
 		mDevice.destroy(nullptr);
 	}
-    
+
 	// surface
 	if(mSurface)
     {
@@ -220,6 +220,20 @@ void RendererCore::CreateDevice() {
 
     // init dispatch loader with device
 	VULKAN_HPP_DEFAULT_DISPATCHER.init(mDevice);
+}
+
+
+void RendererCore::CreateQueues() {
+
+    mDevice.getQueue(mQueueFamilies.graphicsFamily, 0, &mGraphicsQueue);
+    if(mQueueFamilies.computeFamily >= 0)
+    {
+        mDevice.getQueue(mQueueFamilies.computeFamily, 0, &mComputeQueue);
+    }
+    if(mQueueFamilies.transferFamily >= 0)
+    {
+        mDevice.getQueue(mQueueFamilies.transferFamily, 0, &mTransferQueue);
+    }
 }
 
     

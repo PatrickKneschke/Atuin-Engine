@@ -16,7 +16,7 @@ namespace Atuin {
 
 // required vulkan extensions
 const std::vector<const char*> requiredExtensions {
-    
+
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
@@ -49,6 +49,7 @@ private:
 	void CreateSurface();
 	void ChooseGPU();
     void CreateDevice();
+    void CreateQueues();
 
 
     GLFWwindow* pWindow;
