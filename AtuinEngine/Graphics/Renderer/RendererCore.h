@@ -5,6 +5,8 @@
 #define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
 #include <vulkan/vulkan.hpp>
 
+#include "Definitions.h"
+
 #include <iostream>
 
 
@@ -14,6 +16,7 @@ namespace Atuin {
 
 // required vulkan extensions
 const std::vector<const char*> requiredExtensions {
+    
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
@@ -45,14 +48,23 @@ private:
 	void CreateDebugMessenger();
 	void CreateSurface();
 	void ChooseGPU();
+    void CreateDevice();
 
 
-    GLFWwindow*                 pWindow;
+    GLFWwindow* pWindow;
 
-    vk::Instance                mInstance;
-    vk::DebugUtilsMessengerEXT  mDebugMessenger;
-    vk::SurfaceKHR              mSurface;
-    vk::PhysicalDevice          mGpu;
+    vk::Instance mInstance;
+    vk::DebugUtilsMessengerEXT mDebugMessenger;
+    vk::SurfaceKHR mSurface;
+
+    vk::PhysicalDevice mGpu;    
+    QueueFamiliesIndices mQueueFamilies;
+
+    vk::Device mDevice;
+    vk::Queue mGraphicsQueue; // for graphics, graphics-related compute and gpu-gpu transfer ops
+    vk::Queue mComputeQueue;  // for async compute ops
+    vk::Queue mTransferQueue; // for cpu-gpu transfer ops
+
 };
 
 

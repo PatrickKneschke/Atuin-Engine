@@ -26,15 +26,18 @@ RendererCore::RendererCore(GLFWwindow *window) : pWindow {window} {
 #endif
     CreateSurface();
     ChooseGPU();
+    CreateDevice();
 }
 
 
 RendererCore::~RendererCore() {
 
     // logical device
-	// if(mDevice)
-	// 	mDevice.destroy(nullptr);
-	
+	if(mDevice)
+    {
+		mDevice.destroy(nullptr);
+	}
+    
 	// surface
 	if(mSurface)
     {
@@ -150,6 +153,73 @@ void RendererCore::ChooseGPU() {
 	if(!mGpu) {
 		throw std::runtime_error("Failed to find suitable GPU!");
 	}
+}
+
+
+void RendererCore::CreateDevice() {
+
+    // find queue family indices
+    auto queueFamilies = mGpu.getQueueFamilyProperties();
+    for (Size i = 0; i < queueFamilies.size(); i++)
+    {
+        if (queueFamilies[i].queueFlags & vk::QueueFlagBits::eGraphics)
+        {
+            mQueueFamilies.graphicsFamily = (I32)i;
+        }
+        else if (queueFamilies[i].queueFlags & vk::QueueFlagBits::eCompute)
+        {
+            mQueueFamilies.computeFamily = (I32)i;
+        }
+        else if (queueFamilies[i].queueFlags & vk::QueueFlagBits::eTransfer)
+        {
+            mQueueFamilies.transferFamily = (I32)i;
+        }
+    }
+    std::unordered_set<I32> uniqueQueueFamilies = mQueueFamilies.GetUniqueIndices();
+
+    // queue create infos
+    std::vector<vk::DeviceQueueCreateInfo> queueInfos;
+    float priority = 0.f;
+    for (auto family : uniqueQueueFamilies)
+    {
+        if(family < 0)
+        {
+            continue;
+        }
+
+        auto queueInfo = vk::DeviceQueueCreateInfo{}
+            .setPQueuePriorities(&priority)
+            .setQueueCount(1)
+            .setQueueFamilyIndex(family);
+
+        queueInfos.push_back(queueInfo);
+    }
+    
+    // enable device features
+    auto availableFeatures = mGpu.getFeatures();
+	auto enabledFeatures = vk::PhysicalDeviceFeatures{};
+	if (availableFeatures.samplerAnisotropy)
+    {
+		enabledFeatures.setSamplerAnisotropy(VK_TRUE);
+    }
+
+    // create device
+    auto deviceInfo = vk::DeviceCreateInfo{}
+        .setQueueCreateInfoCount( (U32)queueInfos.size() )
+        .setPQueueCreateInfos( queueInfos.data() )
+        .setPEnabledFeatures( &enabledFeatures )
+        .setEnabledExtensionCount( (U32)requiredExtensions.size() )
+        .setPpEnabledExtensionNames( requiredExtensions.data() );
+
+
+    vk::Result result = mGpu.createDevice(&deviceInfo, nullptr, &mDevice);
+    if (result != vk::Result::eSuccess)
+    {
+        throw std::runtime_error("Failed to create logical device : " + vk::to_string(result));
+    }    
+
+    // init dispatch loader with device
+	VULKAN_HPP_DEFAULT_DISPATCHER.init(mDevice);
 }
 
     
