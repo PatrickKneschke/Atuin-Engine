@@ -142,7 +142,7 @@ void RendererCore::ChooseGPU() {
         if (properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu)
         {
             mGpu = gpu;
-            return;
+            break;
         }
         else if (properties.deviceType == vk::PhysicalDeviceType::eIntegratedGpu) {
 
@@ -238,6 +238,71 @@ void RendererCore::CreateQueues() {
     {
         mDevice.getQueue(mQueueFamilies.transferFamily, 0, &mTransferQueue);
     }
+}
+
+
+vk::Buffer RendererCore::CreateBuffer( 
+        vk::DeviceSize size, 
+        vk::BufferUsageFlags usage,  
+        vk::SharingMode sharingMode,
+        uint32_t queueFamilyCount,
+        const uint32_t* pQueueFamilies ) const
+{
+    auto bufferInfo = vk::BufferCreateInfo{}
+        .setSize( size )
+        .setUsage( usage )
+        .setSharingMode( sharingMode )
+        .setQueueFamilyIndexCount( queueFamilyCount )
+        .setPQueueFamilyIndices( pQueueFamilies );
+
+	vk::Buffer buffer;
+	vk::Result result = mDevice.createBuffer(&bufferInfo, nullptr, &buffer);
+	if(result != vk::Result:: eSuccess)
+    {
+		throw std::runtime_error("Failed to create buffer " + vk::to_string(result));
+	}
+	
+	return buffer;	
+}
+
+
+vk::DeviceMemory RendererCore::AllocateBufferMemory(
+    vk::Buffer buffer, 
+    vk::MemoryPropertyFlags properties ) const
+{
+	auto memoryRequirements = mDevice.getBufferMemoryRequirements(buffer);
+	U32 memoryTypeIndex;
+	bool memoryTypeFound = false;
+
+	for (U32 i = 0; i < mGpuMemoryProperties.memoryTypeCount; i++)
+    {
+		if( (memoryRequirements.memoryTypeBits & (1<<i)) && 
+			(mGpuMemoryProperties.memoryTypes[i].propertyFlags & properties) == properties) 
+		{
+			memoryTypeIndex = i;
+			memoryTypeFound = true;
+			break;
+		}
+	}
+	if( !memoryTypeFound ) 
+    {
+		throw std::runtime_error("Failed to find memory type" );
+	}
+	
+	auto allocInfo = vk::MemoryAllocateInfo{}
+		.setAllocationSize( memoryRequirements.size )
+		.setMemoryTypeIndex( memoryTypeIndex );
+		
+	vk::DeviceMemory bufferMemory;
+	vk::Result result = mDevice.allocateMemory(&allocInfo, nullptr, &bufferMemory);
+	if(result != vk::Result::eSuccess)
+    {
+		throw std::runtime_error("Failed to allocate image memory : "+ vk::to_string(result));
+	}
+	
+	mDevice.bindBufferMemory(buffer, bufferMemory, 0);
+	
+	return bufferMemory;
 }
 
     

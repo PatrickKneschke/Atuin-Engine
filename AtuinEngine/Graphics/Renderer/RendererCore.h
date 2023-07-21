@@ -48,6 +48,17 @@ public:
 	vk::Queue TransferQueue() const { return mTransferQueue; }
 
     // creation functions
+    vk::Buffer CreateBuffer( 
+        vk::DeviceSize size, 
+        vk::BufferUsageFlags usage,  
+        vk::SharingMode sharingMode = vk::SharingMode::eExclusive,
+        uint32_t queueFamilyCount = 0,
+        const uint32_t* pQueueFamilies = nullptr
+    ) const;
+    vk::DeviceMemory AllocateBufferMemory( 
+                vk::Buffer buffer, 
+                vk::MemoryPropertyFlags properties
+    ) const;
     
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
