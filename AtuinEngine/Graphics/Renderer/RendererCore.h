@@ -59,6 +59,27 @@ public:
                 vk::Buffer buffer, 
                 vk::MemoryPropertyFlags properties
     ) const;
+    vk::Image CreateImage(
+		uint32_t width,
+		uint32_t height,
+		vk::Format format,
+		vk::ImageUsageFlags usage,
+		uint32_t mipLevels 	= 1,
+		vk::ImageTiling tiling = vk::ImageTiling::eOptimal,
+		vk::SampleCountFlagBits	numSamples = vk::SampleCountFlagBits::e1,
+        vk::SharingMode = vk::SharingMode::eExclusive,
+        uint32_t queueFamilyCount = 0,
+        const uint32_t* pQueueFamilies = nullptr
+	) const;
+	vk::DeviceMemory allocateImageMemory(
+		vk::Image image,
+		vk::MemoryPropertyFlags properties
+	) const;
+	vk::ImageView createImageView(
+		vk::Image image, vk::Format format,
+		vk::ImageAspectFlags aspectFlags,
+		uint32_t mipLevels = 1
+	) const;
     
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(

@@ -305,5 +305,103 @@ vk::DeviceMemory RendererCore::AllocateBufferMemory(
 	return bufferMemory;
 }
 
+
+vk::Image RendererCore::CreateImage(
+	uint32_t width,
+	uint32_t height,
+	vk::Format format,
+	vk::ImageUsageFlags usage,
+	uint32_t mipLevels,
+	vk::ImageTiling tiling,
+	vk::SampleCountFlagBits	numSamples,
+    vk::SharingMode sharingMode,
+    uint32_t queueFamilyCount,
+    const uint32_t* pQueueFamilies ) const
+{
+	auto imageInfo = vk::ImageCreateInfo{}
+		.setImageType( vk::ImageType::e2D )
+		.setExtent( {width, height, 1} )
+		.setFormat( format )
+		.setUsage( usage )
+		.setMipLevels( mipLevels )
+		.setArrayLayers( 1 )
+		.setTiling( tiling )
+		.setSamples( numSamples )
+		.setSharingMode( sharingMode )
+        .setQueueFamilyIndexCount( queueFamilyCount )
+        .setPQueueFamilyIndices( pQueueFamilies )
+		.setInitialLayout( vk::ImageLayout::eUndefined );
+		
+	vk::Image image;
+	vk::Result result = mDevice.createImage(&imageInfo, nullptr, &image);
+	if(result != vk::Result::eSuccess)
+    {
+		throw std::runtime_error("Failed to create image : "+ vk::to_string(result));
+	}
+		
+	return image;
+}
+
+
+vk::DeviceMemory RendererCore::allocateImageMemory(
+	vk::Image image,
+	vk::MemoryPropertyFlags properties ) const
+{
+	auto memoryRequirements = mDevice.getImageMemoryRequirements(image);
+	uint32_t memoryTypeIndex;
+	bool memoryTypeFound = false;
+	for(uint32_t i=0; i<mGpuMemoryProperties.memoryTypeCount; i++) 
+    {
+		if( memoryRequirements.memoryTypeBits & (1<<i) && 
+			(mGpuMemoryProperties.memoryTypes[i].propertyFlags & properties) == properties) 
+		{
+			memoryTypeIndex = i;
+			memoryTypeFound = true;
+			break;
+		}
+	}
+	if( !memoryTypeFound ) 
+    {
+		throw std::runtime_error("Failed to find memory type" );
+	}
+	
+	auto allocInfo = vk::MemoryAllocateInfo{}
+		.setAllocationSize( memoryRequirements.size )
+		.setMemoryTypeIndex( memoryTypeIndex );
+		
+	vk::DeviceMemory imageMemory;
+	vk::Result result = mDevice.allocateMemory(&allocInfo, nullptr, &imageMemory);
+	if(result != vk::Result::eSuccess) {
+		throw std::runtime_error("Failed to allocate image memory : "+ vk::to_string(result));
+	}
+	
+	mDevice.bindImageMemory(image, imageMemory, 0);
+	
+	return imageMemory;
+}
+
+
+vk::ImageView RendererCore::createImageView(
+	vk::Image image, vk::Format format,
+	vk::ImageAspectFlags aspectFlags,
+	uint32_t mipLevels ) const
+{
+	auto imageViewInfo = vk::ImageViewCreateInfo{}
+		.setImage( image )
+		.setViewType( vk::ImageViewType::e2D )
+		.setFormat( format )
+		.setSubresourceRange( vk::ImageSubresourceRange{aspectFlags, 0, mipLevels, 0, 1} );
+			
+	vk::ImageView imageView;
+	vk::Result result = mDevice.createImageView(&imageViewInfo, nullptr, &imageView);
+	if(result != vk::Result::eSuccess)
+    {
+		throw std::runtime_error("Failed to create image view : "+ vk::to_string(result));
+	}
+		
+	return imageView;
+}
+
+
     
 } // Atuin
