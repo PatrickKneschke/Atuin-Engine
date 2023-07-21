@@ -153,6 +153,10 @@ void RendererCore::ChooseGPU() {
 	if(!mGpu) {
 		throw std::runtime_error("Failed to find suitable GPU!");
 	}
+
+    mGpuFeatures = mGpu.getFeatures();
+    mGpuProperties = mGpu.getProperties();
+    mGpuMemoryProperties = mGpu.getMemoryProperties();
 }
 
 

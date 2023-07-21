@@ -10,7 +10,7 @@
 namespace Atuin {
     
 
-struct QueueFamiliesIndices {
+struct QueueFamilyIndices {
 
     // for graphics, graphics-related compute and gpu-gpu transfer ops
     I32 graphicsFamily = -1;
