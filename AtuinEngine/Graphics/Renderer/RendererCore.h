@@ -6,6 +6,8 @@
 #include <vulkan/vulkan.hpp>
 
 #include "Definitions.h"
+#include "Core/Util/Types.h"
+#include "Core/DataStructures/Array.h"
 
 #include <iostream>
 
@@ -52,34 +54,47 @@ public:
         vk::DeviceSize size, 
         vk::BufferUsageFlags usage,  
         vk::SharingMode sharingMode = vk::SharingMode::eExclusive,
-        uint32_t queueFamilyCount = 0,
-        const uint32_t* pQueueFamilies = nullptr
+        U32 queueFamilyCount = 0,
+        const U32* pQueueFamilies = nullptr
     ) const;
     vk::DeviceMemory AllocateBufferMemory( 
-                vk::Buffer buffer, 
-                vk::MemoryPropertyFlags properties
+        vk::Buffer buffer, 
+        vk::MemoryPropertyFlags properties
     ) const;
     vk::Image CreateImage(
-		uint32_t width,
-		uint32_t height,
+		U32 width,
+		U32 height,
 		vk::Format format,
 		vk::ImageUsageFlags usage,
-		uint32_t mipLevels 	= 1,
+		U32 mipLevels = 1,
 		vk::ImageTiling tiling = vk::ImageTiling::eOptimal,
 		vk::SampleCountFlagBits	numSamples = vk::SampleCountFlagBits::e1,
         vk::SharingMode = vk::SharingMode::eExclusive,
-        uint32_t queueFamilyCount = 0,
-        const uint32_t* pQueueFamilies = nullptr
+        U32 queueFamilyCount = 0,
+        const U32* pQueueFamilies = nullptr
 	) const;
-	vk::DeviceMemory allocateImageMemory(
+	vk::DeviceMemory AllocateImageMemory(
 		vk::Image image,
 		vk::MemoryPropertyFlags properties
 	) const;
-	vk::ImageView createImageView(
+	vk::ImageView CreateImageView(
 		vk::Image image, vk::Format format,
 		vk::ImageAspectFlags aspectFlags,
-		uint32_t mipLevels = 1
+		U32 mipLevels = 1
 	) const;
+    vk::CommandPool CreateCommandPool(
+        U32 queueFamily,
+		vk::CommandPoolCreateFlags flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer
+    ) const;
+    vk::CommandBuffer AllocateCommandBuffer(
+        vk::CommandPool commandPool,
+        vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary
+    ) const;
+    Array<vk::CommandBuffer> AllocateCommandBuffers(
+        vk::CommandPool commandPool,
+        U32 count,
+        vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary
+    ) const;
     
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(

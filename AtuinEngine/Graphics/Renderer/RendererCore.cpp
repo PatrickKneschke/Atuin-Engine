@@ -85,8 +85,8 @@ void RendererCore::CreateInstance() {
         .setPpEnabledLayerNames( layers.data() );
 
     vk::Result result = vk::createInstance(&instanceInfo, nullptr, &mInstance);
-    if (result != vk::Result::eSuccess) {
-
+    if (result != vk::Result::eSuccess) 
+    {
        throw std::runtime_error("Failed to create vulkan instance : " + vk::to_string(result));
     }
 
@@ -144,13 +144,14 @@ void RendererCore::ChooseGPU() {
             mGpu = gpu;
             break;
         }
-        else if (properties.deviceType == vk::PhysicalDeviceType::eIntegratedGpu) {
-
+        else if (properties.deviceType == vk::PhysicalDeviceType::eIntegratedGpu)
+        {
             mGpu = gpu;
         }
 	}
 
-	if(!mGpu) {
+	if(!mGpu)
+    {
 		throw std::runtime_error("Failed to find suitable GPU!");
 	}
 
@@ -245,8 +246,8 @@ vk::Buffer RendererCore::CreateBuffer(
         vk::DeviceSize size, 
         vk::BufferUsageFlags usage,  
         vk::SharingMode sharingMode,
-        uint32_t queueFamilyCount,
-        const uint32_t* pQueueFamilies ) const
+        U32 queueFamilyCount,
+        const U32* pQueueFamilies ) const
 {
     auto bufferInfo = vk::BufferCreateInfo{}
         .setSize( size )
@@ -307,16 +308,16 @@ vk::DeviceMemory RendererCore::AllocateBufferMemory(
 
 
 vk::Image RendererCore::CreateImage(
-	uint32_t width,
-	uint32_t height,
+	U32 width,
+	U32 height,
 	vk::Format format,
 	vk::ImageUsageFlags usage,
-	uint32_t mipLevels,
+	U32 mipLevels,
 	vk::ImageTiling tiling,
 	vk::SampleCountFlagBits	numSamples,
     vk::SharingMode sharingMode,
-    uint32_t queueFamilyCount,
-    const uint32_t* pQueueFamilies ) const
+    U32 queueFamilyCount,
+    const U32* pQueueFamilies ) const
 {
 	auto imageInfo = vk::ImageCreateInfo{}
 		.setImageType( vk::ImageType::e2D )
@@ -343,14 +344,14 @@ vk::Image RendererCore::CreateImage(
 }
 
 
-vk::DeviceMemory RendererCore::allocateImageMemory(
+vk::DeviceMemory RendererCore::AllocateImageMemory(
 	vk::Image image,
 	vk::MemoryPropertyFlags properties ) const
 {
 	auto memoryRequirements = mDevice.getImageMemoryRequirements(image);
-	uint32_t memoryTypeIndex;
+	U32 memoryTypeIndex;
 	bool memoryTypeFound = false;
-	for(uint32_t i=0; i<mGpuMemoryProperties.memoryTypeCount; i++) 
+	for(U32 i=0; i<mGpuMemoryProperties.memoryTypeCount; i++) 
     {
 		if( memoryRequirements.memoryTypeBits & (1<<i) && 
 			(mGpuMemoryProperties.memoryTypes[i].propertyFlags & properties) == properties) 
@@ -371,7 +372,8 @@ vk::DeviceMemory RendererCore::allocateImageMemory(
 		
 	vk::DeviceMemory imageMemory;
 	vk::Result result = mDevice.allocateMemory(&allocInfo, nullptr, &imageMemory);
-	if(result != vk::Result::eSuccess) {
+	if(result != vk::Result::eSuccess)
+    {
 		throw std::runtime_error("Failed to allocate image memory : "+ vk::to_string(result));
 	}
 	
@@ -381,10 +383,10 @@ vk::DeviceMemory RendererCore::allocateImageMemory(
 }
 
 
-vk::ImageView RendererCore::createImageView(
+vk::ImageView RendererCore::CreateImageView(
 	vk::Image image, vk::Format format,
 	vk::ImageAspectFlags aspectFlags,
-	uint32_t mipLevels ) const
+	U32 mipLevels ) const
 {
 	auto imageViewInfo = vk::ImageViewCreateInfo{}
 		.setImage( image )
@@ -402,6 +404,65 @@ vk::ImageView RendererCore::createImageView(
 	return imageView;
 }
 
+
+vk::CommandPool RendererCore::CreateCommandPool(
+    U32 queueFamily,
+	vk::CommandPoolCreateFlags flags ) const
+{
+	auto commandPoolInfo = vk::CommandPoolCreateInfo{}
+		.setFlags( flags )
+		.setQueueFamilyIndex( queueFamily );
+		
+	vk::CommandPool commandPool;
+	vk::Result result = mDevice.createCommandPool(&commandPoolInfo, nullptr, &commandPool);
+	if(result != vk::Result::eSuccess) 
+    {
+		throw std::runtime_error("Failed to create command pool : "+ vk::to_string(result));
+	}
+	
+	return commandPool;   
+}
+
+
+vk::CommandBuffer RendererCore::AllocateCommandBuffer(
+    vk::CommandPool commandPool,
+    vk::CommandBufferLevel level ) const
+{
+    auto allocInfo = vk::CommandBufferAllocateInfo{}
+        .setCommandPool( commandPool )
+        .setCommandBufferCount( 1 )
+        .setLevel( level );
+
+    vk::CommandBuffer commandBuffer;
+	vk::Result result = mDevice.allocateCommandBuffers(&allocInfo, &commandBuffer);
+	if(result != vk::Result::eSuccess)
+    {
+		throw std::runtime_error("Failed to allocate command buffer : "+ vk::to_string(result));
+	}
+	
+	return commandBuffer;
+}
+
+
+Array<vk::CommandBuffer> RendererCore::AllocateCommandBuffers(
+    vk::CommandPool commandPool,
+    U32 count,
+    vk::CommandBufferLevel level ) const
+{
+    auto allocInfo = vk::CommandBufferAllocateInfo{}
+        .setCommandPool( commandPool )
+        .setCommandBufferCount( count )
+        .setLevel( level );
+
+    Array<vk::CommandBuffer> commandBuffers(count);
+	vk::Result result = mDevice.allocateCommandBuffers(&allocInfo, commandBuffers.Data());
+	if(result != vk::Result::eSuccess)
+    {
+		throw std::runtime_error("Failed to allocate command buffer : "+ vk::to_string(result));
+	}
+	
+	return commandBuffers;
+}
 
     
 } // Atuin
