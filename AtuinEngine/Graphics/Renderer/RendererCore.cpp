@@ -495,5 +495,22 @@ vk::Semaphore RendererCore::createSemaphore() const {
 	return semaphore;	
 }
 
+
+vk::ShaderModule RendererCore::CreateShaderModule( Byte* code, Size size ) const {
+
+    auto shaderInfo = vk::ShaderModuleCreateInfo{}
+        .setCodeSize( size )
+        .setPCode( reinterpret_cast<const U32*>( code ) );
+
+	vk::ShaderModule shaderModule;
+	vk::Result result = mDevice.createShaderModule(&shaderInfo, nullptr, &shaderModule);
+	if(result != vk::Result::eSuccess)
+    {
+		throw std::runtime_error("Failed to create shader module : " + vk::to_string(result) );
+	}
+	
+	return shaderModule;
+}
+
     
 } // Atuin

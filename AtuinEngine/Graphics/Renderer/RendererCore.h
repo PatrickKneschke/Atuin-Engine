@@ -97,6 +97,7 @@ public:
     ) const;
 	vk::Fence createFence( vk::FenceCreateFlags signaled = vk::FenceCreateFlags{} ) const;	
 	vk::Semaphore createSemaphore() const;
+    vk::ShaderModule CreateShaderModule(Byte *code, Size size) const;
     
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
