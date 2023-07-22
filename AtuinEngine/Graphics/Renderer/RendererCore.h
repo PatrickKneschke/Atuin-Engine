@@ -95,6 +95,8 @@ public:
         U32 count,
         vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary
     ) const;
+	vk::Fence createFence( vk::FenceCreateFlags signaled = vk::FenceCreateFlags{} ) const;	
+	vk::Semaphore createSemaphore() const;
     
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(

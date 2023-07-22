@@ -464,5 +464,36 @@ Array<vk::CommandBuffer> RendererCore::AllocateCommandBuffers(
 	return commandBuffers;
 }
 
+
+vk::Fence RendererCore::createFence( vk::FenceCreateFlags signaled ) const {
+
+    auto fenceInfo = vk::FenceCreateInfo{}
+		.setFlags( signaled );
+	
+	vk::Fence fence;
+	vk::Result result = mDevice.createFence(&fenceInfo, nullptr, &fence);
+	if(result != vk::Result::eSuccess)
+    {
+		throw std::runtime_error("Failed to create fence : "+ vk::to_string(result));
+	}
+	
+	return fence;
+}
+	
+    
+vk::Semaphore RendererCore::createSemaphore() const {
+
+	auto semaphoreInfo = vk::SemaphoreCreateInfo{};
+	
+	vk::Semaphore semaphore;
+	vk::Result result = mDevice.createSemaphore(&semaphoreInfo, nullptr, &semaphore);
+	if(result != vk::Result::eSuccess)
+    {
+		throw std::runtime_error("Failed to create semaphore : "+ vk::to_string(result));
+	}
+
+	return semaphore;	
+}
+
     
 } // Atuin
