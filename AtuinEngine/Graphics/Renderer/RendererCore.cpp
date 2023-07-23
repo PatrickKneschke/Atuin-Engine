@@ -540,10 +540,10 @@ vk::Semaphore RendererCore::createSemaphore() const {
 }
 
 
-vk::ShaderModule RendererCore::CreateShaderModule( Byte* code, Size size ) const {
+vk::ShaderModule RendererCore::CreateShaderModule( Size codeSize, Byte* code ) const {
 
     auto shaderInfo = vk::ShaderModuleCreateInfo{}
-        .setCodeSize( size )
+        .setCodeSize( codeSize )
         .setPCode( reinterpret_cast<const U32*>( code ) );
 
 	vk::ShaderModule shaderModule;
@@ -554,6 +554,80 @@ vk::ShaderModule RendererCore::CreateShaderModule( Byte* code, Size size ) const
 	}
 	
 	return shaderModule;
+}
+
+
+vk::DescriptorPool RendererCore::CreateDescriptorPool( 
+	U32 maxSets, 
+	U32 count, 
+	vk::DescriptorPoolSize* poolSizes) const 
+{
+	auto poolInfo = vk::DescriptorPoolCreateInfo{}
+		.setMaxSets( maxSets )
+		.setPoolSizeCount( count )
+		.setPPoolSizes( poolSizes );
+		
+	vk::DescriptorPool descriptorPool;
+	vk::Result result = mDevice.createDescriptorPool(&poolInfo, nullptr, &descriptorPool);
+	if( result != vk::Result::eSuccess )
+	{
+		throw std::runtime_error("Failed to create descriptor pool " + vk::to_string(result));
+	}
+
+	return descriptorPool;
+}
+
+
+vk::DescriptorSetLayout RendererCore::CreateDescriptorSetLayout( U32 count, vk::DescriptorSetLayoutBinding* bindings ) const {
+
+	auto layoutInfo = vk::DescriptorSetLayoutCreateInfo{}
+		.setBindingCount( count )
+		.setPBindings( bindings );
+
+	vk::DescriptorSetLayout descriptorSetLayout;
+	vk::Result result = mDevice.createDescriptorSetLayout(&layoutInfo, nullptr, &descriptorSetLayout);
+	if( result != vk::Result::eSuccess )
+	{
+		throw std::runtime_error("Failed to create descriptor set layout " + vk::to_string(result));
+	}
+
+	return descriptorSetLayout;
+}
+
+
+vk::DescriptorSet RendererCore::AllocateDescriptorSet( vk::DescriptorPool pool, vk::DescriptorSetLayout layout) const {
+
+	auto allocInfo = vk::DescriptorSetAllocateInfo{}
+		.setDescriptorPool( pool )
+		.setDescriptorSetCount( 1 )
+		.setPSetLayouts( &layout );
+
+	vk::DescriptorSet descriptorSet;
+	vk::Result result = mDevice.allocateDescriptorSets(&allocInfo, &descriptorSet);
+	if(result != vk::Result::eSuccess)
+	{
+		throw std::runtime_error("Failed to allocate descriptor sets " + vk::to_string(result));
+	}
+
+	return descriptorSet;
+}
+
+
+Array<vk::DescriptorSet> RendererCore::AllocateDescriptorSets( vk::DescriptorPool pool, U32 count, vk::DescriptorSetLayout* layouts ) const {
+
+	auto allocInfo = vk::DescriptorSetAllocateInfo{}
+		.setDescriptorPool( pool )
+		.setDescriptorSetCount( count )
+		.setPSetLayouts( layouts );
+
+	Array<vk::DescriptorSet> descriptorSets(count);
+	vk::Result result = mDevice.allocateDescriptorSets(&allocInfo, descriptorSets.Data());
+	if(result != vk::Result::eSuccess)
+	{
+		throw std::runtime_error("Failed to allocate descriptor sets " + vk::to_string(result));
+	}
+
+	return descriptorSets;
 }
 
     

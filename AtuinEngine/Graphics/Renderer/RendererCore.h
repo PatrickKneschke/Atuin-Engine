@@ -113,9 +113,16 @@ public:
     ) const;
 	vk::Fence createFence( vk::FenceCreateFlags signaled = vk::FenceCreateFlags{} ) const;	
 	vk::Semaphore createSemaphore() const;
-    vk::ShaderModule CreateShaderModule(Byte *code, Size size) const;
+    vk::ShaderModule CreateShaderModule( Size codeSize, Byte *code ) const;
+    vk::DescriptorPool CreateDescriptorPool(
+        U32 maxSets,
+        U32 count, 
+        vk::DescriptorPoolSize* poolSizes
+    ) const;
+    vk::DescriptorSetLayout CreateDescriptorSetLayout( U32 count, vk::DescriptorSetLayoutBinding* bindings ) const;
+    vk::DescriptorSet AllocateDescriptorSet( vk::DescriptorPool pool, vk::DescriptorSetLayout layout) const;
+    Array<vk::DescriptorSet> AllocateDescriptorSets( vk::DescriptorPool pool, U32 count, vk::DescriptorSetLayout* layouts ) const;
 
-    
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
