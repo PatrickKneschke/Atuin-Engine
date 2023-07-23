@@ -82,6 +82,22 @@ public:
 		vk::ImageAspectFlags aspectFlags,
 		U32 mipLevels = 1
 	) const;
+    vk::Sampler CreateSampler(
+        vk::Filter magFilter,
+        vk::Filter minFilter,
+		vk::SamplerMipmapMode mipmapMode,
+		vk::SamplerAddressMode addressModeU,
+		vk::SamplerAddressMode addressModeV,
+		vk::SamplerAddressMode addressModeW,
+		bool enableAnisotropy,
+        float minLod = 0.f,
+        float maxLod = 1.f,
+        float mipLodBias = 0.f,
+		bool unnormalized = VK_FALSE,
+		bool enableCompare = VK_FALSE,
+        vk::CompareOp compareOp = vk::CompareOp::eAlways,
+		vk::BorderColor borderColor = vk::BorderColor::eFloatOpaqueBlack
+    ) const;
     vk::CommandPool CreateCommandPool(
         U32 queueFamily,
 		vk::CommandPoolCreateFlags flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer
@@ -98,6 +114,7 @@ public:
 	vk::Fence createFence( vk::FenceCreateFlags signaled = vk::FenceCreateFlags{} ) const;	
 	vk::Semaphore createSemaphore() const;
     vk::ShaderModule CreateShaderModule(Byte *code, Size size) const;
+
     
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(

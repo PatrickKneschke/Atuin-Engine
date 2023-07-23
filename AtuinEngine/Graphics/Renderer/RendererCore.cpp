@@ -405,6 +405,50 @@ vk::ImageView RendererCore::CreateImageView(
 }
 
 
+vk::Sampler RendererCore::CreateSampler(
+    vk::Filter magFilter,
+    vk::Filter minFilter,
+	vk::SamplerMipmapMode mipmapMode,
+	vk::SamplerAddressMode addressModeU,
+	vk::SamplerAddressMode addressModeV,
+	vk::SamplerAddressMode addressModeW,
+	bool enableAnisotropy,
+    float minLod,
+    float maxLod,
+    float mipLodBias,
+	bool unnormalized,
+	bool enableCompare,
+	vk::CompareOp compareOp,
+	vk::BorderColor borderColor ) const
+{
+	auto samplerInfo = vk::SamplerCreateInfo{}
+		.setMagFilter( magFilter )
+		.setMinFilter( minFilter )
+		.setMipmapMode( mipmapMode )
+		.setAddressModeU( addressModeU )
+		.setAddressModeV( addressModeV )
+		.setAddressModeW( addressModeW )
+		.setAnisotropyEnable( enableAnisotropy )
+		.setMaxAnisotropy( mGpuProperties.limits.maxSamplerAnisotropy )
+		.setMinLod( minLod )
+		.setMaxLod( maxLod )
+		.setMipLodBias( mipLodBias )
+		.setUnnormalizedCoordinates( unnormalized )
+		.setCompareEnable( enableCompare )
+		.setCompareOp( compareOp )
+		.setBorderColor( borderColor );
+
+	vk::Sampler sampler;
+	vk::Result result = mDevice.createSampler(&samplerInfo, nullptr, &sampler);
+	if( result != vk::Result::eSuccess )
+	{
+		throw std::runtime_error("Failed to create texture sampler " + vk::to_string(result));
+	}
+
+	return sampler;
+}
+
+
 vk::CommandPool RendererCore::CreateCommandPool(
     U32 queueFamily,
 	vk::CommandPoolCreateFlags flags ) const
