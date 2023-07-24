@@ -27,19 +27,17 @@ struct QueueFamilyIndices {
     }
 };
 
-
 // stores swapchain, its images, image views and all data used to create it
 struct Swapchain {
-	vk::SwapchainKHR		swapchain;
-	Array<vk::Image>		images;
-	Array<vk::ImageView> 	imageViews;
-	uint32_t				imageCount;
-	vk::Format 				imageFormat;
-	vk::ColorSpaceKHR		colorSpace;
-	vk::PresentModeKHR		presentMode;
-	vk::Extent2D			extent;
+	vk::SwapchainKHR     swapchain;
+	Array<vk::Image>     images;
+	Array<vk::ImageView> imageViews;
+	U32                  imageCount;
+	vk::Format           imageFormat;
+	vk::ColorSpaceKHR    colorSpace;
+	vk::PresentModeKHR   presentMode;
+	vk::Extent2D         extent;
 };
-
 
 // stores pipeline, pipeline layout and all data used to create it
 struct Pipeline {
@@ -60,6 +58,25 @@ struct Pipeline {
     U32                                      subpass;
 };
 
+// stores an image, its device memory, image view and relevant data
+struct ImageResource {
+	vk::Image               image;
+	vk::DeviceMemory        imageMemory;
+	vk::ImageView           imageView;
+	vk::Format              format;
+	vk::ImageUsageFlags     usage;
+	vk::MemoryPropertyFlags memoryType;
+	U32                     width;
+	U32                     height;
+};
+
+// stores a buffer, its device memory, usage and memory type
+struct Buffer {
+	vk::Buffer				buffer;
+	vk::DeviceMemory		bufferMemory;
+	vk::BufferUsageFlags	usage;
+	vk::MemoryPropertyFlags	memoryType;
+};
 
 
 } // Atuin
