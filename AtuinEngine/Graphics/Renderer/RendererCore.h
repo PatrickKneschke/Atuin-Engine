@@ -145,6 +145,8 @@ public:
         U32 layers = 1
     ) const;
     void CreatePipeline( Pipeline &pipeline ) const;
+    void PrepareSwapchain( Swapchain &swapchain ) const; 
+    void CreateSwapchain( Swapchain &swapcahin ) const;
 
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(

@@ -734,5 +734,79 @@ void RendererCore::CreatePipeline( Pipeline &pipeline ) const {
 	}
 }
 
+
+void RendererCore::PrepareSwapchain( Swapchain &swapchain ) const {
+
+	auto capabilities = mGpu.getSurfaceCapabilitiesKHR( mSurface );
+	auto formats      = mGpu.getSurfaceFormatsKHR( mSurface );
+	auto presentModes = mGpu.getSurfacePresentModesKHR( mSurface );
+	
+	// find image count
+	swapchain.imageCount = capabilities.minImageCount + 1;
+	if(capabilities.maxImageCount > 0)
+	{
+		swapchain.imageCount = std::min(swapchain.imageCount, capabilities.maxImageCount);
+	}
+	
+	// find image format and color space, default to first one available
+	swapchain.imageFormat = formats[0].format;
+	swapchain.colorSpace  = formats[0].colorSpace;
+	for (const auto format : formats) 
+	{
+		if ( format.format == vk::Format::eB8G8R8A8Srgb && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear )
+		{
+			 swapchain.imageFormat = format.format;
+			 swapchain.colorSpace  = format.colorSpace;
+			 break;
+		}
+	}
+
+	// find present mode
+#ifdef NDEBUG
+	swapchain.presentMode = vk::PresentModeKHR::eFifo;
+#else
+	swapchain.presentMode = vk::PresentModeKHR::eImmediate;
+#endif
+
+}
+
+
+void RendererCore::CreateSwapchain( Swapchain &swapchain ) const {
+
+	// update swapchain extent to current window size
+	swapchain.extent = mGpu.getSurfaceCapabilitiesKHR(mSurface).currentExtent;
+	
+	auto createInfo = vk::SwapchainCreateInfoKHR{}
+		.setSurface( mSurface )
+		.setMinImageCount( swapchain.imageCount )
+		.setImageFormat( swapchain.imageFormat )
+		.setImageColorSpace( swapchain.colorSpace )
+		.setPresentMode( swapchain.presentMode )
+		.setImageExtent( swapchain.extent )
+		.setImageArrayLayers( 1 )										// single image layer
+		.setImageUsage( vk::ImageUsageFlagBits::eColorAttachment )		// render target for color
+		.setPreTransform( vk::SurfaceTransformFlagBitsKHR::eIdentity )  // no pretransform
+		.setCompositeAlpha( vk::CompositeAlphaFlagBitsKHR::eOpaque )	// opaque surface
+		.setClipped( VK_TRUE )											// no rendering to non-visible areas
+	    .setImageSharingMode( vk::SharingMode::eExclusive )
+		.setOldSwapchain( swapchain.swapchain );
+	
+	
+	vk::Result result = mDevice.createSwapchainKHR(&createInfo, nullptr, &swapchain.swapchain);	
+	if(result != vk::Result::eSuccess)
+	{
+		throw std::runtime_error("Failed to create swap chain : "+ vk::to_string(result));
+	}
+
+	// create swapchain images
+	swapchain.images.Reserve( swapchain.imageCount );
+	swapchain.imageViews.Reserve( swapchain.imageCount );
+	for (auto image : mDevice.getSwapchainImagesKHR(swapchain.swapchain))
+	{
+		swapchain.images.PushBack( image );
+		swapchain.imageViews.PushBack( CreateImageView(image, swapchain.imageFormat, vk::ImageAspectFlagBits::eColor) );
+	}
+}
+
     
 } // Atuin

@@ -28,6 +28,19 @@ struct QueueFamilyIndices {
 };
 
 
+// stores swapchain, its images, image views and all data used to create it
+struct Swapchain {
+	vk::SwapchainKHR		swapchain;
+	Array<vk::Image>		images;
+	Array<vk::ImageView> 	imageViews;
+	uint32_t				imageCount;
+	vk::Format 				imageFormat;
+	vk::ColorSpaceKHR		colorSpace;
+	vk::PresentModeKHR		presentMode;
+	vk::Extent2D			extent;
+};
+
+
 // stores pipeline, pipeline layout and all data used to create it
 struct Pipeline {
 
