@@ -3,7 +3,9 @@
 
 
 #include "Core/Util/Types.h"
+#include "Core/DataStructures/Array.h"
 
+#include <vulkan/vulkan.hpp>
 #include <unordered_set>
 
 
@@ -24,6 +26,27 @@ struct QueueFamilyIndices {
         return {graphicsFamily, computeFamily, transferFamily};
     }
 };
+
+
+// stores pipeline, pipeline layout and all data used to create it
+struct Pipeline {
+
+	vk::Pipeline							 pipeline;
+	vk::PipelineLayout						 pipelineLayout;
+	Array<vk::PipelineShaderStageCreateInfo> shaderInfos;	
+	vk::PipelineVertexInputStateCreateInfo	 vertexInputInfo;
+	vk::PipelineInputAssemblyStateCreateInfo inputAssemblyInfo;
+	vk::PipelineViewportStateCreateInfo      viewportInfo;
+	vk::PipelineRasterizationStateCreateInfo rasterizerInfo;
+	vk::PipelineMultisampleStateCreateInfo 	 multisampleInfo;
+	vk::PipelineDepthStencilStateCreateInfo  depthStencilInfo;
+	vk::PipelineColorBlendAttachmentState	 colorBlendAttachment;
+	vk::PipelineColorBlendStateCreateInfo 	 colorBlendInfo;
+    vk::PipelineDynamicStateCreateInfo       dynamicStateInfo;
+    vk::RenderPass                           renderpass;
+    U32                                      subpass;
+};
+
 
 
 } // Atuin

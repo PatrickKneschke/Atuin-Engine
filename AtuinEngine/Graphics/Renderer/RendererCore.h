@@ -122,6 +122,13 @@ public:
     vk::DescriptorSetLayout CreateDescriptorSetLayout( U32 count, vk::DescriptorSetLayoutBinding* bindings ) const;
     vk::DescriptorSet AllocateDescriptorSet( vk::DescriptorPool pool, vk::DescriptorSetLayout layout) const;
     Array<vk::DescriptorSet> AllocateDescriptorSets( vk::DescriptorPool pool, U32 count, vk::DescriptorSetLayout* layouts ) const;
+    vk::PipelineLayout CreatePipelineLayout(
+        U32 setLayoutCount,
+        vk::DescriptorSetLayout* setLayouts,
+        U32 pushConstantCount = 0,
+        vk::PushConstantRange* pushConstants = nullptr
+    ) const;
+    void CreatePipeline( Pipeline &pipeline ) const;
 
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
