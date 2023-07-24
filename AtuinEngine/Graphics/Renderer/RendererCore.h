@@ -128,6 +128,14 @@ public:
         U32 pushConstantCount = 0,
         vk::PushConstantRange* pushConstants = nullptr
     ) const;
+    vk::RenderPass CreateRenderPass(
+        U32 attachmentCount,
+        vk::AttachmentDescription* attachments,
+        U32 subpassCount,
+        vk::SubpassDescription* subpasses,
+        U32 dependencyCount = 0,
+        vk::SubpassDependency* dependencies = nullptr
+    ) const;
     void CreatePipeline( Pipeline &pipeline ) const;
 
 

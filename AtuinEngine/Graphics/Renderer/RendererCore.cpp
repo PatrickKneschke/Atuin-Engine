@@ -654,6 +654,33 @@ vk::PipelineLayout RendererCore::CreatePipelineLayout(
 }
 
 
+vk::RenderPass RendererCore::CreateRenderPass(
+    U32 attachmentCount,
+    vk::AttachmentDescription* attachments,
+    U32 subpassCount,
+    vk::SubpassDescription* subpasses,
+    U32 dependencyCount,
+    vk::SubpassDependency* dependencies ) const
+{
+	auto renderPassInfo = vk::RenderPassCreateInfo{}
+		.setAttachmentCount( attachmentCount )
+		.setPAttachments( attachments )
+		.setSubpassCount( subpassCount )
+		.setPSubpasses( subpasses )
+		.setDependencyCount( dependencyCount )
+		.setPDependencies( dependencies );
+
+	vk::RenderPass renderPass;
+	vk::Result result = mDevice.createRenderPass(&renderPassInfo, nullptr, &renderPass);	
+	if(result != vk::Result::eSuccess)
+	{
+		throw std::runtime_error("Failed to create render pass : "+ vk::to_string(result));
+	}
+
+	return renderPass;
+}
+
+
 void RendererCore::CreatePipeline( Pipeline &pipeline ) const {
 
 	auto pipelineInfo = vk::GraphicsPipelineCreateInfo{}
