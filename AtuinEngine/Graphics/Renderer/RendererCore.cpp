@@ -681,6 +681,33 @@ vk::RenderPass RendererCore::CreateRenderPass(
 }
 
 
+vk::Framebuffer RendererCore::createFrameBuffer(
+    vk::RenderPass renderPass,
+    U32 attachmentCount,
+    vk::ImageView* attachments,
+    U32 width,
+    U32 height,
+    U32 layers ) const
+{
+	auto framebufferInfo = vk::FramebufferCreateInfo{}
+		.setRenderPass( renderPass )
+		.setAttachmentCount( attachmentCount )
+		.setPAttachments( attachments )
+		.setWidth( width )
+		.setHeight( height )
+		.setLayers( layers );
+
+	vk::Framebuffer framebuffer;
+	vk::Result result = mDevice.createFramebuffer(&framebufferInfo, nullptr, &framebuffer);	
+	if(result != vk::Result::eSuccess)
+	{
+		throw std::runtime_error("Failed to create framebuffer : "+ vk::to_string(result));
+	}
+
+	return framebuffer;
+}
+
+
 void RendererCore::CreatePipeline( Pipeline &pipeline ) const {
 
 	auto pipelineInfo = vk::GraphicsPipelineCreateInfo{}

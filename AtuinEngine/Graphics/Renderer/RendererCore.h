@@ -136,6 +136,14 @@ public:
         U32 dependencyCount = 0,
         vk::SubpassDependency* dependencies = nullptr
     ) const;
+    vk::Framebuffer createFrameBuffer(
+        vk::RenderPass renderPass,
+        U32 attachmentCount,
+        vk::ImageView* attachments,
+        U32 width,
+        U32 height,
+        U32 layers = 1
+    ) const;
     void CreatePipeline( Pipeline &pipeline ) const;
 
 
