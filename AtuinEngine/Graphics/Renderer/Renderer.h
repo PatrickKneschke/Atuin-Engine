@@ -10,8 +10,6 @@
 class GLFWwindow;
 
 namespace Atuin {
-
-
     
 
 class RendererCore;
@@ -38,6 +36,8 @@ private:
     GLFWwindow* pWindow;
     RendererCore* pCore;
 
+
+    
 };
 
 
