@@ -2,6 +2,7 @@
 #pragma once
 
 
+#include "Definitions.h"
 #include "Core/Debug/Log.h"
 #include "Core/Memory/Memory.h"
 #include "Core/Jobs/Jobs.h"
@@ -29,6 +30,9 @@ public:
 
 private:
 
+	void createDepthResources();
+    
+
     Log mLog;
     Memory mMemory;
     Jobs mJobs;
@@ -36,7 +40,8 @@ private:
     GLFWwindow* pWindow;
     RendererCore* pCore;
 
-
+    Swapchain mSwapchain;
+    ImageResource mDepthImage;
     
 };
 

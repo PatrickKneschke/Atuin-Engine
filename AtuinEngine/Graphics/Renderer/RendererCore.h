@@ -2,12 +2,11 @@
 #pragma once
 
 
-#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
-#include <vulkan/vulkan.hpp>
-
 #include "Definitions.h"
 #include "Core/Util/Types.h"
 #include "Core/DataStructures/Array.h"
+
+#include <vulkan/vulkan.hpp>
 
 #include <iostream>
 
@@ -18,13 +17,15 @@ namespace Atuin {
 
 
 // required vulkan extensions
-const std::vector<const char*> requiredExtensions {
+const Array<const char*> requiredExtensions {
 
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
 
 class RendererCore {
+
+// TODO use memory allocator -> vma???
 
 public:
 
@@ -155,7 +156,7 @@ public:
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
         void*  )  
     {
-        std::cerr << "validation layer  [" <<  messageSeverity << "], (" << messageType << ") : " << pCallbackData->pMessage << std::endl;
+        std::cerr << "validation layer  [" <<  messageSeverity << "], (" << messageType << ") : " << pCallbackData->pMessage << '\n';
 
         return VK_FALSE;
     }

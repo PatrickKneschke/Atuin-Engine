@@ -213,8 +213,8 @@ void RendererCore::CreateDevice() {
         .setQueueCreateInfoCount( (U32)queueInfos.size() )
         .setPQueueCreateInfos( queueInfos.data() )
         .setPEnabledFeatures( &enabledFeatures )
-        .setEnabledExtensionCount( (U32)requiredExtensions.size() )
-        .setPpEnabledExtensionNames( requiredExtensions.data() );
+        .setEnabledExtensionCount( (U32)requiredExtensions.GetSize() )
+        .setPpEnabledExtensionNames( requiredExtensions.Data() );
 
 
     vk::Result result = mGpu.createDevice(&deviceInfo, nullptr, &mDevice);
