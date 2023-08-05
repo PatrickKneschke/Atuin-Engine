@@ -3,6 +3,7 @@
 
 
 #include "Definitions.h"
+#include "Core/Config/CVar.h"
 #include "Core/Debug/Log.h"
 #include "Core/Memory/Memory.h"
 #include "Core/Jobs/Jobs.h"
@@ -32,6 +33,10 @@ private:
 
 	void CreateDepthResources();
     void CreateRenderPass();
+    void CreateFramebuffers();
+
+
+    static CVar<U32>* pFrameOverlap; 
 
 
     Log mLog;
@@ -44,6 +49,7 @@ private:
     Swapchain mSwapchain;
     ImageResource mDepthImage;
     vk::RenderPass mRenderPass;
+    Array<vk::Framebuffer> mFramebuffers; 
     
 };
 

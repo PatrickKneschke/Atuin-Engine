@@ -2,11 +2,15 @@
 #include "Renderer.h"
 #include "RendererCore.h"
 #include "Core/Util/Types.h"
+#include "Core/Config/ConfigManager.h"
 
 #include "GLFW/glfw3.h"
 
 
 namespace Atuin {
+
+
+CVar<U32>* Renderer::pFrameOverlap = ConfigManager::RegisterCVar("Renderer", "FRAME_OVERLAP", (U32)3);
 
 
 Renderer::Renderer() : 
@@ -135,6 +139,25 @@ void Renderer::CreateRenderPass() {
 
 	vk::AttachmentDescription attachments[] = {presentAttachment, depthAttachment};
 	mRenderPass = pCore->CreateRenderPass(2, attachments, 1, &subpass, 1, &dependency);
+}
+
+
+void Renderer::CreateFramebuffers() {
+
+	mFramebuffers.Resize(mSwapchain.imageCount);
+	for(Size i=0; i < mSwapchain.imageCount; i++)
+	{
+		vk::ImageView attachments[] = {
+			mSwapchain.imageViews[i],
+			mDepthImage.imageView
+		};
+
+		mFramebuffers[i] = pCore->createFrameBuffer(
+			mRenderPass, 
+			2, attachments, 
+			mSwapchain.extent.width, mSwapchain.extent.height
+		);
+	}
 }
 
     
