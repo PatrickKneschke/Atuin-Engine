@@ -30,8 +30,9 @@ public:
 
 private:
 
-	void createDepthResources();
-    
+	void CreateDepthResources();
+    void CreateRenderPass();
+
 
     Log mLog;
     Memory mMemory;
@@ -42,6 +43,7 @@ private:
 
     Swapchain mSwapchain;
     ImageResource mDepthImage;
+    vk::RenderPass mRenderPass;
     
 };
 
