@@ -94,6 +94,7 @@ struct Vertex {
 	glm::vec3 position;
 	glm::vec3 normal;
 	glm::vec2 texCoord;
+	glm::vec4 color;
 
 	static vk::VertexInputBindingDescription getBindingDescription() {
 	
@@ -107,7 +108,7 @@ struct Vertex {
 	
 	static Array<vk::VertexInputAttributeDescription> getAttributeDescriptions() {
 
-		Array<vk::VertexInputAttributeDescription> attributeDescriptions(3);
+		Array<vk::VertexInputAttributeDescription> attributeDescriptions(4);
 		
 		attributeDescriptions[0]
 			.setLocation( 0 )
@@ -124,6 +125,11 @@ struct Vertex {
 			.setBinding( 0 )
 			.setFormat( vk::Format::eR32G32Sfloat )
 			.setOffset( offsetof(Vertex, texCoord) );
+		attributeDescriptions[3]
+			.setLocation( 3 )
+			.setBinding( 0 )
+			.setFormat( vk::Format::eR32G32B32A32Sfloat )
+			.setOffset( offsetof(Vertex, color) );
 		
 		return attributeDescriptions;
 	}
@@ -132,31 +138,6 @@ struct Vertex {
 		
 		return position == other.position && normal == other.normal && texCoord == other.texCoord;
 	}
-};
-
-// stores all data used to render a material
-struct Material {
-
-	std::string name;
-	glm::vec4 color;
-	ImageResource *diffuseMap;
-	ImageResource *normalMap;
-	ImageResource *specularMap;
-};
-
-// stores mesh vertex data
-struct Mesh {
-
-	std::string name;
-	Array<Vertex> vertices;
-	Material *material;
-};
-
-// combines a mesh and a material
-struct Model {
-
-	std::string name;
-	Array<Mesh> *mesh;
 };
 
 
@@ -170,9 +151,10 @@ namespace std {
 			
 		size_t operator()(Atuin::Vertex const &vertex) const {
 				
-			return ( (hash<glm::vec3>()(vertex.position) ^
+			return (((hash<glm::vec3>()(vertex.position) ^
 				     (hash<glm::vec3>()(vertex.normal) << 1)) >> 1) ^
-					 (hash<glm::vec2>()(vertex.texCoord) << 1);
+					 (hash<glm::vec2>()(vertex.texCoord) << 1) >> 1) ^
+					 (hash<glm::vec2>()(vertex.color) << 1);
 		}
 	};
 }
