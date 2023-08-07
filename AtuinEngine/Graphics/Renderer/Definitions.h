@@ -54,7 +54,7 @@ struct Pipeline {
 
 	vk::Pipeline							 pipeline;
 	vk::PipelineLayout						 pipelineLayout;
-	Array<vk::PipelineShaderStageCreateInfo> shaderInfos;	
+	Array<vk::PipelineShaderStageCreateInfo> shaderInfos;
 	vk::PipelineVertexInputStateCreateInfo	 vertexInputInfo;
 	vk::PipelineInputAssemblyStateCreateInfo inputAssemblyInfo;
 	vk::PipelineViewportStateCreateInfo      viewportInfo;
@@ -108,7 +108,8 @@ struct Vertex {
 	
 	static Array<vk::VertexInputAttributeDescription> getAttributeDescriptions() {
 
-		Array<vk::VertexInputAttributeDescription> attributeDescriptions(4);
+		Array<vk::VertexInputAttributeDescription> attributeDescriptions;
+		attributeDescriptions.Resize(4);
 		
 		attributeDescriptions[0]
 			.setLocation( 0 )
