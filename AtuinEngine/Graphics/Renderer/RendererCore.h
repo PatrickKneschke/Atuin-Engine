@@ -114,7 +114,7 @@ public:
     ) const;
 	vk::Fence createFence( vk::FenceCreateFlags signaled = vk::FenceCreateFlags{} ) const;	
 	vk::Semaphore createSemaphore() const;
-    vk::ShaderModule CreateShaderModule( Size codeSize, Byte *code ) const;
+    vk::ShaderModule CreateShaderModule( Size codeSize, const char* code ) const;
     vk::DescriptorPool CreateDescriptorPool(
         U32 maxSets,
         U32 count, 
@@ -183,7 +183,7 @@ private:
     vk::PhysicalDeviceProperties mGpuProperties;
     vk::PhysicalDeviceMemoryProperties mGpuMemoryProperties;
     QueueFamilyIndices mQueueFamilies;
-
+    
     vk::Device mDevice;
     vk::Queue mGraphicsQueue; // for graphics, graphics-related compute and gpu-gpu transfer ops
     vk::Queue mComputeQueue;  // for async compute ops

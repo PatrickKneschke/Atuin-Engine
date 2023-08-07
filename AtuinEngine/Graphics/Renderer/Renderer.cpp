@@ -40,16 +40,42 @@ void Renderer::StartUp(GLFWwindow *window) {
 
 	CreateDepthResources();
 	CreateRenderPass();
+	
+	CreateFramebuffers();
+	CreateDescriptorSetLayouts();
+	CreateShaderModules();
+	CreatePipeline();
 }
 
 
 void Renderer::ShutDown() {
+
+	pCore->Device().destroyShaderModule( mMeshVertShader );
+	pCore->Device().destroyShaderModule( mMaterialFragShader );
+
+	pCore->Device().destroyPipeline( mSingleMaterialPipeline.pipeline );
+	pCore->Device().destroyPipelineLayout( mSingleMaterialPipeline.pipelineLayout );
+
+	for (auto &framebuffer : mFramebuffers)
+	{
+		pCore->Device().destroyFramebuffer(framebuffer);
+	}	
+
+	pCore->Device().destroyRenderPass( mRenderPass );
+
+	pCore->Device().destroyImageView( mDepthImage.imageView );
+	pCore->Device().destroyImage( mDepthImage.image );
+	pCore->Device().freeMemory( mDepthImage.imageMemory );
 
 	for (auto imageView : mSwapchain.imageViews)
 	{
 		pCore->Device().destroyImageView( imageView);
 	}
 	pCore->Device().destroySwapchainKHR( mSwapchain.swapchain, nullptr);
+
+	pCore->Device().destroyDescriptorSetLayout( mCameraDataLayout );
+	pCore->Device().destroyDescriptorSetLayout( mObjectDataLayout );
+	pCore->Device().destroyDescriptorSetLayout( mMaterialDataLayout ); 
 
 
 	mMemory.Delete(pCore);
@@ -158,6 +184,171 @@ void Renderer::CreateFramebuffers() {
 			mSwapchain.extent.width, mSwapchain.extent.height
 		);
 	}
+}
+
+
+void Renderer::CreateDescriptorSetLayouts() {
+
+	auto cameraDataBinding = vk::DescriptorSetLayoutBinding{}
+		.setBinding( 0 )
+		.setDescriptorType( vk::DescriptorType::eUniformBuffer )
+		.setDescriptorCount( 1 )
+		.setStageFlags( vk::ShaderStageFlagBits::eVertex );
+
+	mCameraDataLayout = pCore->CreateDescriptorSetLayout(1, &cameraDataBinding);
+	
+			
+	auto diffuseSamplerBinding = vk::DescriptorSetLayoutBinding{}
+		.setBinding( 0 )
+		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
+		.setDescriptorCount( 1 )
+		.setStageFlags( vk::ShaderStageFlagBits::eFragment );
+	auto normalSamplerBinding = vk::DescriptorSetLayoutBinding{}
+		.setBinding( 1 )
+		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
+		.setDescriptorCount( 1 )
+		.setStageFlags( vk::ShaderStageFlagBits::eFragment );		
+	auto specularSamplerBinding = vk::DescriptorSetLayoutBinding{}
+		.setBinding( 2 )
+		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
+		.setDescriptorCount( 1 )
+		.setStageFlags( vk::ShaderStageFlagBits::eFragment );
+
+	vk::DescriptorSetLayoutBinding materialBindings[] = {
+		diffuseSamplerBinding, normalSamplerBinding, specularSamplerBinding
+	};
+	mMaterialDataLayout = pCore->CreateDescriptorSetLayout(3, materialBindings);
+
+
+	auto objectDataBinding = vk::DescriptorSetLayoutBinding{}
+		.setBinding( 0 )
+		.setDescriptorType( vk::DescriptorType::eUniformBuffer )
+		.setDescriptorCount( 1 )
+		.setStageFlags( vk::ShaderStageFlagBits::eVertex );
+	
+	mObjectDataLayout = pCore->CreateDescriptorSetLayout(1, &objectDataBinding);
+}
+
+
+void Renderer::CreateShaderModules() {
+	
+	// std::string vertShaderCode = mFiles.Read( "../../Resources/Shaders/single_mesh_vert.spv" , std::ios::binary);
+	// std::string fragShaderCode = mFiles.Read( "../../Resources/Shaders/single_material_frag.spv" , std::ios::binary);
+
+	// mMeshVertShader = pCore->CreateShaderModule( vertShaderCode.size(), vertShaderCode.data() );
+	// mMaterialFragShader = pCore->CreateShaderModule( fragShaderCode.size(), fragShaderCode.data() );
+
+	auto vertShaderCode = readFile( "../../Resources/Shaders/single_mesh_vert.spv" );
+	auto fragShaderCode = readFile( "../../Resources/Shaders/single_material_frag.spv" );
+
+	mMeshVertShader = pCore->CreateShaderModule( vertShaderCode.GetSize(), vertShaderCode.Data() );
+	mMaterialFragShader = pCore->CreateShaderModule( fragShaderCode.GetSize(), fragShaderCode.Data() );
+}
+
+
+void Renderer::CreatePipeline() {
+
+	// shader stages
+	mSingleMaterialPipeline.shaderInfos = {
+		vk::PipelineShaderStageCreateInfo{}
+			.setStage( vk::ShaderStageFlagBits::eVertex )
+			.setModule( mMeshVertShader )
+			.setPName( "main" ),
+			
+		vk::PipelineShaderStageCreateInfo{}
+			.setStage( vk::ShaderStageFlagBits::eFragment )
+			.setModule( mMaterialFragShader )
+			.setPName( "main" )
+	};
+
+
+	
+	// vertex input
+	auto bindingDescription = Vertex::getBindingDescription();
+	auto attributeDescriptions = Vertex::getAttributeDescriptions();
+	mSingleMaterialPipeline.vertexInputInfo
+		.setVertexBindingDescriptionCount( 1 )
+		.setPVertexBindingDescriptions( &bindingDescription )
+		.setVertexAttributeDescriptionCount( (U32)attributeDescriptions.GetSize() )
+		.setPVertexAttributeDescriptions( attributeDescriptions.Data() );			
+			
+	// input assembly
+	mSingleMaterialPipeline.inputAssemblyInfo
+		.setTopology( vk::PrimitiveTopology::eTriangleList )
+		.setPrimitiveRestartEnable( VK_FALSE );
+
+	mSingleMaterialPipeline.viewportInfo
+		.setViewportCount( 1 )
+		.setScissorCount( 1 );
+			
+	// rasterization
+	mSingleMaterialPipeline.rasterizerInfo
+		.setDepthClampEnable( VK_FALSE )
+		.setRasterizerDiscardEnable( VK_FALSE )
+		.setPolygonMode( vk::PolygonMode::eFill )
+		.setLineWidth( 1.0 )
+		.setCullMode( vk::CullModeFlagBits::eNone )
+		.setFrontFace( vk::FrontFace::eClockwise )
+		.setDepthBiasEnable( VK_FALSE )
+		.setDepthBiasConstantFactor( 0.0f )
+		.setDepthBiasClamp( 0.0f )
+		.setDepthBiasSlopeFactor( 0.0f );
+		
+	// multisampling
+	mSingleMaterialPipeline.multisampleInfo
+		.setSampleShadingEnable( VK_FALSE )
+		.setMinSampleShading( 1.0f )
+		.setRasterizationSamples( vk::SampleCountFlagBits::e1)
+		.setPSampleMask( nullptr )
+		.setAlphaToCoverageEnable( VK_FALSE )
+		.setAlphaToOneEnable( VK_FALSE );		
+		
+	// depth and stencil
+	mSingleMaterialPipeline.depthStencilInfo
+		.setDepthTestEnable( VK_TRUE )
+		.setDepthWriteEnable( VK_TRUE )
+		.setDepthCompareOp( vk::CompareOp::eLessOrEqual )
+		.setDepthBoundsTestEnable( VK_FALSE ) 
+		.setMinDepthBounds( 0.0f )
+		.setMaxDepthBounds( 1.0f )
+		.setStencilTestEnable( VK_FALSE )
+		.setFront( {} )
+		.setBack( {} );	
+				
+	// color blending
+	mSingleMaterialPipeline.colorBlendAttachment
+		.setColorWriteMask( vk::ColorComponentFlagBits::eR |
+							vk::ColorComponentFlagBits::eG |
+							vk::ColorComponentFlagBits::eB |
+							vk::ColorComponentFlagBits::eA )
+		.setBlendEnable( VK_TRUE )
+		.setSrcColorBlendFactor( vk::BlendFactor::eSrcAlpha )
+		.setDstColorBlendFactor( vk::BlendFactor::eOneMinusSrcAlpha )
+		.setColorBlendOp( vk::BlendOp::eAdd )
+		.setSrcAlphaBlendFactor( vk::BlendFactor::eOne )
+		.setDstAlphaBlendFactor( vk::BlendFactor::eZero )
+		.setAlphaBlendOp( vk::BlendOp::eAdd );
+		
+	mSingleMaterialPipeline.colorBlendInfo
+		.setAttachmentCount( 1 )
+		.setPAttachments( &mSingleMaterialPipeline.colorBlendAttachment );
+
+	// dynamic states
+	vk::DynamicState dynamicState[] = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
+	mSingleMaterialPipeline.dynamicStateInfo
+		.setDynamicStateCount( 2 )
+		.setPDynamicStates( dynamicState );
+
+	// pipeline layout
+	vk::DescriptorSetLayout descriptorSetLayouts[] = {
+		mCameraDataLayout, mMaterialDataLayout, mObjectDataLayout
+	};
+	mSingleMaterialPipeline.pipelineLayout = pCore->CreatePipelineLayout( 3, descriptorSetLayouts );
+
+	mSingleMaterialPipeline.renderpass = mRenderPass;
+	mSingleMaterialPipeline.subpass = 0;
+
+	pCore->CreatePipeline( mSingleMaterialPipeline );
 }
 
     

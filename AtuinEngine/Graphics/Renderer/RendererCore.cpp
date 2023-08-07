@@ -540,7 +540,7 @@ vk::Semaphore RendererCore::createSemaphore() const {
 }
 
 
-vk::ShaderModule RendererCore::CreateShaderModule( Size codeSize, Byte* code ) const {
+vk::ShaderModule RendererCore::CreateShaderModule( Size codeSize, const char* code ) const {
 
     auto shaderInfo = vk::ShaderModuleCreateInfo{}
         .setCodeSize( codeSize )
