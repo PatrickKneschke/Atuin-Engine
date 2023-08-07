@@ -25,10 +25,10 @@ void FileManager::MakeDir(std::string_view dirName) {
 }
 
 
-char* FileManager::Read(std::string_view fileName) {
+char* FileManager::Read(std::string_view fileName, std::ios::openmode mode) {
 
     auto filePath = mRootPath / fileName;
-    std::ifstream file(filePath);
+    std::ifstream file(filePath, mode);
     if (!file.is_open())
     {
         mLog.Error(LogChannel::FILES, FormatStr("Unable to open file : %s", fileName.data()));

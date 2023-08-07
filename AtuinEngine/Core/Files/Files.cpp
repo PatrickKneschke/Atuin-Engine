@@ -18,11 +18,11 @@ void Files::MakeDir(std::string_view dirName) const {
 }
 
 
-char* Files::Read(std::string_view fileName) const {
+char* Files::Read(std::string_view fileName, std::ios::openmode mode) const {
 
     if (sFileManager != nullptr)
     {
-        return sFileManager->Read(fileName);   
+        return sFileManager->Read(fileName, mode);   
     }
 
     return nullptr;
