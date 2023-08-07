@@ -25,7 +25,7 @@ void FileManager::MakeDir(std::string_view dirName) {
 }
 
 
-char* FileManager::Read(std::string_view fileName, std::ios::openmode mode) {
+Array<char> FileManager::Read(std::string_view fileName, std::ios::openmode mode) {
 
     auto filePath = mRootPath / fileName;
     std::ifstream file(filePath, mode);
@@ -33,7 +33,7 @@ char* FileManager::Read(std::string_view fileName, std::ios::openmode mode) {
     {
         mLog.Error(LogChannel::FILES, FormatStr("Unable to open file : %s", fileName.data()));
 
-        return nullptr;
+        return {};
     }
 
     // get file size 
@@ -41,13 +41,13 @@ char* FileManager::Read(std::string_view fileName, std::ios::openmode mode) {
     std::streamsize size = file.tellg();
     file.seekg(0, file.beg);
 
-    char* buffer = new char[size+1];
-    if (!file.read(buffer, size))
+    Array<char> buffer;
+    buffer.Resize(size);
+    if (!file.read(buffer.Data(), size))
     {
         mLog.Error(LogChannel::FILES, FormatStr("Unable to read file : %s", fileName.data()));
-        return nullptr;
+        return {};
     }
-    buffer[size] = '\0';
 
     return buffer;
 }

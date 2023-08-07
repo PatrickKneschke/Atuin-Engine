@@ -87,8 +87,8 @@ void InputModule::PushInputStates() {
 
 void InputModule::LoadContexts(std::string_view contextFilePath) {
 
-    std::string jsonTxt( mFiles.Read(contextFilePath) );
-    mContextsJSON = Json::Load(jsonTxt);
+    auto content = mFiles.Read( contextFilePath );
+    mContextsJSON = Json::Load( std::string_view( content.Data(), content.GetSize() ) );
 
     auto &contexts = mContextsJSON.GetDict();
     for(auto &[name, contextData] : contexts) 
@@ -114,8 +114,8 @@ void InputModule::SaveContexts(std::string_view contextFilePath) {
 
 void InputModule::LoadRanges(std::string_view rangesFilePath) {
 
-    std::string jsonTxt( mFiles.Read(rangesFilePath) );
-    Json rangesJSON = Json::Load(jsonTxt);
+    auto content = mFiles.Read( rangesFilePath );
+    Json rangesJSON = Json::Load( std::string_view( content.Data(), content.GetSize() ) );
 
     auto &ranges = rangesJSON.GetDict();
     for(auto &[name, rangeData] : ranges)

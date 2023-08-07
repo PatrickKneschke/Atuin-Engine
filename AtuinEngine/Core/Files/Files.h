@@ -2,6 +2,8 @@
 #pragma once
 
 
+#include "Core/DataStructures/Array.h"
+
 #include <iostream>
 #include <string>
 
@@ -25,7 +27,7 @@ public:
 
     void MakeDir(std::string_view dirName) const ;
 
-    char* Read(std::string_view fileName, std::ios::openmode mode = std::ios::in) const ;
+    Array<char> Read(std::string_view fileName, std::ios::openmode mode = std::ios::in) const ;
     void Write(std::string_view fileName, std::string_view buffer, std::ios::openmode mode = std::ios::out) const ;
 
 private:

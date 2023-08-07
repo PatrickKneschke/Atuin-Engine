@@ -46,7 +46,7 @@ private:
 
     static CVarRegistry* GetRegistry();
 
-    void ProcessConfigFile(const char *content);
+    void ProcessConfigFile(const char *content, Size size);
     void RemoveComments(std::string *line);
     void ExtractBlock(std::string_view line, std::string *block);
     void ExtractCVar(std::string_view line, std::string *name, std::string *value);
