@@ -560,12 +560,14 @@ vk::ShaderModule RendererCore::CreateShaderModule( Size codeSize, const char* co
 vk::DescriptorPool RendererCore::CreateDescriptorPool( 
 	U32 maxSets, 
 	U32 count, 
-	vk::DescriptorPoolSize* poolSizes) const 
+	vk::DescriptorPoolSize* poolSizes,
+	vk::DescriptorPoolCreateFlags flags ) const 
 {
 	auto poolInfo = vk::DescriptorPoolCreateInfo{}
 		.setMaxSets( maxSets )
 		.setPoolSizeCount( count )
-		.setPPoolSizes( poolSizes );
+		.setPPoolSizes( poolSizes )
+		.setFlags( flags );
 		
 	vk::DescriptorPool descriptorPool;
 	vk::Result result = mDevice.createDescriptorPool(&poolInfo, nullptr, &descriptorPool);

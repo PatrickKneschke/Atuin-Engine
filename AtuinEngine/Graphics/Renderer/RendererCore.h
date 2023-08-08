@@ -118,7 +118,8 @@ public:
     vk::DescriptorPool CreateDescriptorPool(
         U32 maxSets,
         U32 count, 
-        vk::DescriptorPoolSize* poolSizes
+        vk::DescriptorPoolSize* poolSizes,
+        vk::DescriptorPoolCreateFlags flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet
     ) const;
     vk::DescriptorSetLayout CreateDescriptorSetLayout( U32 count, vk::DescriptorSetLayoutBinding* bindings ) const;
     vk::DescriptorSet AllocateDescriptorSet( vk::DescriptorPool pool, vk::DescriptorSetLayout layout) const;

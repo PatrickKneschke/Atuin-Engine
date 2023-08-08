@@ -238,8 +238,8 @@ void Renderer::CreateShaderModules() {
 	// mMeshVertShader = pCore->CreateShaderModule( vertShaderCode.size(), vertShaderCode.data() );
 	// mMaterialFragShader = pCore->CreateShaderModule( fragShaderCode.size(), fragShaderCode.data() );
 
-	auto vertShaderCode = readFile( "../../Resources/Shaders/single_mesh_vert.spv" );
-	auto fragShaderCode = readFile( "../../Resources/Shaders/single_material_frag.spv" );
+	auto vertShaderCode = mFiles.Read( "../../Resources/Shaders/single_mesh_vert.spv" , std::ios::binary);
+	auto fragShaderCode = mFiles.Read( "../../Resources/Shaders/single_material_frag.spv" , std::ios::binary);
 
 	mMeshVertShader = pCore->CreateShaderModule( vertShaderCode.GetSize(), vertShaderCode.Data() );
 	mMaterialFragShader = pCore->CreateShaderModule( fragShaderCode.GetSize(), fragShaderCode.Data() );
