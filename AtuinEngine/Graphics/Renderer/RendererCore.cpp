@@ -27,6 +27,7 @@ RendererCore::RendererCore(GLFWwindow *window) : pWindow {window} {
     CreateSurface();
     ChooseGPU();
     CreateDevice();
+	CreateQueues();
 }
 
 
@@ -235,10 +236,18 @@ void RendererCore::CreateQueues() {
     {
         mDevice.getQueue(mQueueFamilies.computeFamily, 0, &mComputeQueue);
     }
+	else
+	{
+		mComputeQueue = mGraphicsQueue;
+	}
     if(mQueueFamilies.transferFamily >= 0)
     {
         mDevice.getQueue(mQueueFamilies.transferFamily, 0, &mTransferQueue);
     }
+	else
+	{
+		mTransferQueue = mGraphicsQueue;
+	}
 }
 
 
@@ -509,7 +518,7 @@ Array<vk::CommandBuffer> RendererCore::AllocateCommandBuffers(
 }
 
 
-vk::Fence RendererCore::createFence( vk::FenceCreateFlags signaled ) const {
+vk::Fence RendererCore::CreateFence( vk::FenceCreateFlags signaled ) const {
 
     auto fenceInfo = vk::FenceCreateInfo{}
 		.setFlags( signaled );
@@ -525,7 +534,7 @@ vk::Fence RendererCore::createFence( vk::FenceCreateFlags signaled ) const {
 }
 	
     
-vk::Semaphore RendererCore::createSemaphore() const {
+vk::Semaphore RendererCore::CreateSemaphore() const {
 
 	auto semaphoreInfo = vk::SemaphoreCreateInfo{};
 	
@@ -728,7 +737,7 @@ void RendererCore::CreatePipeline( Pipeline &pipeline ) const {
 		.setSubpass( pipeline.subpass )
 		.setBasePipelineHandle( VK_NULL_HANDLE )
 		.setBasePipelineIndex( -1 );
-		
+	
 	vk::Result result = mDevice.createGraphicsPipelines(nullptr, 1, &pipelineInfo, nullptr, &pipeline.pipeline);
 	if(result != vk::Result::eSuccess)
 	{

@@ -142,6 +142,39 @@ struct Vertex {
 };
 
 
+struct CameraData {
+
+	glm::mat4 view;
+	glm::mat4 proj;
+	glm::mat4 viewProj;
+};
+
+
+struct ObjectData {
+
+	glm::mat4 model;
+};
+
+
+struct FrameResources {
+
+	vk::Fence renderFence;
+	vk::Semaphore renderSemaphore;
+	vk::Semaphore presentSemaphore;
+
+	vk::CommandPool commandPool;
+	vk::CommandBuffer commandBuffer;
+};
+
+
+struct TransferResources{
+
+	vk::Fence fence;
+	vk::CommandPool commandPool;
+	vk::CommandBuffer commandBuffer;
+};
+
+
 } // Atuin
 
 

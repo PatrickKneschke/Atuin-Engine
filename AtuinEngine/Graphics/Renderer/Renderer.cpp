@@ -5,12 +5,14 @@
 #include "Core/Config/ConfigManager.h"
 
 #include "GLFW/glfw3.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
 
 
 namespace Atuin {
 
 
-CVar<U32>* Renderer::pFrameOverlap = ConfigManager::RegisterCVar("Renderer", "FRAME_OVERLAP", (U32)3);
+CVar<U32>* Renderer::pFrameOverlap = ConfigManager::RegisterCVar("Renderer", "FRAME_OVERLAP", (U32)2);
 
 
 Renderer::Renderer() : 
@@ -18,7 +20,8 @@ Renderer::Renderer() :
 	mMemory(), 
 	mJobs(), 
 	pWindow {nullptr}, 
-	pCore {nullptr} 
+	pCore {nullptr},
+	mFrameCount {0}
 {
 
 }
@@ -39,33 +42,46 @@ void Renderer::StartUp(GLFWwindow *window) {
 	pCore->CreateSwapchain(mSwapchain);
 
 	CreateDepthResources();
-	CreateRenderPass();
-	
+	CreateRenderPass();	
 	CreateFramebuffers();
-	CreateDescriptorSetLayouts();
+
+	CreateFrameResources();
+	CreateTransferResources();
 	CreateShaderModules();
+	CreateSamplers();
+	CreateDescriptorResources();
+
+	CreateDescriptorSetLayouts();
+	CreateDescriptorPool();
+	CreateDescriptorSets();
+
 	CreatePipeline();
 }
 
 
 void Renderer::ShutDown() {
 
-	pCore->Device().destroyShaderModule( mMeshVertShader );
-	pCore->Device().destroyShaderModule( mMaterialFragShader );
+	// render related
+	pCore->Device().destroyPipeline( mSingleMaterialPipeline.pipeline);
+	pCore->Device().destroyPipelineLayout( mSingleMaterialPipeline.pipelineLayout);
 
-	pCore->Device().destroyPipeline( mSingleMaterialPipeline.pipeline );
-	pCore->Device().destroyPipelineLayout( mSingleMaterialPipeline.pipelineLayout );
+	pCore->Device().destroyDescriptorSetLayout( mCameraDataLayout);
+	pCore->Device().destroyDescriptorSetLayout( mObjectDataLayout);
+	pCore->Device().destroyDescriptorSetLayout( mMaterialDataLayout); 
+
+	pCore->Device().destroyDescriptorPool( mDescriptorPool);
 
 	for (auto &framebuffer : mFramebuffers)
 	{
 		pCore->Device().destroyFramebuffer(framebuffer);
 	}	
 
-	pCore->Device().destroyRenderPass( mRenderPass );
+	pCore->Device().destroyRenderPass( mRenderPass);
 
-	pCore->Device().destroyImageView( mDepthImage.imageView );
-	pCore->Device().destroyImage( mDepthImage.image );
-	pCore->Device().freeMemory( mDepthImage.imageMemory );
+	// presentation related
+	pCore->Device().destroyImageView( mDepthImage.imageView);
+	pCore->Device().destroyImage( mDepthImage.image);
+	pCore->Device().freeMemory( mDepthImage.imageMemory);
 
 	for (auto imageView : mSwapchain.imageViews)
 	{
@@ -73,18 +89,50 @@ void Renderer::ShutDown() {
 	}
 	pCore->Device().destroySwapchainKHR( mSwapchain.swapchain, nullptr);
 
-	pCore->Device().destroyDescriptorSetLayout( mCameraDataLayout );
-	pCore->Device().destroyDescriptorSetLayout( mObjectDataLayout );
-	pCore->Device().destroyDescriptorSetLayout( mMaterialDataLayout ); 
+	// resources
+	pCore->Device().destroySampler( mSampler);
 
+	pCore->Device().destroyShaderModule( mMeshVertShader);
+	pCore->Device().destroyShaderModule( mMaterialFragShader);
 
+	pCore->Device().destroyBuffer( mCameraBuffer.buffer);
+	pCore->Device().freeMemory( mCameraBuffer.bufferMemory);
+
+	pCore->Device().destroyBuffer( mObjectBuffer.buffer);
+	pCore->Device().freeMemory( mObjectBuffer.bufferMemory);
+
+	pCore->Device().destroyImageView( mMaterialDiffuseImage.imageView);
+	pCore->Device().destroyImage( mMaterialDiffuseImage.image);
+	pCore->Device().freeMemory( mMaterialDiffuseImage.imageMemory);
+
+	pCore->Device().destroyImageView( mMaterialNormalImage.imageView);
+	pCore->Device().destroyImage( mMaterialNormalImage.image);
+	pCore->Device().freeMemory( mMaterialNormalImage.imageMemory);
+
+	pCore->Device().destroyImageView( mMaterialSpecularImage.imageView);
+	pCore->Device().destroyImage( mMaterialSpecularImage.image);
+	pCore->Device().freeMemory( mMaterialSpecularImage.imageMemory);
+	
+	for(auto &frame : mFrames) 
+	{
+		pCore->Device().destroyFence( frame.renderFence, nullptr);
+		pCore->Device().destroySemaphore( frame.renderSemaphore, nullptr);
+		pCore->Device().destroySemaphore( frame.presentSemaphore, nullptr);
+		
+		pCore->Device().destroyCommandPool( frame.commandPool);
+	}
+
+	pCore->Device().destroyFence( mTransfer.fence);
+	pCore->Device().destroyCommandPool( mTransfer.commandPool);
+
+	// core
 	mMemory.Delete(pCore);
 }
     
 
 void Renderer::Update() {
 
-
+	++mFrameCount;
 }
 
 
@@ -187,6 +235,40 @@ void Renderer::CreateFramebuffers() {
 }
 
 
+void Renderer::CreateFrameResources() {
+
+	mFrames.Resize( pFrameOverlap->Get());
+	for (auto &frame : mFrames)
+	{
+		frame.renderFence = pCore->CreateFence();
+		frame.renderSemaphore = pCore->CreateSemaphore();
+		frame.presentSemaphore = pCore->CreateSemaphore();
+
+		frame.commandPool = pCore->CreateCommandPool( pCore->QueueFamilies().graphicsFamily);
+		frame.commandBuffer = pCore->AllocateCommandBuffer( frame.commandPool);
+	}	
+}
+
+
+void Renderer::CreateTransferResources() {
+
+	mTransfer.fence = pCore->CreateFence();
+	mTransfer.commandPool = pCore->CreateCommandPool( pCore->QueueFamilies().transferFamily);
+	mTransfer.commandBuffer = pCore->AllocateCommandBuffer( mTransfer.commandPool);
+}
+
+
+void Renderer::CreateSamplers() {
+
+	mSampler = pCore->CreateSampler(
+		vk::Filter::eLinear, vk::Filter::eLinear,
+		vk::SamplerMipmapMode::eNearest,
+		vk::SamplerAddressMode::eClampToBorder, vk::SamplerAddressMode::eClampToBorder, vk::SamplerAddressMode::eClampToBorder,
+		false
+	);
+}
+
+
 void Renderer::CreateDescriptorSetLayouts() {
 
 	auto cameraDataBinding = vk::DescriptorSetLayoutBinding{}
@@ -230,13 +312,186 @@ void Renderer::CreateDescriptorSetLayouts() {
 }
 
 
-void Renderer::CreateShaderModules() {
-	
-	// std::string vertShaderCode = mFiles.Read( "../../Resources/Shaders/single_mesh_vert.spv" , std::ios::binary);
-	// std::string fragShaderCode = mFiles.Read( "../../Resources/Shaders/single_material_frag.spv" , std::ios::binary);
+void Renderer::CreateDescriptorPool() {
 
-	// mMeshVertShader = pCore->CreateShaderModule( vertShaderCode.size(), vertShaderCode.data() );
-	// mMaterialFragShader = pCore->CreateShaderModule( fragShaderCode.size(), fragShaderCode.data() );
+	vk::DescriptorPoolSize poolSizes[] = {
+
+		{vk::DescriptorType::eUniformBuffer,  10 * pFrameOverlap->Get()},
+		{vk::DescriptorType::eCombinedImageSampler,  10 * pFrameOverlap->Get()}
+	};
+
+	mDescriptorPool = pCore->CreateDescriptorPool(10*pFrameOverlap->Get(), 2, poolSizes);
+}
+
+
+void Renderer::CreateDescriptorSets() {
+
+	vk::DescriptorSetLayout descriptorSetLayouts[] = {
+		mCameraDataLayout, mMaterialDataLayout, mObjectDataLayout
+	};
+	auto descriptorSets = pCore->AllocateDescriptorSets(mDescriptorPool, 3, descriptorSetLayouts);
+
+	mCameraDataSet = descriptorSets[0];
+	mMaterialDataSet = descriptorSets[1];
+	mObjectDataSet = descriptorSets[2];
+
+
+	auto cameraInfo = vk::DescriptorBufferInfo{}
+		.setBuffer( mCameraBuffer.buffer )
+		.setOffset(0)
+		.setRange( sizeof(CameraData) );
+	auto cameraWrite = vk::WriteDescriptorSet{}
+		.setDstSet( mCameraDataSet )
+		.setDstBinding( 0 )
+		.setDstArrayElement( 0 )
+		.setDescriptorCount( 1 )
+		.setDescriptorType( vk::DescriptorType::eUniformBuffer )
+		.setPBufferInfo( &cameraInfo );
+
+	auto materialDiffuseInfo = vk::DescriptorImageInfo{}
+		.setImageLayout( vk::ImageLayout::eShaderReadOnlyOptimal )
+		.setImageView( mMaterialDiffuseImage.imageView )
+		.setSampler( mSampler );
+	auto materialDiffuseWrite = vk::WriteDescriptorSet{}
+		.setDstSet( mMaterialDataSet )
+		.setDstBinding( 0 )
+		.setDstArrayElement( 0 )
+		.setDescriptorCount( 1 )
+		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
+		.setPImageInfo( &materialDiffuseInfo );
+	auto materialNormalInfo = vk::DescriptorImageInfo{}
+		.setImageLayout( vk::ImageLayout::eShaderReadOnlyOptimal )
+		.setImageView( mMaterialNormalImage.imageView )
+		.setSampler( mSampler );
+	auto materialNormalWrite = vk::WriteDescriptorSet{}
+		.setDstSet( mMaterialDataSet )
+		.setDstBinding( 1 )
+		.setDstArrayElement( 0 )
+		.setDescriptorCount( 1 )
+		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
+		.setPImageInfo( &materialNormalInfo );
+	auto materialSpecularInfo = vk::DescriptorImageInfo{}
+		.setImageLayout( vk::ImageLayout::eShaderReadOnlyOptimal )
+		.setImageView( mMaterialSpecularImage.imageView )
+		.setSampler( mSampler );
+	auto materialSpecularWrite = vk::WriteDescriptorSet{}
+		.setDstSet( mMaterialDataSet )
+		.setDstBinding( 1 )
+		.setDstArrayElement( 0 )
+		.setDescriptorCount( 2 )
+		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
+		.setPImageInfo( &materialSpecularInfo );
+
+	auto objectInfo = vk::DescriptorBufferInfo{}
+		.setBuffer( mObjectBuffer.buffer )
+		.setOffset(0)
+		.setRange( sizeof(ObjectData) );
+	auto objectWrite = vk::WriteDescriptorSet{}
+		.setDstSet( mCameraDataSet )
+		.setDstBinding( 2 )
+		.setDstArrayElement( 0 )
+		.setDescriptorCount( 1 )
+		.setDescriptorType( vk::DescriptorType::eUniformBuffer )
+		.setPBufferInfo( &objectInfo );	
+
+	vk::WriteDescriptorSet descriptorWrites[] = {
+		cameraWrite, materialDiffuseWrite, materialNormalWrite, materialSpecularWrite, objectWrite
+	};
+	pCore->Device().updateDescriptorSets(5, descriptorWrites, 0, nullptr);
+}
+
+
+void Renderer::CreateDescriptorResources() {
+
+	mCameraBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer;
+	mCameraBuffer.memoryType = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+	mCameraBuffer.buffer = pCore->CreateBuffer( sizeof(CameraData), mCameraBuffer.usage);
+	mCameraBuffer.bufferMemory = pCore->AllocateBufferMemory(mCameraBuffer.buffer, mCameraBuffer.memoryType);
+
+	CreateImageResource( mMaterialDiffuseImage, "../../Resources/Materials/brick/brick_diffuse.png");
+	CreateImageResource( mMaterialNormalImage, "../../Resources/Materials/brick/brick_normal.png");
+	CreateImageResource( mMaterialSpecularImage, "../../Resources/Materials/brick/brick_specular.png");
+
+	mObjectBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer;
+	mObjectBuffer.memoryType = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+	mObjectBuffer.buffer = pCore->CreateBuffer( sizeof(CameraData), mObjectBuffer.usage);
+	mObjectBuffer.bufferMemory = pCore->AllocateBufferMemory(mObjectBuffer.buffer, mObjectBuffer.memoryType);
+}
+
+
+void Renderer::CreateImageResource(ImageResource image, std::string_view path) {
+
+	// load image data from file
+	int width, height, channels;
+	stbi_uc *pixels = stbi_load(path.data(), &width, &height, &channels, STBI_rgb_alpha);
+	if (!pixels)
+	{
+		throw std::runtime_error("Failed to load texture image!");
+	}
+
+	// create staging buffer
+	Size imageSize = width * height * channels;
+	Buffer stagingBuffer;
+	stagingBuffer.buffer = pCore->CreateBuffer( imageSize, vk::BufferUsageFlagBits::eTransferSrc);
+	stagingBuffer.bufferMemory = pCore->AllocateBufferMemory( 
+		stagingBuffer.buffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+	);
+
+	// transfer image data to staging buffer
+	void *data;
+	vk::Result result = pCore->Device().mapMemory( stagingBuffer.bufferMemory, 0, imageSize, vk::MemoryMapFlags(), &data);
+	if( result == vk::Result::eSuccess ) 
+	{
+		memcpy(data, pixels, imageSize);
+		pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
+	}
+	else 
+	{
+		throw std::runtime_error("Failed to map image staging buffer memory " + vk::to_string(result));
+	}
+
+	// create image on device memory
+	vk::Format format;
+	switch (channels)
+	{
+		case 4:
+			format = vk::Format::eR8G8B8A8Srgb;
+			break;
+		case 3:
+			format = vk::Format::eR8G8B8Srgb;
+			break;
+		case 2:
+			format = vk::Format::eR16G16Sfloat;
+			break;
+		case 1:
+			format = vk::Format::eR32Sfloat;
+			break;
+	
+		default:
+			break;
+	}
+	image.width = width;
+	image.height = height;
+	image.format = format;
+	image.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
+	image.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
+	image.image = pCore->CreateImage( image.width, image.height, image.format, image.usage);
+	image.imageMemory = pCore->AllocateImageMemory( image.image, image.memoryType);
+	image.imageView = pCore->CreateImageView(image.image, image.format, vk::ImageAspectFlagBits::eColor);
+
+	// transfer image data from staging buffer
+	TransitionImageLayout( image.image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+	CopyBufferToImage( stagingBuffer.buffer, image.image, image.width, image.height);
+	TransitionImageLayout( image.image, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+
+	//cleanup	
+	stbi_image_free(pixels);
+	pCore->Device().destroyBuffer( stagingBuffer.buffer, nullptr);
+	pCore->Device().freeMemory( stagingBuffer.bufferMemory, nullptr);
+}
+
+
+void Renderer::CreateShaderModules() {
 
 	auto vertShaderCode = mFiles.Read( "../../Resources/Shaders/single_mesh_vert.spv" , std::ios::binary);
 	auto fragShaderCode = mFiles.Read( "../../Resources/Shaders/single_material_frag.spv" , std::ios::binary);
@@ -260,8 +515,6 @@ void Renderer::CreatePipeline() {
 			.setModule( mMaterialFragShader )
 			.setPName( "main" )
 	};
-
-
 	
 	// vertex input
 	auto bindingDescription = Vertex::getBindingDescription();
@@ -345,10 +598,114 @@ void Renderer::CreatePipeline() {
 	};
 	mSingleMaterialPipeline.pipelineLayout = pCore->CreatePipelineLayout( 3, descriptorSetLayouts );
 
+	// render pass
 	mSingleMaterialPipeline.renderpass = mRenderPass;
 	mSingleMaterialPipeline.subpass = 0;
 
 	pCore->CreatePipeline( mSingleMaterialPipeline );
+}
+
+
+void Renderer::TransitionImageLayout(vk::Image image, vk::ImageLayout initialLayout, vk::ImageLayout finalLayout, U32 mipLevels) {
+
+	auto frame = CurrentFrame();
+
+	vk::CommandBuffer cmd = frame.commandBuffer;
+	auto beginInfo = vk::CommandBufferBeginInfo{}
+		.setFlags( vk::CommandBufferUsageFlagBits::eOneTimeSubmit );
+	
+	cmd.begin( beginInfo );
+	
+	auto barrier = vk::ImageMemoryBarrier{}
+		.setOldLayout( initialLayout ) 
+		.setNewLayout( finalLayout )
+		.setImage( image )
+		.setSubresourceRange( vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, mipLevels, 0, 1} )
+		.setSrcQueueFamilyIndex( VK_QUEUE_FAMILY_IGNORED )
+		.setDstQueueFamilyIndex( VK_QUEUE_FAMILY_IGNORED );
+
+		
+	vk::PipelineStageFlags sourceStage, destinationStage;
+	if (initialLayout == vk::ImageLayout::eUndefined && finalLayout == vk::ImageLayout::eTransferDstOptimal ) 
+	{	
+		barrier.setSrcAccessMask( vk::AccessFlagBits::eNone );
+		barrier.setDstAccessMask( vk::AccessFlagBits::eTransferWrite );
+		
+		sourceStage = vk::PipelineStageFlagBits::eTopOfPipe; 
+		destinationStage = vk::PipelineStageFlagBits::eTransfer;
+	}
+	else if( initialLayout == vk::ImageLayout::eTransferDstOptimal && finalLayout == vk::ImageLayout::eShaderReadOnlyOptimal ) 
+	{
+		barrier.setSrcAccessMask( vk::AccessFlagBits::eTransferWrite );
+		barrier.setDstAccessMask( vk::AccessFlagBits::eShaderRead );
+		
+		sourceStage = vk::PipelineStageFlagBits::eTransfer; 
+		destinationStage = vk::PipelineStageFlagBits::eFragmentShader;
+	}
+	else 
+	{
+		throw std::runtime_error("unsupported layout transition!");
+	}
+		
+	cmd.pipelineBarrier(sourceStage, destinationStage, vk::DependencyFlags{}, 0, nullptr, 0, nullptr, 1, &barrier);
+
+	cmd.end();
+
+	auto submitInfo = vk::SubmitInfo{}
+		.setCommandBufferCount( 1 )
+		.setPCommandBuffers( &cmd );
+	
+	try 
+	{
+		pCore->GraphicsQueue().submit(submitInfo, frame.renderFence);
+	}
+	catch( ... ) 
+	{
+		throw std::runtime_error("Failed to copy buffer to image!");
+	}
+
+	pCore->Device().waitForFences( 1, &frame.renderFence, true, 1e9);
+	pCore->Device().resetFences( 1, &frame.renderFence);
+	pCore->Device().resetCommandPool( frame.commandPool);
+}
+
+
+void Renderer::CopyBufferToImage(vk::Buffer buffer, vk::Image image, U32 imageWidth, U32 imageHeight) {
+
+	vk::CommandBuffer cmd = mTransfer.commandBuffer;
+	auto beginInfo = vk::CommandBufferBeginInfo{}
+		.setFlags( vk::CommandBufferUsageFlagBits::eOneTimeSubmit );
+	
+	cmd.begin( beginInfo);
+	
+	auto copyRegion = vk::BufferImageCopy{}
+		.setBufferOffset( 0 )
+		.setBufferRowLength( 0 )
+		.setBufferImageHeight( 0 )
+		.setImageSubresource( vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1} )
+		.setImageOffset( {0, 0, 0} )
+		.setImageExtent( vk::Extent3D{imageWidth, imageHeight, 1} );
+		
+	cmd.copyBufferToImage(buffer, image, vk::ImageLayout::eTransferDstOptimal, 1, &copyRegion);
+	
+	cmd.end();
+	
+	auto submitInfo = vk::SubmitInfo{}
+		.setCommandBufferCount( 1 )
+		.setPCommandBuffers( &cmd );
+	
+	try 
+	{
+		pCore->TransferQueue().submit(submitInfo, mTransfer.fence);
+	}
+	catch( ... ) 
+	{
+		throw std::runtime_error("Failed to copy buffer to image!");
+	}
+
+	pCore->Device().waitForFences( 1, &mTransfer.fence, true, 1e9);
+	pCore->Device().resetFences( 1, &mTransfer.fence);
+	pCore->Device().resetCommandPool( mTransfer.commandPool);
 }
 
     

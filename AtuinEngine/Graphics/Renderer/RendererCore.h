@@ -112,8 +112,8 @@ public:
         U32 count,
         vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary
     ) const;
-	vk::Fence createFence( vk::FenceCreateFlags signaled = vk::FenceCreateFlags{} ) const;	
-	vk::Semaphore createSemaphore() const;
+	vk::Fence CreateFence( vk::FenceCreateFlags signaled = vk::FenceCreateFlags{} ) const;	
+	vk::Semaphore CreateSemaphore() const;
     vk::ShaderModule CreateShaderModule( Size codeSize, const char* code ) const;
     vk::DescriptorPool CreateDescriptorPool(
         U32 maxSets,
@@ -149,7 +149,7 @@ public:
     void CreatePipeline( Pipeline &pipeline ) const;
     void PrepareSwapchain( Swapchain &swapchain ) const; 
     void CreateSwapchain( Swapchain &swapcahin ) const;
-
+    
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
