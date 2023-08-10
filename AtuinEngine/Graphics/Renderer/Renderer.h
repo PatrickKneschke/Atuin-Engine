@@ -38,6 +38,10 @@ private:
     void CreateRenderPass();
     void CreateFramebuffers();
 
+    void CreateVertexBuffer();
+    void UploadVertexData(const Array<Vertex> &vertexData);
+    Buffer CreateStagingBuffer(Size bufferSize);
+
     void CreateFrameResources();
     void CreateSubmitContexts();
     void CreateShaderModules();
@@ -53,6 +57,7 @@ private:
 
     void TransitionImageLayout(vk::Image image, vk::ImageLayout initialLayout, vk::ImageLayout finalLayout, U32 mipLevels = 1);
     void CopyBufferToImage(vk::Buffer buffer, vk::Image image, U32 imageWidth, U32 imageHeight);
+    void CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, Size offset, Size bufferSize);
 
     FrameResources CurrentFrame() { return mFrames[mFrameCount % pFrameOverlap->Get()]; }
 
@@ -75,8 +80,17 @@ private:
 
     Array<FrameResources> mFrames;
     U64 mFrameCount;
+
     ImmediateSubmitContext mGraphicsSubmit;
     ImmediateSubmitContext mTransferSubmit;
+
+    Buffer mVertexBuffer;
+
+    Buffer mCameraBuffer;
+    
+    vk::Sampler mSampler;
+
+
 
     // TODO test pipeline to render single material and mesh at a time, change later 
     Pipeline mSingleMaterialPipeline;
@@ -92,13 +106,11 @@ private:
     vk::DescriptorSet mMaterialDataSet;
     vk::DescriptorSet mObjectDataSet;
 
-    Buffer mCameraBuffer;
     ImageResource mMaterialDiffuseImage;
     ImageResource mMaterialNormalImage;
     ImageResource mMaterialSpecularImage;
     Buffer mObjectBuffer;
 
-    vk::Sampler mSampler;
 };
 
 

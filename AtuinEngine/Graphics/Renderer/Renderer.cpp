@@ -45,6 +45,8 @@ void Renderer::StartUp(GLFWwindow *window) {
 	CreateRenderPass();	
 	CreateFramebuffers();
 
+	CreateVertexBuffer();
+
 	CreateFrameResources();
 	CreateSubmitContexts();
 	CreateShaderModules();
@@ -90,6 +92,9 @@ void Renderer::ShutDown() {
 	pCore->Device().destroySwapchainKHR( mSwapchain.swapchain, nullptr);
 
 	// resources
+	pCore->Device().destroyBuffer( mVertexBuffer.buffer);
+	pCore->Device().freeMemory( mVertexBuffer.bufferMemory);
+
 	pCore->Device().destroySampler( mSampler);
 
 	pCore->Device().destroyShaderModule( mMeshVertShader);
@@ -239,6 +244,51 @@ void Renderer::CreateFramebuffers() {
 }
 
 
+void Renderer::CreateVertexBuffer() {
+
+	mVertexBuffer.usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst;
+	mVertexBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
+	mVertexBuffer.buffer = pCore->CreateBuffer( 8*sizeof(Vertex), mVertexBuffer.usage);
+	mVertexBuffer.bufferMemory = pCore->AllocateBufferMemory( mVertexBuffer.buffer, mVertexBuffer.memoryType);
+}
+
+
+void Renderer::UploadVertexData(const Array<Vertex> &vertexData) {
+
+	Buffer stagingBuffer = CreateStagingBuffer( vertexData.GetSize());
+	
+	// transfer image data to staging buffer
+	void *data;
+	vk::Result result = pCore->Device().mapMemory( stagingBuffer.bufferMemory, 0, vertexData.GetSize(), vk::MemoryMapFlags(), &data);
+	if( result == vk::Result::eSuccess ) 
+	{
+		memcpy(data, vertexData.Data(), vertexData.GetSize());
+		pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
+	}
+	else 
+	{
+		throw std::runtime_error("Failed to map staging buffer memory " + vk::to_string(result));
+	}
+
+	CopyBuffer( stagingBuffer.buffer, mVertexBuffer.buffer, 0, vertexData.GetSize());
+
+	pCore->Device().destroyBuffer( stagingBuffer.buffer, nullptr);
+	pCore->Device().freeMemory( stagingBuffer.bufferMemory, nullptr);
+}
+
+
+Buffer Renderer::CreateStagingBuffer(Size bufferSize) {
+
+	Buffer stagingBuffer;
+	stagingBuffer.usage = vk::BufferUsageFlagBits::eTransferSrc;
+	stagingBuffer.memoryType = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+	stagingBuffer.buffer = pCore->CreateBuffer( bufferSize, stagingBuffer.usage);
+	stagingBuffer.bufferMemory = pCore->AllocateBufferMemory( stagingBuffer.buffer, stagingBuffer.memoryType);
+
+	return stagingBuffer;
+}
+
+
 void Renderer::CreateFrameResources() {
 
 	mFrames.Resize( pFrameOverlap->Get());
@@ -307,11 +357,7 @@ void Renderer::CreateImageResource(ImageResource &image, std::string_view path) 
 
 	// create staging buffer
 	Size imageSize = width * height * 4;
-	Buffer stagingBuffer;
-	stagingBuffer.buffer = pCore->CreateBuffer( imageSize, vk::BufferUsageFlagBits::eTransferSrc);
-	stagingBuffer.bufferMemory = pCore->AllocateBufferMemory( 
-		stagingBuffer.buffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
-	);
+	Buffer stagingBuffer = CreateStagingBuffer( imageSize);
 
 	// transfer image data to staging buffer
 	void *data;
@@ -693,6 +739,42 @@ void Renderer::CopyBufferToImage(vk::Buffer buffer, vk::Image image, U32 imageWi
 		.setImageExtent( vk::Extent3D{imageWidth, imageHeight, 1} );
 		
 	cmd.copyBufferToImage(buffer, image, vk::ImageLayout::eTransferDstOptimal, 1, &copyRegion);
+	
+	cmd.end();
+	
+	auto submitInfo = vk::SubmitInfo{}
+		.setCommandBufferCount( 1 )
+		.setPCommandBuffers( &cmd );
+	
+	try 
+	{
+		pCore->TransferQueue().submit(submitInfo, mTransferSubmit.fence);
+	}
+	catch( ... ) 
+	{
+		throw std::runtime_error("Failed to copy buffer to image!");
+	}
+
+	pCore->Device().waitForFences( 1, &mTransferSubmit.fence, true, 1e9);
+	pCore->Device().resetFences( 1, &mTransferSubmit.fence);
+	pCore->Device().resetCommandPool( mTransferSubmit.commandPool);
+}
+
+
+void Renderer::CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, Size offset, Size bufferSize) {
+
+	vk::CommandBuffer cmd = mTransferSubmit.commandBuffer;
+	auto beginInfo = vk::CommandBufferBeginInfo{}
+		.setFlags( vk::CommandBufferUsageFlagBits::eOneTimeSubmit );
+	
+	cmd.begin( beginInfo);
+	
+	auto copyRegion = vk::BufferCopy{}
+		.setSrcOffset( 0 )
+		.setDstOffset( offset )
+		.setSize( bufferSize );
+		
+	cmd.copyBuffer(srcBuffer, dstBuffer, 1, &copyRegion);
 	
 	cmd.end();
 	
