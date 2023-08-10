@@ -46,7 +46,7 @@ void Renderer::StartUp(GLFWwindow *window) {
 	CreateFramebuffers();
 
 	CreateFrameResources();
-	CreateTransferResources();
+	CreateSubmitContexts();
 	CreateShaderModules();
 	CreateSamplers();
 	CreateDescriptorResources();
@@ -122,8 +122,12 @@ void Renderer::ShutDown() {
 		pCore->Device().destroyCommandPool( frame.commandPool);
 	}
 
-	pCore->Device().destroyFence( mTransfer.fence);
-	pCore->Device().destroyCommandPool( mTransfer.commandPool);
+
+	pCore->Device().destroyFence( mGraphicsSubmit.fence);
+	pCore->Device().destroyCommandPool( mGraphicsSubmit.commandPool);
+
+	pCore->Device().destroyFence( mTransferSubmit.fence);
+	pCore->Device().destroyCommandPool( mTransferSubmit.commandPool);
 
 	// core
 	mMemory.Delete(pCore);
@@ -250,11 +254,15 @@ void Renderer::CreateFrameResources() {
 }
 
 
-void Renderer::CreateTransferResources() {
+void Renderer::CreateSubmitContexts() {
 
-	mTransfer.fence = pCore->CreateFence();
-	mTransfer.commandPool = pCore->CreateCommandPool( pCore->QueueFamilies().transferFamily);
-	mTransfer.commandBuffer = pCore->AllocateCommandBuffer( mTransfer.commandPool);
+	mGraphicsSubmit.fence = pCore->CreateFence();
+	mGraphicsSubmit.commandPool = pCore->CreateCommandPool( pCore->QueueFamilies().graphicsFamily);
+	mGraphicsSubmit.commandBuffer = pCore->AllocateCommandBuffer( mGraphicsSubmit.commandPool);
+
+	mTransferSubmit.fence = pCore->CreateFence();
+	mTransferSubmit.commandPool = pCore->CreateCommandPool( pCore->QueueFamilies().transferFamily);
+	mTransferSubmit.commandBuffer = pCore->AllocateCommandBuffer( mTransferSubmit.commandPool);
 }
 
 
@@ -608,9 +616,7 @@ void Renderer::CreatePipeline() {
 
 void Renderer::TransitionImageLayout(vk::Image image, vk::ImageLayout initialLayout, vk::ImageLayout finalLayout, U32 mipLevels) {
 
-	auto frame = CurrentFrame();
-
-	vk::CommandBuffer cmd = frame.commandBuffer;
+	vk::CommandBuffer cmd = mGraphicsSubmit.commandBuffer;
 	auto beginInfo = vk::CommandBufferBeginInfo{}
 		.setFlags( vk::CommandBufferUsageFlagBits::eOneTimeSubmit );
 	
@@ -657,22 +663,22 @@ void Renderer::TransitionImageLayout(vk::Image image, vk::ImageLayout initialLay
 	
 	try 
 	{
-		pCore->GraphicsQueue().submit(submitInfo, frame.renderFence);
+		pCore->GraphicsQueue().submit(submitInfo, mGraphicsSubmit.fence);
 	}
 	catch( ... ) 
 	{
 		throw std::runtime_error("Failed to copy buffer to image!");
 	}
 
-	pCore->Device().waitForFences( 1, &frame.renderFence, true, 1e9);
-	pCore->Device().resetFences( 1, &frame.renderFence);
-	pCore->Device().resetCommandPool( frame.commandPool);
+	pCore->Device().waitForFences( 1, &mGraphicsSubmit.fence, true, 1e9);
+	pCore->Device().resetFences( 1, &mGraphicsSubmit.fence);
+	pCore->Device().resetCommandPool( mGraphicsSubmit.commandPool);
 }
 
 
 void Renderer::CopyBufferToImage(vk::Buffer buffer, vk::Image image, U32 imageWidth, U32 imageHeight) {
 
-	vk::CommandBuffer cmd = mTransfer.commandBuffer;
+	vk::CommandBuffer cmd = mTransferSubmit.commandBuffer;
 	auto beginInfo = vk::CommandBufferBeginInfo{}
 		.setFlags( vk::CommandBufferUsageFlagBits::eOneTimeSubmit );
 	
@@ -696,16 +702,16 @@ void Renderer::CopyBufferToImage(vk::Buffer buffer, vk::Image image, U32 imageWi
 	
 	try 
 	{
-		pCore->TransferQueue().submit(submitInfo, mTransfer.fence);
+		pCore->TransferQueue().submit(submitInfo, mTransferSubmit.fence);
 	}
 	catch( ... ) 
 	{
 		throw std::runtime_error("Failed to copy buffer to image!");
 	}
 
-	pCore->Device().waitForFences( 1, &mTransfer.fence, true, 1e9);
-	pCore->Device().resetFences( 1, &mTransfer.fence);
-	pCore->Device().resetCommandPool( mTransfer.commandPool);
+	pCore->Device().waitForFences( 1, &mTransferSubmit.fence, true, 1e9);
+	pCore->Device().resetFences( 1, &mTransferSubmit.fence);
+	pCore->Device().resetCommandPool( mTransferSubmit.commandPool);
 }
 
     

@@ -167,7 +167,7 @@ struct FrameResources {
 };
 
 
-struct TransferResources{
+struct ImmediateSubmitContext{
 
 	vk::Fence fence;
 	vk::CommandPool commandPool;

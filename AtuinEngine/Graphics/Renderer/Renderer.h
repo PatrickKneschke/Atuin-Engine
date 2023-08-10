@@ -39,7 +39,7 @@ private:
     void CreateFramebuffers();
 
     void CreateFrameResources();
-    void CreateTransferResources();
+    void CreateSubmitContexts();
     void CreateShaderModules();
     void CreateSamplers();
     void CreateDescriptorResources();
@@ -75,7 +75,8 @@ private:
 
     Array<FrameResources> mFrames;
     U64 mFrameCount;
-    TransferResources mTransfer;
+    ImmediateSubmitContext mGraphicsSubmit;
+    ImmediateSubmitContext mTransferSubmit;
 
     // TODO test pipeline to render single material and mesh at a time, change later 
     Pipeline mSingleMaterialPipeline;
