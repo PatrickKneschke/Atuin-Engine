@@ -20,6 +20,8 @@ class Clock {
 public:
 
     static std::string GetDateTimeStr();
+    static std::string GetDateStr();
+    static std::string GetTimeStr();
 
     Clock();
     ~Clock() = default;

@@ -40,7 +40,7 @@ void Logger::StartUp() {
     mFiles.MakeDir(pLogDir->Get());
     
     // assemble log file names
-    auto timeStamp = Clock::GetDateTimeStr();
+    auto timeStamp = Clock::GetDateStr();
     mFullLog.fileName = pLogDir->Get() + "/full_" + timeStamp + ".log";
     mChannelsLog.fileName = pLogDir->Get() + "/channels_" + timeStamp + ".log";
 }

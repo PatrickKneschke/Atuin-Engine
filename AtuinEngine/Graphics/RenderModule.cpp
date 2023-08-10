@@ -25,7 +25,7 @@ RenderModule::~RenderModule() {
 void RenderModule::StartUp(GLFWwindow *window) {
 
     pWindow = window;
-    mRenderer.StartUp(pWindow);
+    mRenderer.StartUp(pWindow);    
 }
 
 

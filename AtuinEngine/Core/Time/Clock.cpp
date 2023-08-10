@@ -5,6 +5,7 @@
 namespace Atuin {
 
 
+
 std::string Clock::GetDateTimeStr() {
 
     auto now = std::time(nullptr);
@@ -12,6 +13,16 @@ std::string Clock::GetDateTimeStr() {
     auto dateTimeStr = std::string(buffer, buffer + std::strftime(buffer, sizeof(buffer),"%F_%T", std::gmtime(&now)));
 
     return dateTimeStr;
+}
+
+std::string Clock::GetDateStr() {
+
+    return GetDateTimeStr().substr(0, 10);
+}
+
+std::string Clock::GetTimeStr() {
+
+    return GetDateTimeStr().substr(11);
 }
 
 

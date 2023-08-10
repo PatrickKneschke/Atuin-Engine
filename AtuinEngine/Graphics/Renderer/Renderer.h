@@ -43,7 +43,7 @@ private:
     void CreateShaderModules();
     void CreateSamplers();
     void CreateDescriptorResources();
-    void CreateImageResource(ImageResource image, std::string_view path);
+    void CreateImageResource(ImageResource &image, std::string_view path);
 
     void CreateDescriptorSetLayouts();
     void CreateDescriptorPool();

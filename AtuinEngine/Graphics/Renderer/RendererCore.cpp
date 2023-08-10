@@ -507,7 +507,8 @@ Array<vk::CommandBuffer> RendererCore::AllocateCommandBuffers(
         .setCommandBufferCount( count )
         .setLevel( level );
 
-    Array<vk::CommandBuffer> commandBuffers(count);
+    Array<vk::CommandBuffer> commandBuffers;
+	commandBuffers.Resize(count);
 	vk::Result result = mDevice.allocateCommandBuffers(&allocInfo, commandBuffers.Data());
 	if(result != vk::Result::eSuccess)
     {
@@ -631,7 +632,8 @@ Array<vk::DescriptorSet> RendererCore::AllocateDescriptorSets( vk::DescriptorPoo
 		.setDescriptorSetCount( count )
 		.setPSetLayouts( layouts );
 
-	Array<vk::DescriptorSet> descriptorSets(count);
+	Array<vk::DescriptorSet> descriptorSets;
+	descriptorSets.Resize(count);
 	vk::Result result = mDevice.allocateDescriptorSets(&allocInfo, descriptorSets.Data());
 	if(result != vk::Result::eSuccess)
 	{

@@ -40,7 +40,7 @@ void Renderer::StartUp(GLFWwindow *window) {
 
 	pCore->PrepareSwapchain(mSwapchain);
 	pCore->CreateSwapchain(mSwapchain);
-
+    
 	CreateDepthResources();
 	CreateRenderPass();	
 	CreateFramebuffers();
@@ -269,6 +269,96 @@ void Renderer::CreateSamplers() {
 }
 
 
+void Renderer::CreateDescriptorResources() {
+
+	mCameraBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer;
+	mCameraBuffer.memoryType = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+	mCameraBuffer.buffer = pCore->CreateBuffer( sizeof(CameraData), mCameraBuffer.usage);
+	mCameraBuffer.bufferMemory = pCore->AllocateBufferMemory(mCameraBuffer.buffer, mCameraBuffer.memoryType);
+
+	CreateImageResource( mMaterialDiffuseImage, "../../Resources/Materials/brick/brick_diffuse.png");
+	CreateImageResource( mMaterialNormalImage, "../../Resources/Materials/brick/brick_normal.png");
+	CreateImageResource( mMaterialSpecularImage, "../../Resources/Materials/brick/brick_specular.png");
+
+	mObjectBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer;
+	mObjectBuffer.memoryType = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+	mObjectBuffer.buffer = pCore->CreateBuffer( sizeof(CameraData), mObjectBuffer.usage);
+	mObjectBuffer.bufferMemory = pCore->AllocateBufferMemory(mObjectBuffer.buffer, mObjectBuffer.memoryType);
+}
+
+
+void Renderer::CreateImageResource(ImageResource &image, std::string_view path) {
+
+	// load image data from file
+	int width, height, channels;
+	stbi_uc *pixels = stbi_load(path.data(), &width, &height, &channels, STBI_rgb_alpha);
+	if (!pixels)
+	{
+		throw std::runtime_error("Failed to load texture image!");
+	}
+
+	// create staging buffer
+	Size imageSize = width * height * 4;
+	Buffer stagingBuffer;
+	stagingBuffer.buffer = pCore->CreateBuffer( imageSize, vk::BufferUsageFlagBits::eTransferSrc);
+	stagingBuffer.bufferMemory = pCore->AllocateBufferMemory( 
+		stagingBuffer.buffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+	);
+
+	// transfer image data to staging buffer
+	void *data;
+	vk::Result result = pCore->Device().mapMemory( stagingBuffer.bufferMemory, 0, imageSize, vk::MemoryMapFlags(), &data);
+	if( result == vk::Result::eSuccess ) 
+	{
+		memcpy(data, pixels, imageSize);
+		pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
+	}
+	else 
+	{
+		throw std::runtime_error("Failed to map image staging buffer memory " + vk::to_string(result));
+	}
+
+	// create image on device memory
+	vk::Format format;
+	switch (channels)
+	{
+		case 4:
+			format = vk::Format::eR8G8B8A8Srgb;
+			break;
+		case 3:
+			format = vk::Format::eR8G8B8Srgb;
+			break;
+		case 2:
+			format = vk::Format::eR16G16Sfloat;
+			break;
+		case 1:
+			format = vk::Format::eR32Sfloat;
+			break;
+	
+		default:
+			break;
+	}
+	image.width = width;
+	image.height = height;
+	image.format = format;
+	image.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
+	image.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
+	image.image = pCore->CreateImage( image.width, image.height, image.format, image.usage);
+	image.imageMemory = pCore->AllocateImageMemory( image.image, image.memoryType);
+	image.imageView = pCore->CreateImageView(image.image, image.format, vk::ImageAspectFlagBits::eColor);
+
+	// transfer image data from staging buffer
+	TransitionImageLayout( image.image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+	CopyBufferToImage( stagingBuffer.buffer, image.image, image.width, image.height);
+	TransitionImageLayout( image.image, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+
+	//cleanup	
+	stbi_image_free(pixels);
+	pCore->Device().destroyBuffer( stagingBuffer.buffer, nullptr);
+	pCore->Device().freeMemory( stagingBuffer.bufferMemory, nullptr);
+}
+
+
 void Renderer::CreateDescriptorSetLayouts() {
 
 	auto cameraDataBinding = vk::DescriptorSetLayoutBinding{}
@@ -376,9 +466,9 @@ void Renderer::CreateDescriptorSets() {
 		.setSampler( mSampler );
 	auto materialSpecularWrite = vk::WriteDescriptorSet{}
 		.setDstSet( mMaterialDataSet )
-		.setDstBinding( 1 )
+		.setDstBinding( 2 )
 		.setDstArrayElement( 0 )
-		.setDescriptorCount( 2 )
+		.setDescriptorCount( 1 )
 		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
 		.setPImageInfo( &materialSpecularInfo );
 
@@ -387,8 +477,8 @@ void Renderer::CreateDescriptorSets() {
 		.setOffset(0)
 		.setRange( sizeof(ObjectData) );
 	auto objectWrite = vk::WriteDescriptorSet{}
-		.setDstSet( mCameraDataSet )
-		.setDstBinding( 2 )
+		.setDstSet( mObjectDataSet )
+		.setDstBinding( 0 )
 		.setDstArrayElement( 0 )
 		.setDescriptorCount( 1 )
 		.setDescriptorType( vk::DescriptorType::eUniformBuffer )
@@ -398,96 +488,6 @@ void Renderer::CreateDescriptorSets() {
 		cameraWrite, materialDiffuseWrite, materialNormalWrite, materialSpecularWrite, objectWrite
 	};
 	pCore->Device().updateDescriptorSets(5, descriptorWrites, 0, nullptr);
-}
-
-
-void Renderer::CreateDescriptorResources() {
-
-	mCameraBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer;
-	mCameraBuffer.memoryType = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
-	mCameraBuffer.buffer = pCore->CreateBuffer( sizeof(CameraData), mCameraBuffer.usage);
-	mCameraBuffer.bufferMemory = pCore->AllocateBufferMemory(mCameraBuffer.buffer, mCameraBuffer.memoryType);
-
-	CreateImageResource( mMaterialDiffuseImage, "../../Resources/Materials/brick/brick_diffuse.png");
-	CreateImageResource( mMaterialNormalImage, "../../Resources/Materials/brick/brick_normal.png");
-	CreateImageResource( mMaterialSpecularImage, "../../Resources/Materials/brick/brick_specular.png");
-
-	mObjectBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer;
-	mObjectBuffer.memoryType = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
-	mObjectBuffer.buffer = pCore->CreateBuffer( sizeof(CameraData), mObjectBuffer.usage);
-	mObjectBuffer.bufferMemory = pCore->AllocateBufferMemory(mObjectBuffer.buffer, mObjectBuffer.memoryType);
-}
-
-
-void Renderer::CreateImageResource(ImageResource image, std::string_view path) {
-
-	// load image data from file
-	int width, height, channels;
-	stbi_uc *pixels = stbi_load(path.data(), &width, &height, &channels, STBI_rgb_alpha);
-	if (!pixels)
-	{
-		throw std::runtime_error("Failed to load texture image!");
-	}
-
-	// create staging buffer
-	Size imageSize = width * height * channels;
-	Buffer stagingBuffer;
-	stagingBuffer.buffer = pCore->CreateBuffer( imageSize, vk::BufferUsageFlagBits::eTransferSrc);
-	stagingBuffer.bufferMemory = pCore->AllocateBufferMemory( 
-		stagingBuffer.buffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
-	);
-
-	// transfer image data to staging buffer
-	void *data;
-	vk::Result result = pCore->Device().mapMemory( stagingBuffer.bufferMemory, 0, imageSize, vk::MemoryMapFlags(), &data);
-	if( result == vk::Result::eSuccess ) 
-	{
-		memcpy(data, pixels, imageSize);
-		pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
-	}
-	else 
-	{
-		throw std::runtime_error("Failed to map image staging buffer memory " + vk::to_string(result));
-	}
-
-	// create image on device memory
-	vk::Format format;
-	switch (channels)
-	{
-		case 4:
-			format = vk::Format::eR8G8B8A8Srgb;
-			break;
-		case 3:
-			format = vk::Format::eR8G8B8Srgb;
-			break;
-		case 2:
-			format = vk::Format::eR16G16Sfloat;
-			break;
-		case 1:
-			format = vk::Format::eR32Sfloat;
-			break;
-	
-		default:
-			break;
-	}
-	image.width = width;
-	image.height = height;
-	image.format = format;
-	image.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
-	image.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
-	image.image = pCore->CreateImage( image.width, image.height, image.format, image.usage);
-	image.imageMemory = pCore->AllocateImageMemory( image.image, image.memoryType);
-	image.imageView = pCore->CreateImageView(image.image, image.format, vk::ImageAspectFlagBits::eColor);
-
-	// transfer image data from staging buffer
-	TransitionImageLayout( image.image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
-	CopyBufferToImage( stagingBuffer.buffer, image.image, image.width, image.height);
-	TransitionImageLayout( image.image, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
-
-	//cleanup	
-	stbi_image_free(pixels);
-	pCore->Device().destroyBuffer( stagingBuffer.buffer, nullptr);
-	pCore->Device().freeMemory( stagingBuffer.bufferMemory, nullptr);
 }
 
 
