@@ -7,6 +7,9 @@
 #include "GLFW/glfw3.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tinyobjloader/tiny_obj_loader.h"
+
 
 
 namespace Atuin {
@@ -46,6 +49,7 @@ void Renderer::StartUp(GLFWwindow *window) {
 	CreateFramebuffers();
 
 	CreateVertexBuffer();
+	CreateIndexBuffer();
 
 	CreateFrameResources();
 	CreateSubmitContexts();
@@ -58,6 +62,11 @@ void Renderer::StartUp(GLFWwindow *window) {
 	CreateDescriptorSets();
 
 	CreatePipeline();
+
+	// dummy model load
+	LoadModel( "../../Resources/Meshes/cube.obj");
+	UploadBufferData(mVertices.Data(), mVertices.GetSize() * sizeof(mVertices[0]), mVertexBuffer.buffer);
+	UploadBufferData(mIndices.Data(), mIndices.GetSize() * sizeof(mIndices[0]), mIndexBuffer.buffer);
 }
 
 
@@ -94,6 +103,9 @@ void Renderer::ShutDown() {
 	// resources
 	pCore->Device().destroyBuffer( mVertexBuffer.buffer);
 	pCore->Device().freeMemory( mVertexBuffer.bufferMemory);
+
+	pCore->Device().destroyBuffer( mIndexBuffer.buffer);
+	pCore->Device().freeMemory( mIndexBuffer.bufferMemory);
 
 	pCore->Device().destroySampler( mSampler);
 
@@ -253,16 +265,72 @@ void Renderer::CreateVertexBuffer() {
 }
 
 
-void Renderer::UploadVertexData(const Array<Vertex> &vertexData) {
+void Renderer::CreateIndexBuffer() {
 
-	Buffer stagingBuffer = CreateStagingBuffer( vertexData.GetSize());
-	
+	mIndexBuffer.usage = vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst;
+	mIndexBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
+	mIndexBuffer.buffer = pCore->CreateBuffer( 36*4, mIndexBuffer.usage);
+	mIndexBuffer.bufferMemory = pCore->AllocateBufferMemory( mIndexBuffer.buffer, mIndexBuffer.memoryType);
+}
+
+
+void Renderer::LoadModel(std::string_view path) {
+
+	tinyobj::attrib_t attrib;
+	std::vector<tinyobj::shape_t> shapes;
+	std::vector<tinyobj::material_t> materials;
+	std::string warning, error;
+		
+	if( !tinyobj::LoadObj(&attrib, &shapes, &materials, &warning, &error, path.data()) ) 
+	{
+		throw std::runtime_error(warning + error);
+	}
+		
+	std::unordered_map<glm::vec3, uint32_t> uniqueVertices{};
+		
+	for(const auto &shape : shapes) 
+	{
+		for(const auto &index : shape.mesh.indices) 
+		{
+			Vertex vertex{};				
+			vertex.position = {
+				attrib.vertices[3*index.vertex_index + 0],
+				attrib.vertices[3*index.vertex_index + 1],
+				attrib.vertices[3*index.vertex_index + 2]
+			};
+			vertex.texCoord = {
+				attrib.texcoords[2*index.texcoord_index + 0],
+				1.0f - attrib.texcoords[2*index.texcoord_index + 1]
+			};
+			vertex.normal = {
+				attrib.normals[3*index.normal_index + 0],
+				attrib.normals[3*index.normal_index + 1],
+				attrib.normals[3*index.normal_index + 2]
+			};
+			vertex.color = {1.0f, 1.0f, 1.0f, 1.0f};
+				
+			if(uniqueVertices.find(vertex.position) == uniqueVertices.end()) 
+			{
+				uniqueVertices[vertex.position] = static_cast<uint32_t>(mVertices.GetSize());
+				mVertices.PushBack(vertex);
+			}
+				
+			mIndices.PushBack(uniqueVertices[vertex.position]);
+		}
+	}
+}
+
+
+void Renderer::UploadBufferData( void *bufferData, Size size, vk::Buffer targetBuffer) {
+
+	Buffer stagingBuffer = CreateStagingBuffer( size);
+
 	// transfer image data to staging buffer
 	void *data;
-	vk::Result result = pCore->Device().mapMemory( stagingBuffer.bufferMemory, 0, vertexData.GetSize(), vk::MemoryMapFlags(), &data);
+	vk::Result result = pCore->Device().mapMemory( stagingBuffer.bufferMemory, 0, size, vk::MemoryMapFlags(), &data);
 	if( result == vk::Result::eSuccess ) 
 	{
-		memcpy(data, vertexData.Data(), vertexData.GetSize());
+		memcpy(data, bufferData, size);
 		pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
 	}
 	else 
@@ -270,8 +338,8 @@ void Renderer::UploadVertexData(const Array<Vertex> &vertexData) {
 		throw std::runtime_error("Failed to map staging buffer memory " + vk::to_string(result));
 	}
 
-	CopyBuffer( stagingBuffer.buffer, mVertexBuffer.buffer, 0, vertexData.GetSize());
-
+	CopyBuffer( stagingBuffer.buffer, targetBuffer, 0, size);
+	
 	pCore->Device().destroyBuffer( stagingBuffer.buffer, nullptr);
 	pCore->Device().freeMemory( stagingBuffer.bufferMemory, nullptr);
 }

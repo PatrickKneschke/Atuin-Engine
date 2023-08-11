@@ -39,8 +39,15 @@ private:
     void CreateFramebuffers();
 
     void CreateVertexBuffer();
-    void UploadVertexData(const Array<Vertex> &vertexData);
+    void CreateIndexBuffer();
+
     Buffer CreateStagingBuffer(Size bufferSize);
+    void UploadBufferData( void *bufferData, Size size, vk::Buffer targetBuffer);
+    void TransitionImageLayout(vk::Image image, vk::ImageLayout initialLayout, vk::ImageLayout finalLayout, U32 mipLevels = 1);
+    void CopyBufferToImage(vk::Buffer buffer, vk::Image image, U32 imageWidth, U32 imageHeight);
+    void CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, Size offset, Size bufferSize);
+
+    FrameResources CurrentFrame() { return mFrames[mFrameCount % pFrameOverlap->Get()]; }
 
     void CreateFrameResources();
     void CreateSubmitContexts();
@@ -48,6 +55,7 @@ private:
     void CreateSamplers();
     void CreateDescriptorResources();
     void CreateImageResource(ImageResource &image, std::string_view path);
+    void LoadModel(std::string_view path);
 
     void CreateDescriptorSetLayouts();
     void CreateDescriptorPool();
@@ -55,11 +63,6 @@ private:
 
     void CreatePipeline();
 
-    void TransitionImageLayout(vk::Image image, vk::ImageLayout initialLayout, vk::ImageLayout finalLayout, U32 mipLevels = 1);
-    void CopyBufferToImage(vk::Buffer buffer, vk::Image image, U32 imageWidth, U32 imageHeight);
-    void CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, Size offset, Size bufferSize);
-
-    FrameResources CurrentFrame() { return mFrames[mFrameCount % pFrameOverlap->Get()]; }
 
 
     static CVar<U32>* pFrameOverlap; 
@@ -85,11 +88,15 @@ private:
     ImmediateSubmitContext mTransferSubmit;
 
     Buffer mVertexBuffer;
+    Buffer mIndexBuffer;
 
     Buffer mCameraBuffer;
     
     vk::Sampler mSampler;
 
+
+    Array<Vertex> mVertices;
+    Array<U32> mIndices;
 
 
     // TODO test pipeline to render single material and mesh at a time, change later 
