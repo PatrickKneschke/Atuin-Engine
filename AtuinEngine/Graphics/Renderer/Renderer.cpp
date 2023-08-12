@@ -256,6 +256,38 @@ void Renderer::CreateFramebuffers() {
 }
 
 
+void Renderer::RecreateSwapchain() {
+
+	pCore->Device().waitIdle();
+
+	// cleanup old objects	
+	// framebuffers
+	for(auto &framebuffer : mFramebuffers) {
+		pCore->Device().destroyFramebuffer(framebuffer, nullptr);
+	}
+	
+	// depth image
+	pCore->Device().destroyImageView(mDepthImage.imageView, nullptr);
+	pCore->Device().destroyImage(mDepthImage.image, nullptr);
+	pCore->Device().freeMemory(mDepthImage.imageMemory, nullptr);	
+
+	// swapchain
+	for(auto imageView : mSwapchain.imageViews) 
+	{
+	    pCore->Device().destroyImageView( imageView, nullptr);
+	}
+
+	vk::SwapchainKHR oldSwapchain = mSwapchain.swapchain;
+	pCore->CreateSwapchain(mSwapchain);
+	pCore->Device().destroySwapchainKHR( oldSwapchain, nullptr);	
+		
+	// recreate presentation objects
+	CreateDepthResources();
+	CreateFramebuffers();
+	pCore->CreateSwapchain( mSwapchain);
+}
+
+
 void Renderer::CreateVertexBuffer() {
 
 	mVertexBuffer.usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst;
@@ -321,7 +353,7 @@ void Renderer::LoadModel(std::string_view path) {
 }
 
 
-void Renderer::UploadBufferData( void *bufferData, Size size, vk::Buffer targetBuffer) {
+void Renderer::UploadBufferData( void *bufferData, Size size, vk::Buffer targetBuffer, Size offset) {
 
 	Buffer stagingBuffer = CreateStagingBuffer( size);
 
@@ -338,7 +370,7 @@ void Renderer::UploadBufferData( void *bufferData, Size size, vk::Buffer targetB
 		throw std::runtime_error("Failed to map staging buffer memory " + vk::to_string(result));
 	}
 
-	CopyBuffer( stagingBuffer.buffer, targetBuffer, 0, size);
+	CopyBuffer( stagingBuffer.buffer, targetBuffer, offset, size);
 	
 	pCore->Device().destroyBuffer( stagingBuffer.buffer, nullptr);
 	pCore->Device().freeMemory( stagingBuffer.bufferMemory, nullptr);
@@ -398,7 +430,7 @@ void Renderer::CreateSamplers() {
 void Renderer::CreateDescriptorResources() {
 
 	mCameraBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer;
-	mCameraBuffer.memoryType = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+	mCameraBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
 	mCameraBuffer.buffer = pCore->CreateBuffer( sizeof(CameraData), mCameraBuffer.usage);
 	mCameraBuffer.bufferMemory = pCore->AllocateBufferMemory(mCameraBuffer.buffer, mCameraBuffer.memoryType);
 
@@ -407,8 +439,8 @@ void Renderer::CreateDescriptorResources() {
 	CreateImageResource( mMaterialSpecularImage, "../../Resources/Materials/brick/brick_specular.png");
 
 	mObjectBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer;
-	mObjectBuffer.memoryType = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
-	mObjectBuffer.buffer = pCore->CreateBuffer( sizeof(CameraData), mObjectBuffer.usage);
+	mObjectBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
+	mObjectBuffer.buffer = pCore->CreateBuffer( sizeof(ObjectData), mObjectBuffer.usage);
 	mObjectBuffer.bufferMemory = pCore->AllocateBufferMemory(mObjectBuffer.buffer, mObjectBuffer.memoryType);
 }
 
@@ -775,17 +807,23 @@ void Renderer::TransitionImageLayout(vk::Image image, vk::ImageLayout initialLay
 		.setCommandBufferCount( 1 )
 		.setPCommandBuffers( &cmd );
 	
-	try 
+	vk::Result result;
+	result = pCore->GraphicsQueue().submit( 1, &submitInfo, mGraphicsSubmit.fence);
+	if( result != vk::Result::eSuccess ) 
 	{
-		pCore->GraphicsQueue().submit(submitInfo, mGraphicsSubmit.fence);
-	}
-	catch( ... ) 
-	{
-		throw std::runtime_error("Failed to copy buffer to image!");
+		throw std::runtime_error("Error while rsubmitting to graphics queue " + vk::to_string(result));
 	}
 
-	pCore->Device().waitForFences( 1, &mGraphicsSubmit.fence, true, 1e9);
-	pCore->Device().resetFences( 1, &mGraphicsSubmit.fence);
+	result = pCore->Device().waitForFences( 1, &mGraphicsSubmit.fence, true, 1e9);
+	if( result != vk::Result::eSuccess ) 
+	{
+		throw std::runtime_error("Error while waiting for fence " + vk::to_string(result));
+	}
+	result = pCore->Device().resetFences( 1, &mGraphicsSubmit.fence);
+	if( result != vk::Result::eSuccess ) 
+	{
+		throw std::runtime_error("Error while resetting fence " + vk::to_string(result));
+	}
 	pCore->Device().resetCommandPool( mGraphicsSubmit.commandPool);
 }
 
@@ -814,17 +852,23 @@ void Renderer::CopyBufferToImage(vk::Buffer buffer, vk::Image image, U32 imageWi
 		.setCommandBufferCount( 1 )
 		.setPCommandBuffers( &cmd );
 	
-	try 
+	vk::Result result;
+	result = pCore->TransferQueue().submit( 1, &submitInfo, mTransferSubmit.fence);
+	if( result != vk::Result::eSuccess ) 
 	{
-		pCore->TransferQueue().submit(submitInfo, mTransferSubmit.fence);
-	}
-	catch( ... ) 
-	{
-		throw std::runtime_error("Failed to copy buffer to image!");
+		throw std::runtime_error("Error while submitting to transfer queue " + vk::to_string(result));
 	}
 
-	pCore->Device().waitForFences( 1, &mTransferSubmit.fence, true, 1e9);
-	pCore->Device().resetFences( 1, &mTransferSubmit.fence);
+	result = pCore->Device().waitForFences( 1, &mTransferSubmit.fence, true, 1e9);
+	if( result != vk::Result::eSuccess ) 
+	{
+		throw std::runtime_error("Error while waiting for fence " + vk::to_string(result));
+	}
+	result = pCore->Device().resetFences( 1, &mTransferSubmit.fence);
+	if( result != vk::Result::eSuccess ) 
+	{
+		throw std::runtime_error("Error while resetting fence " + vk::to_string(result));
+	}
 	pCore->Device().resetCommandPool( mTransferSubmit.commandPool);
 }
 
@@ -850,18 +894,188 @@ void Renderer::CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, Size offse
 		.setCommandBufferCount( 1 )
 		.setPCommandBuffers( &cmd );
 	
-	try 
+	vk::Result result;
+	result = pCore->TransferQueue().submit( 1, &submitInfo, mTransferSubmit.fence);
+	if( result != vk::Result::eSuccess ) 
 	{
-		pCore->TransferQueue().submit(submitInfo, mTransferSubmit.fence);
-	}
-	catch( ... ) 
-	{
-		throw std::runtime_error("Failed to copy buffer to image!");
+		throw std::runtime_error("Error while submitting to transfer queue " + vk::to_string(result));
 	}
 
-	pCore->Device().waitForFences( 1, &mTransferSubmit.fence, true, 1e9);
-	pCore->Device().resetFences( 1, &mTransferSubmit.fence);
+	result = pCore->Device().waitForFences( 1, &mTransferSubmit.fence, true, 1e9);
+	if( result != vk::Result::eSuccess ) 
+	{
+		throw std::runtime_error("Error while waiting for fence " + vk::to_string(result));
+	}
+	result = pCore->Device().resetFences( 1, &mTransferSubmit.fence);
+	if( result != vk::Result::eSuccess ) 
+	{
+		throw std::runtime_error("Error while resetting fence " + vk::to_string(result));
+	}
 	pCore->Device().resetCommandPool( mTransferSubmit.commandPool);
+}
+
+
+void Renderer::DrawFrame() {
+
+	auto frame = CurrentFrame();
+	UpdateCameraData();
+	UpdateObjectData();
+
+
+	vk::Result result;
+
+	//
+	U32 imageIndex;
+	result = pCore->Device().acquireNextImageKHR(
+		mSwapchain.swapchain, U64_MAX, frame.renderSemaphore, nullptr, &imageIndex
+	);
+	if( result != vk::Result::eErrorOutOfDateKHR)
+	{
+		RecreateSwapchain();   // TODO maybe handle in glfwResizeCallback instead ?
+		return;
+	}
+	else if( result != vk::Result::eSuccess)
+	{
+		throw std::runtime_error("Error while waiting for fence " + vk::to_string(result));
+	}
+	
+	// wait for render fence to record render commands
+	result = pCore->Device().waitForFences(frame.renderFence, true, 1e9);
+	if( result != vk::Result::eSuccess ) 
+	{
+		throw std::runtime_error("Error while waiting for render fence " + vk::to_string(result));
+	}
+	result = pCore->Device().resetFences( 1, &frame.renderFence);
+	if( result != vk::Result::eSuccess ) 
+	{
+		throw std::runtime_error("Error while resetting render fence " + vk::to_string(result));
+	}
+
+	// get current frames command buffer and reset
+	auto &cmd = frame.commandBuffer;
+	cmd.reset( vk::CommandBufferResetFlagBits::eReleaseResources);	
+
+
+	// record render commands
+	auto cmdBeginInfo = vk::CommandBufferBeginInfo{}
+		.setFlags( vk::CommandBufferUsageFlagBits::eOneTimeSubmit );		
+	cmd.begin(cmdBeginInfo);	
+
+	//start renderpass
+	vk::ClearValue clearValues[2];
+	clearValues[0].setColor( vk::ClearColorValue().setFloat32({0.0f, 0.0f, 0.0f, 1.0f}) );
+	clearValues[1].setDepthStencil( {1.0f, 0} ); 
+
+	auto renderInfo = vk::RenderPassBeginInfo{}
+		.setRenderPass( mRenderPass )
+		.setRenderArea( {{0, 0}, mSwapchain.extent} )
+		.setFramebuffer( mFramebuffers[imageIndex] )
+		.setClearValueCount( 2 )
+		.setPClearValues( clearValues );		
+	cmd.beginRenderPass(renderInfo, vk::SubpassContents::eInline);
+	
+	cmd.bindPipeline(
+		vk::PipelineBindPoint::eGraphics, mSingleMaterialPipeline.pipeline
+	);
+
+	vk::Buffer vertexBuffers[] = {mVertexBuffer.buffer};
+	Size offsets[] = {0};
+	cmd.bindVertexBuffers( 0, 1, vertexBuffers, offsets);
+	cmd.bindIndexBuffer( mIndexBuffer.buffer, 0, vk::IndexType::eUint32);
+		
+	vk::DescriptorSet descriptorSets[] = {
+		mCameraDataSet, mMaterialDataSet, mObjectDataSet
+	};
+	cmd.bindDescriptorSets( 
+		vk::PipelineBindPoint::eGraphics, mSingleMaterialPipeline.pipelineLayout, 0, 3, descriptorSets, 0, nullptr		
+	);
+	
+	cmd.drawIndexed( (U32)mIndices.GetSize(), 1, 0, 0, 0);
+	
+	cmd.endRenderPass();
+	
+	cmd.end();
+
+
+	// submit render commands
+	vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+	auto submitInfo = vk::SubmitInfo{}
+		.setWaitSemaphoreCount( 1 )
+		.setPWaitSemaphores( &frame.renderSemaphore )
+		.setPWaitDstStageMask( &waitStage )
+		.setCommandBufferCount( 1 )
+		.setPCommandBuffers( &cmd )
+		.setSignalSemaphoreCount( 1 )
+		.setPSignalSemaphores( &frame.presentSemaphore );
+		
+	result = pCore->GraphicsQueue().submit( 1, &submitInfo, frame.renderFence);
+	if( result != vk::Result::eSuccess ) 
+	{
+		throw std::runtime_error("Error while submitting to graphics queue " + vk::to_string(result));
+	}
+
+	// present rendered image 
+	auto presentInfo = vk::PresentInfoKHR{}
+		.setWaitSemaphoreCount( 1 )
+		.setPWaitSemaphores( &frame.presentSemaphore )
+		.setSwapchainCount( 1 )
+		.setPSwapchains( &mSwapchain.swapchain )
+		.setPImageIndices( &imageIndex );
+	
+	result = pCore->GraphicsQueue().presentKHR( presentInfo);
+	if( result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR || 
+		mSwapchain.extent != pCore->surfaceExtent() ) 
+	{
+		RecreateSwapchain();
+		return;
+	}
+	else if( result != vk::Result::eSuccess ) 
+	{
+		throw std::runtime_error("Error while presenting image " + vk::to_string(result));
+	}
+
+	++mFrameCount;
+}
+
+
+void Renderer::UpdateCameraData() {
+
+	CameraData camera;
+	camera.proj = glm::perspective(
+			glm::radians(45.f),
+			(float)mSwapchain.extent.width / (float)mSwapchain.extent.height,
+			0.1f, 256.0f
+		);
+	camera.view = glm::lookAt( 
+		glm::vec3(2.f, 2.f, 2.f),
+		glm::vec3(0.f, 0.f, 0.f),
+		glm::vec3(0.f, 0.f, 1.f)
+	);
+	camera.viewProj = camera.proj * camera.view;
+
+	UploadBufferData(&camera, sizeof(CameraData), mCameraBuffer.buffer);
+}
+
+
+void Renderer::UpdateObjectData() {
+
+	glm::mat4 rotation = glm::rotate(
+		glm::mat4(1.f), 
+		(float)(mFrameCount % 60) / 60.f * glm::radians(30.f), 
+		glm::vec3(0.f, 0.f, 1.f)
+	);
+	glm::mat4 translate = glm::translate(
+		glm::mat4(1.f),
+		glm::vec3(0.f, 0.f, 0.f)
+	);
+	glm::mat4 scale = glm::scale(
+		glm::mat4(1.f),
+		glm::vec3(1.f,1.f,1.f)
+	);
+	ObjectData obj;
+	obj.model = translate * rotation * scale;
+	
+	UploadBufferData(&obj, sizeof(ObjectData), mObjectBuffer.buffer);
 }
 
     

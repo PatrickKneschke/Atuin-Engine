@@ -37,17 +37,18 @@ private:
 	void CreateDepthResources();
     void CreateRenderPass();
     void CreateFramebuffers();
+    void RecreateSwapchain();
 
     void CreateVertexBuffer();
     void CreateIndexBuffer();
 
     Buffer CreateStagingBuffer(Size bufferSize);
-    void UploadBufferData( void *bufferData, Size size, vk::Buffer targetBuffer);
+    void UploadBufferData( void *bufferData, Size size, vk::Buffer targetBuffer, Size offset = 0);
     void TransitionImageLayout(vk::Image image, vk::ImageLayout initialLayout, vk::ImageLayout finalLayout, U32 mipLevels = 1);
     void CopyBufferToImage(vk::Buffer buffer, vk::Image image, U32 imageWidth, U32 imageHeight);
     void CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, Size offset, Size bufferSize);
 
-    FrameResources CurrentFrame() { return mFrames[mFrameCount % pFrameOverlap->Get()]; }
+    FrameResources& CurrentFrame() { return mFrames[mFrameCount % pFrameOverlap->Get()]; }
 
     void CreateFrameResources();
     void CreateSubmitContexts();
@@ -63,6 +64,9 @@ private:
 
     void CreatePipeline();
 
+    void DrawFrame();
+    void UpdateCameraData();
+    void UpdateObjectData();
 
 
     static CVar<U32>* pFrameOverlap; 
