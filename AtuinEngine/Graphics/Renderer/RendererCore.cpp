@@ -812,12 +812,13 @@ void RendererCore::CreateSwapchain( Swapchain &swapchain ) const {
 	}
 
 	// create swapchain images
-	swapchain.images.Reserve( swapchain.imageCount );
-	swapchain.imageViews.Reserve( swapchain.imageCount );
-	for (auto image : mDevice.getSwapchainImagesKHR(swapchain.swapchain))
+	swapchain.images.Resize( swapchain.imageCount);
+	swapchain.imageViews.Resize( swapchain.imageCount);
+	auto images = mDevice.getSwapchainImagesKHR(swapchain.swapchain);
+	for (Size i = 0; i < swapchain.imageCount; i++)
 	{
-		swapchain.images.PushBack( image );
-		swapchain.imageViews.PushBack( CreateImageView(image, swapchain.imageFormat, vk::ImageAspectFlagBits::eColor) );
+		swapchain.images[i] = images[i];
+		swapchain.imageViews[i] = CreateImageView( swapchain.images[i], swapchain.imageFormat, vk::ImageAspectFlagBits::eColor);
 	}
 }
 

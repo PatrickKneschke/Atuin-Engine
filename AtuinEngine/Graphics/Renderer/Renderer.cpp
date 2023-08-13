@@ -153,7 +153,7 @@ void Renderer::ShutDown() {
 
 void Renderer::Update() {
 
-	++mFrameCount;
+	DrawFrame();
 }
 
 
@@ -262,29 +262,29 @@ void Renderer::RecreateSwapchain() {
 
 	// cleanup old objects	
 	// framebuffers
-	for(auto &framebuffer : mFramebuffers) {
+	for(auto &framebuffer : mFramebuffers) 
+	{
 		pCore->Device().destroyFramebuffer(framebuffer, nullptr);
 	}
-	
+
 	// depth image
 	pCore->Device().destroyImageView(mDepthImage.imageView, nullptr);
 	pCore->Device().destroyImage(mDepthImage.image, nullptr);
 	pCore->Device().freeMemory(mDepthImage.imageMemory, nullptr);	
 
 	// swapchain
-	for(auto imageView : mSwapchain.imageViews) 
+	for(auto &imageView : mSwapchain.imageViews) 
 	{
 	    pCore->Device().destroyImageView( imageView, nullptr);
 	}
 
 	vk::SwapchainKHR oldSwapchain = mSwapchain.swapchain;
 	pCore->CreateSwapchain(mSwapchain);
-	pCore->Device().destroySwapchainKHR( oldSwapchain, nullptr);	
-		
+	pCore->Device().destroySwapchainKHR( oldSwapchain, nullptr);
+	
 	// recreate presentation objects
 	CreateDepthResources();
 	CreateFramebuffers();
-	pCore->CreateSwapchain( mSwapchain);
 }
 
 
@@ -429,7 +429,7 @@ void Renderer::CreateSamplers() {
 
 void Renderer::CreateDescriptorResources() {
 
-	mCameraBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer;
+	mCameraBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
 	mCameraBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
 	mCameraBuffer.buffer = pCore->CreateBuffer( sizeof(CameraData), mCameraBuffer.usage);
 	mCameraBuffer.bufferMemory = pCore->AllocateBufferMemory(mCameraBuffer.buffer, mCameraBuffer.memoryType);
@@ -438,7 +438,7 @@ void Renderer::CreateDescriptorResources() {
 	CreateImageResource( mMaterialNormalImage, "../../Resources/Materials/brick/brick_normal.png");
 	CreateImageResource( mMaterialSpecularImage, "../../Resources/Materials/brick/brick_specular.png");
 
-	mObjectBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer;
+	mObjectBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
 	mObjectBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
 	mObjectBuffer.buffer = pCore->CreateBuffer( sizeof(ObjectData), mObjectBuffer.usage);
 	mObjectBuffer.bufferMemory = pCore->AllocateBufferMemory(mObjectBuffer.buffer, mObjectBuffer.memoryType);
@@ -931,6 +931,7 @@ void Renderer::DrawFrame() {
 	);
 	if( result != vk::Result::eErrorOutOfDateKHR)
 	{
+		std::cout << "out of date swapchain\n";
 		RecreateSwapchain();   // TODO maybe handle in glfwResizeCallback instead ?
 		return;
 	}
@@ -963,7 +964,7 @@ void Renderer::DrawFrame() {
 
 	//start renderpass
 	vk::ClearValue clearValues[2];
-	clearValues[0].setColor( vk::ClearColorValue().setFloat32({0.0f, 0.0f, 0.0f, 1.0f}) );
+	clearValues[0].setColor( vk::ClearColorValue().setFloat32({1.0f, 0.0f, 0.0f, 1.0f}) );
 	clearValues[1].setDepthStencil( {1.0f, 0} ); 
 
 	auto renderInfo = vk::RenderPassBeginInfo{}
