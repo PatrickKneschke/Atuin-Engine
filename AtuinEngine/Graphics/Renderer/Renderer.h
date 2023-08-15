@@ -66,6 +66,7 @@ private:
 
     void DrawFrame();
     void UpdateCameraData();
+    void UpdateScenedata();
     void UpdateObjectData();
 
 
@@ -95,6 +96,7 @@ private:
     Buffer mIndexBuffer;
 
     Buffer mCameraBuffer;
+    Buffer mSceneBuffer;
     
     vk::Sampler mSampler;
 
@@ -108,12 +110,12 @@ private:
     vk::ShaderModule mMeshVertShader;
     vk::ShaderModule mMaterialFragShader;
 
-    vk::DescriptorSetLayout mCameraDataLayout;
+    vk::DescriptorSetLayout mPassDataLayout;
     vk::DescriptorSetLayout mMaterialDataLayout;
     vk::DescriptorSetLayout mObjectDataLayout;
 
     vk::DescriptorPool mDescriptorPool;
-    vk::DescriptorSet mCameraDataSet;
+    vk::DescriptorSet mPassDataSet;
     vk::DescriptorSet mMaterialDataSet;
     vk::DescriptorSet mObjectDataSet;
 

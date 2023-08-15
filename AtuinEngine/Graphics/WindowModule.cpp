@@ -54,7 +54,7 @@ void WindowModule::StartUp() {
     glfwWindowHint(GLFW_DEPTH_BITS, 24);
 
     // create window
-    pWindow = glfwCreateWindow(1200, 800, "Window Title", nullptr, nullptr);
+    pWindow = glfwCreateWindow( pWindowWidth->Get(), pWindowHeight->Get(), pWindowTitle->Get().c_str(), nullptr, nullptr);
     if (pWindow == nullptr)
     {
         mLog.Error(LogChannel::GRAPHICS, "Failed to create glfw window.");

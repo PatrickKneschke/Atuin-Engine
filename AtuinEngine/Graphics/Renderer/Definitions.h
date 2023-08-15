@@ -92,9 +92,10 @@ struct Buffer {
 struct Vertex {
 
 	glm::vec3 position;
-	glm::vec3 normal;
-	glm::vec2 texCoord;
 	glm::vec4 color;
+	glm::vec2 texCoord;
+	glm::vec3 normal;
+	glm::vec3 tangent;
 
 	static vk::VertexInputBindingDescription getBindingDescription() {
 	
@@ -109,7 +110,7 @@ struct Vertex {
 	static Array<vk::VertexInputAttributeDescription> getAttributeDescriptions() {
 
 		Array<vk::VertexInputAttributeDescription> attributeDescriptions;
-		attributeDescriptions.Resize(4);
+		attributeDescriptions.Resize(5);
 		
 		attributeDescriptions[0]
 			.setLocation( 0 )
@@ -119,8 +120,8 @@ struct Vertex {
 		attributeDescriptions[1]
 			.setLocation( 1 )
 			.setBinding( 0 )
-			.setFormat( vk::Format::eR32G32B32Sfloat )
-			.setOffset( offsetof(Vertex, normal) );
+			.setFormat( vk::Format::eR32G32B32A32Sfloat )
+			.setOffset( offsetof(Vertex, color) );
 		attributeDescriptions[2]
 			.setLocation( 2 )
 			.setBinding( 0 )
@@ -129,15 +130,21 @@ struct Vertex {
 		attributeDescriptions[3]
 			.setLocation( 3 )
 			.setBinding( 0 )
-			.setFormat( vk::Format::eR32G32B32A32Sfloat )
-			.setOffset( offsetof(Vertex, color) );
+			.setFormat( vk::Format::eR32G32B32Sfloat )
+			.setOffset( offsetof(Vertex, normal) );
+		attributeDescriptions[4]
+			.setLocation( 4 )
+			.setBinding( 0 )
+			.setFormat( vk::Format::eR32G32B32Sfloat )
+			.setOffset( offsetof(Vertex, tangent) );
 		
 		return attributeDescriptions;
 	}
 	
 	bool operator ==(const Vertex &other) const {
 		
-		return position == other.position && normal == other.normal && texCoord == other.texCoord;
+		return position == other.position && color == other.color && texCoord == other.texCoord
+				&& normal == other.normal && tangent == other.tangent;
 	}
 };
 
@@ -147,12 +154,35 @@ struct CameraData {
 	glm::mat4 view;
 	glm::mat4 proj;
 	glm::mat4 viewProj;
+	glm::vec3 position;
 };
 
 
 struct ObjectData {
 
 	glm::mat4 model;
+};
+
+
+struct AmbientLight {
+
+    glm::vec3 color;
+    float intensity;
+};
+
+
+struct DirectionalLight {
+
+    glm::vec3 color; 
+    float intensity;
+    glm::vec3 direction; 
+};
+
+
+struct SceneData {
+
+	AmbientLight ambient;
+	DirectionalLight light;
 };
 
 
@@ -185,10 +215,11 @@ namespace std {
 			
 		size_t operator()(Atuin::Vertex const &vertex) const {
 				
-			return (((hash<glm::vec3>()(vertex.position) ^
-				     (hash<glm::vec3>()(vertex.normal) << 1)) >> 1) ^
+			return ((((hash<glm::vec3>()(vertex.position) ^
+				     (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^
 					 (hash<glm::vec2>()(vertex.texCoord) << 1) >> 1) ^
-					 (hash<glm::vec2>()(vertex.color) << 1);
+					 (hash<glm::vec3>()(vertex.normal) << 1) >> 1) ^
+					 (hash<glm::vec3>()(vertex.tangent) << 1);
 		}
 	};
 }

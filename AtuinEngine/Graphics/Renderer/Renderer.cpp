@@ -76,7 +76,7 @@ void Renderer::ShutDown() {
 	pCore->Device().destroyPipeline( mSingleMaterialPipeline.pipeline);
 	pCore->Device().destroyPipelineLayout( mSingleMaterialPipeline.pipelineLayout);
 
-	pCore->Device().destroyDescriptorSetLayout( mCameraDataLayout);
+	pCore->Device().destroyDescriptorSetLayout( mPassDataLayout);
 	pCore->Device().destroyDescriptorSetLayout( mObjectDataLayout);
 	pCore->Device().destroyDescriptorSetLayout( mMaterialDataLayout); 
 
@@ -114,6 +114,9 @@ void Renderer::ShutDown() {
 
 	pCore->Device().destroyBuffer( mCameraBuffer.buffer);
 	pCore->Device().freeMemory( mCameraBuffer.bufferMemory);
+
+	pCore->Device().destroyBuffer( mSceneBuffer.buffer);
+	pCore->Device().freeMemory( mSceneBuffer.bufferMemory);
 
 	pCore->Device().destroyBuffer( mObjectBuffer.buffer);
 	pCore->Device().freeMemory( mObjectBuffer.bufferMemory);
@@ -292,7 +295,7 @@ void Renderer::CreateVertexBuffer() {
 
 	mVertexBuffer.usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst;
 	mVertexBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
-	mVertexBuffer.buffer = pCore->CreateBuffer( 8*sizeof(Vertex), mVertexBuffer.usage);
+	mVertexBuffer.buffer = pCore->CreateBuffer( 24*sizeof(Vertex), mVertexBuffer.usage);
 	mVertexBuffer.bufferMemory = pCore->AllocateBufferMemory( mVertexBuffer.buffer, mVertexBuffer.memoryType);
 }
 
@@ -318,7 +321,7 @@ void Renderer::LoadModel(std::string_view path) {
 		throw std::runtime_error(warning + error);
 	}
 		
-	std::unordered_map<glm::vec3, uint32_t> uniqueVertices{};
+	std::unordered_map<Vertex, uint32_t> uniqueVertices{};
 		
 	for(const auto &shape : shapes) 
 	{
@@ -341,13 +344,13 @@ void Renderer::LoadModel(std::string_view path) {
 			};
 			vertex.color = {1.0f, 1.0f, 1.0f, 1.0f};
 				
-			if(uniqueVertices.find(vertex.position) == uniqueVertices.end()) 
+			if(uniqueVertices.find(vertex) == uniqueVertices.end()) 
 			{
-				uniqueVertices[vertex.position] = static_cast<uint32_t>(mVertices.GetSize());
+				uniqueVertices[vertex] = static_cast<uint32_t>(mVertices.GetSize());
 				mVertices.PushBack(vertex);
 			}
 				
-			mIndices.PushBack(uniqueVertices[vertex.position]);
+			mIndices.PushBack( uniqueVertices[vertex]);
 		}
 	}
 }
@@ -394,7 +397,7 @@ void Renderer::CreateFrameResources() {
 	mFrames.Resize( pFrameOverlap->Get());
 	for (auto &frame : mFrames)
 	{
-		frame.renderFence = pCore->CreateFence();
+		frame.renderFence = pCore->CreateFence( vk::FenceCreateFlagBits::eSignaled);
 		frame.renderSemaphore = pCore->CreateSemaphore();
 		frame.presentSemaphore = pCore->CreateSemaphore();
 
@@ -432,7 +435,12 @@ void Renderer::CreateDescriptorResources() {
 	mCameraBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
 	mCameraBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
 	mCameraBuffer.buffer = pCore->CreateBuffer( sizeof(CameraData), mCameraBuffer.usage);
-	mCameraBuffer.bufferMemory = pCore->AllocateBufferMemory(mCameraBuffer.buffer, mCameraBuffer.memoryType);
+	mCameraBuffer.bufferMemory = pCore->AllocateBufferMemory( mCameraBuffer.buffer, mCameraBuffer.memoryType);
+
+	mSceneBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
+	mSceneBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
+	mSceneBuffer.buffer = pCore->CreateBuffer( sizeof(SceneData), mSceneBuffer.usage);
+	mSceneBuffer.bufferMemory = pCore->AllocateBufferMemory( mSceneBuffer.buffer, mSceneBuffer.memoryType);
 
 	CreateImageResource( mMaterialDiffuseImage, "../../Resources/Materials/brick/brick_diffuse.png");
 	CreateImageResource( mMaterialNormalImage, "../../Resources/Materials/brick/brick_normal.png");
@@ -441,7 +449,7 @@ void Renderer::CreateDescriptorResources() {
 	mObjectBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
 	mObjectBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
 	mObjectBuffer.buffer = pCore->CreateBuffer( sizeof(ObjectData), mObjectBuffer.usage);
-	mObjectBuffer.bufferMemory = pCore->AllocateBufferMemory(mObjectBuffer.buffer, mObjectBuffer.memoryType);
+	mObjectBuffer.bufferMemory = pCore->AllocateBufferMemory( mObjectBuffer.buffer, mObjectBuffer.memoryType);
 }
 
 
@@ -519,9 +527,17 @@ void Renderer::CreateDescriptorSetLayouts() {
 		.setBinding( 0 )
 		.setDescriptorType( vk::DescriptorType::eUniformBuffer )
 		.setDescriptorCount( 1 )
-		.setStageFlags( vk::ShaderStageFlagBits::eVertex );
-
-	mCameraDataLayout = pCore->CreateDescriptorSetLayout(1, &cameraDataBinding);
+		.setStageFlags( vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment );
+	auto sceneDataBinding = vk::DescriptorSetLayoutBinding{}
+		.setBinding( 1 )
+		.setDescriptorType( vk::DescriptorType::eUniformBuffer )
+		.setDescriptorCount( 1 )
+		.setStageFlags( vk::ShaderStageFlagBits::eFragment );
+	
+	vk::DescriptorSetLayoutBinding passBindings[] = {
+		cameraDataBinding, sceneDataBinding
+	};
+	mPassDataLayout = pCore->CreateDescriptorSetLayout(2, passBindings);
 	
 			
 	auto diffuseSamplerBinding = vk::DescriptorSetLayoutBinding{}
@@ -571,11 +587,11 @@ void Renderer::CreateDescriptorPool() {
 void Renderer::CreateDescriptorSets() {
 
 	vk::DescriptorSetLayout descriptorSetLayouts[] = {
-		mCameraDataLayout, mMaterialDataLayout, mObjectDataLayout
+		mPassDataLayout, mMaterialDataLayout, mObjectDataLayout
 	};
 	auto descriptorSets = pCore->AllocateDescriptorSets(mDescriptorPool, 3, descriptorSetLayouts);
 
-	mCameraDataSet = descriptorSets[0];
+	mPassDataSet = descriptorSets[0];
 	mMaterialDataSet = descriptorSets[1];
 	mObjectDataSet = descriptorSets[2];
 
@@ -585,12 +601,23 @@ void Renderer::CreateDescriptorSets() {
 		.setOffset(0)
 		.setRange( sizeof(CameraData) );
 	auto cameraWrite = vk::WriteDescriptorSet{}
-		.setDstSet( mCameraDataSet )
+		.setDstSet( mPassDataSet )
 		.setDstBinding( 0 )
 		.setDstArrayElement( 0 )
 		.setDescriptorCount( 1 )
 		.setDescriptorType( vk::DescriptorType::eUniformBuffer )
 		.setPBufferInfo( &cameraInfo );
+	auto sceneInfo = vk::DescriptorBufferInfo{}
+		.setBuffer( mSceneBuffer.buffer )
+		.setOffset(0)
+		.setRange( sizeof(SceneData) );
+	auto sceneWrite = vk::WriteDescriptorSet{}
+		.setDstSet( mPassDataSet )
+		.setDstBinding( 1 )
+		.setDstArrayElement( 0 )
+		.setDescriptorCount( 1 )
+		.setDescriptorType( vk::DescriptorType::eUniformBuffer )
+		.setPBufferInfo( &sceneInfo );
 
 	auto materialDiffuseInfo = vk::DescriptorImageInfo{}
 		.setImageLayout( vk::ImageLayout::eShaderReadOnlyOptimal )
@@ -748,7 +775,7 @@ void Renderer::CreatePipeline() {
 
 	// pipeline layout
 	vk::DescriptorSetLayout descriptorSetLayouts[] = {
-		mCameraDataLayout, mMaterialDataLayout, mObjectDataLayout
+		mPassDataLayout, mMaterialDataLayout, mObjectDataLayout
 	};
 	mSingleMaterialPipeline.pipelineLayout = pCore->CreatePipelineLayout( 3, descriptorSetLayouts );
 
@@ -919,25 +946,32 @@ void Renderer::DrawFrame() {
 
 	auto frame = CurrentFrame();
 	UpdateCameraData();
+	UpdateScenedata();
 	UpdateObjectData();
 
 
 	vk::Result result;
 
-	//
+	// get next swapchain image
 	U32 imageIndex;
-	result = pCore->Device().acquireNextImageKHR(
-		mSwapchain.swapchain, U64_MAX, frame.renderSemaphore, nullptr, &imageIndex
-	);
-	if( result != vk::Result::eErrorOutOfDateKHR)
+	try
 	{
-		std::cout << "out of date swapchain\n";
-		RecreateSwapchain();   // TODO maybe handle in glfwResizeCallback instead ?
-		return;
+		result = pCore->Device().acquireNextImageKHR(
+			mSwapchain.swapchain, U64_MAX, frame.renderSemaphore, nullptr, &imageIndex
+		);
 	}
-	else if( result != vk::Result::eSuccess)
+	catch ( ... )
 	{
-		throw std::runtime_error("Error while waiting for fence " + vk::to_string(result));
+		if( result == vk::Result::eErrorOutOfDateKHR)
+		{
+			std::cout << "out of date swapchain\n";
+			RecreateSwapchain();   // TODO maybe handle in glfwResizeCallback instead ?
+			return;
+		}
+		else if( result != vk::Result::eSuccess)
+		{
+			throw std::runtime_error("Error while getting swapchain image " + vk::to_string(result));
+		}
 	}
 	
 	// wait for render fence to record render commands
@@ -964,7 +998,7 @@ void Renderer::DrawFrame() {
 
 	//start renderpass
 	vk::ClearValue clearValues[2];
-	clearValues[0].setColor( vk::ClearColorValue().setFloat32({1.0f, 0.0f, 0.0f, 1.0f}) );
+	clearValues[0].setColor( vk::ClearColorValue().setFloat32({0.2f, 0.2f, 0.2f, 1.0f}) );
 	clearValues[1].setDepthStencil( {1.0f, 0} ); 
 
 	auto renderInfo = vk::RenderPassBeginInfo{}
@@ -975,6 +1009,21 @@ void Renderer::DrawFrame() {
 		.setPClearValues( clearValues );		
 	cmd.beginRenderPass(renderInfo, vk::SubpassContents::eInline);
 	
+	// set viewport
+	auto viewport = vk::Viewport{}
+		.setX( 0.f )
+		.setY( 0.f )
+		.setWidth( (float)mSwapchain.extent.width )
+		.setHeight( (float)mSwapchain.extent.height )
+		.setMinDepth( 0.f )
+		.setMaxDepth( 1.f );
+	auto scissor = vk::Rect2D{}
+		.setOffset( {0, 0} )
+		.setExtent( mSwapchain.extent );
+
+	cmd.setViewport( 0, 1, &viewport);
+	cmd.setScissor( 0, 1, &scissor);
+
 	cmd.bindPipeline(
 		vk::PipelineBindPoint::eGraphics, mSingleMaterialPipeline.pipeline
 	);
@@ -985,7 +1034,7 @@ void Renderer::DrawFrame() {
 	cmd.bindIndexBuffer( mIndexBuffer.buffer, 0, vk::IndexType::eUint32);
 		
 	vk::DescriptorSet descriptorSets[] = {
-		mCameraDataSet, mMaterialDataSet, mObjectDataSet
+		mPassDataSet, mMaterialDataSet, mObjectDataSet
 	};
 	cmd.bindDescriptorSets( 
 		vk::PipelineBindPoint::eGraphics, mSingleMaterialPipeline.pipelineLayout, 0, 3, descriptorSets, 0, nullptr		
@@ -1023,16 +1072,22 @@ void Renderer::DrawFrame() {
 		.setPSwapchains( &mSwapchain.swapchain )
 		.setPImageIndices( &imageIndex );
 	
-	result = pCore->GraphicsQueue().presentKHR( presentInfo);
-	if( result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR || 
-		mSwapchain.extent != pCore->surfaceExtent() ) 
+	try
 	{
-		RecreateSwapchain();
-		return;
+		result = pCore->GraphicsQueue().presentKHR( presentInfo);
 	}
-	else if( result != vk::Result::eSuccess ) 
+	catch( ... )
 	{
-		throw std::runtime_error("Error while presenting image " + vk::to_string(result));
+		if( result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR || 
+			mSwapchain.extent != pCore->SurfaceExtent() ) 
+		{
+			RecreateSwapchain();
+			return;
+		}
+		else if( result != vk::Result::eSuccess ) 
+		{
+			throw std::runtime_error("Error while presenting image " + vk::to_string(result));
+		}
 	}
 
 	++mFrameCount;
@@ -1042,19 +1097,38 @@ void Renderer::DrawFrame() {
 void Renderer::UpdateCameraData() {
 
 	CameraData camera;
-	camera.proj = glm::perspective(
-			glm::radians(45.f),
-			(float)mSwapchain.extent.width / (float)mSwapchain.extent.height,
-			0.1f, 256.0f
-		);
-	camera.view = glm::lookAt( 
-		glm::vec3(2.f, 2.f, 2.f),
+	camera.position = {4.f, 4.f, 4.f};
+	camera.view = glm::lookAt(
+		camera.position,
 		glm::vec3(0.f, 0.f, 0.f),
 		glm::vec3(0.f, 0.f, 1.f)
 	);
+	camera.proj = glm::perspective(
+		glm::radians(60.f),
+		(float)mSwapchain.extent.width / (float)mSwapchain.extent.height,
+		0.1f, 100.0f
+	);
+	camera.proj[1][1] *= -1; // flip y scaling factor -> correction of OpenGL inverse y-axis
 	camera.viewProj = camera.proj * camera.view;
+	
+	UploadBufferData( &camera, sizeof(CameraData), mCameraBuffer.buffer);
+}
 
-	UploadBufferData(&camera, sizeof(CameraData), mCameraBuffer.buffer);
+
+void Renderer::UpdateScenedata() {
+
+	SceneData scene;
+	scene.ambient = {
+		glm::vec3(1.f, 1.f, 1.f),
+		0.1f
+	};
+	scene.light = {
+		glm::vec3(1.f, 1.f, 1.f),
+		10.f,
+		glm::vec3(-1.f, -1.f, 0)
+	};
+
+	UploadBufferData( &scene, sizeof(SceneData), mSceneBuffer.buffer);
 }
 
 
@@ -1062,7 +1136,7 @@ void Renderer::UpdateObjectData() {
 
 	glm::mat4 rotation = glm::rotate(
 		glm::mat4(1.f), 
-		(float)(mFrameCount % 60) / 60.f * glm::radians(30.f), 
+		(float)mFrameCount / 60.f * glm::radians(30.f), 
 		glm::vec3(0.f, 0.f, 1.f)
 	);
 	glm::mat4 translate = glm::translate(
@@ -1071,12 +1145,12 @@ void Renderer::UpdateObjectData() {
 	);
 	glm::mat4 scale = glm::scale(
 		glm::mat4(1.f),
-		glm::vec3(1.f,1.f,1.f)
+		glm::vec3(1.f, 1.f, 1.f)
 	);
 	ObjectData obj;
 	obj.model = translate * rotation * scale;
 	
-	UploadBufferData(&obj, sizeof(ObjectData), mObjectBuffer.buffer);
+	UploadBufferData( &obj, sizeof(ObjectData), mObjectBuffer.buffer);
 }
 
     

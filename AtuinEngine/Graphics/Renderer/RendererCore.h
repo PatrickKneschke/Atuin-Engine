@@ -44,7 +44,7 @@ public:
 	vk::PhysicalDeviceProperties gpuProperties() const { return mGpuProperties; }
 	vk::PhysicalDeviceMemoryProperties gpuMemoryProperties() const { return mGpuMemoryProperties; }
 	QueueFamilyIndices QueueFamilies() const { return mQueueFamilies; }
-    vk::Extent2D surfaceExtent() const { return mGpu.getSurfaceCapabilitiesKHR(mSurface).currentExtent; }
+    vk::Extent2D SurfaceExtent() const { return mGpu.getSurfaceCapabilitiesKHR(mSurface).currentExtent; }
 	
 	vk::Queue GraphicsQueue() const { return mGraphicsQueue; }
 	vk::Queue ComputeQueue() const { return mComputeQueue; }
