@@ -72,6 +72,9 @@ void Renderer::StartUp(GLFWwindow *window) {
 
 void Renderer::ShutDown() {
 
+	pCore->Device().waitIdle();
+	
+
 	// render related
 	pCore->Device().destroyPipeline( mSingleMaterialPipeline.pipeline);
 	pCore->Device().destroyPipelineLayout( mSingleMaterialPipeline.pipelineLayout);
@@ -342,7 +345,7 @@ void Renderer::LoadModel(std::string_view path) {
 				attrib.normals[3*index.normal_index + 1],
 				attrib.normals[3*index.normal_index + 2]
 			};
-			vertex.color = {1.0f, 1.0f, 1.0f, 1.0f};
+			vertex.color = {1.0f, 1.0f, 1.0f, 1.0f};				
 				
 			if(uniqueVertices.find(vertex) == uniqueVertices.end()) 
 			{
@@ -352,6 +355,31 @@ void Renderer::LoadModel(std::string_view path) {
 				
 			mIndices.PushBack( uniqueVertices[vertex]);
 		}
+	}
+
+
+
+	// calculate tangents
+	for (Size i = 0 ; i < mIndices.GetSize(); i += 3) 
+	{
+		Vertex& v0 = mVertices[ mIndices[i]];
+		Vertex& v1 = mVertices[ mIndices[i+1]];
+		Vertex& v2 = mVertices[ mIndices[i+2]];
+
+		glm::vec3 edge1 = v1.position - v0.position;
+		glm::vec3 edge2 = v2.position - v0.position;
+
+		float deltaU1 = v1.texCoord.x - v0.texCoord.x;
+		float deltaV1 = v1.texCoord.y - v0.texCoord.y;
+		float deltaU2 = v2.texCoord.x - v0.texCoord.x;
+		float deltaV2 = v2.texCoord.y - v0.texCoord.y;
+
+		float f = 1.0f / (deltaU1 * deltaV2 - deltaU2 * deltaV1);
+		glm::vec3 tangent = f * (deltaV2 * edge1 - deltaV1 * edge2);
+		
+		v0.tangent += tangent;
+		v1.tangent += tangent;
+		v2.tangent += tangent;
 	}
 }
 
@@ -481,28 +509,9 @@ void Renderer::CreateImageResource(ImageResource &image, std::string_view path) 
 	}
 
 	// create image on device memory
-	vk::Format format;
-	switch (channels)
-	{
-		case 4:
-			format = vk::Format::eR8G8B8A8Srgb;
-			break;
-		case 3:
-			format = vk::Format::eR8G8B8Srgb;
-			break;
-		case 2:
-			format = vk::Format::eR16G16Sfloat;
-			break;
-		case 1:
-			format = vk::Format::eR32Sfloat;
-			break;
-	
-		default:
-			break;
-	}
 	image.width = width;
 	image.height = height;
-	image.format = format;
+	image.format = vk::Format::eR8G8B8A8Unorm;
 	image.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
 	image.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
 	image.image = pCore->CreateImage( image.width, image.height, image.format, image.usage);
@@ -666,9 +675,9 @@ void Renderer::CreateDescriptorSets() {
 		.setPBufferInfo( &objectInfo );	
 
 	vk::WriteDescriptorSet descriptorWrites[] = {
-		cameraWrite, materialDiffuseWrite, materialNormalWrite, materialSpecularWrite, objectWrite
+		cameraWrite, sceneWrite, materialDiffuseWrite, materialNormalWrite, materialSpecularWrite, objectWrite
 	};
-	pCore->Device().updateDescriptorSets(5, descriptorWrites, 0, nullptr);
+	pCore->Device().updateDescriptorSets(6, descriptorWrites, 0, nullptr);
 }
 
 
@@ -1097,11 +1106,14 @@ void Renderer::DrawFrame() {
 void Renderer::UpdateCameraData() {
 
 	CameraData camera;
-	camera.position = {4.f, 4.f, 4.f};
+	// camera.position = {-2.f, -2.f, -2.f};
+	// camera.position = {2.f, 2.f, 2.f};
+	float angle = (float)mFrameCount / 120.f * glm::radians(30.f);
+	camera.position = {3.f*cos(angle), 3.f, 3.f*sin(angle)};
 	camera.view = glm::lookAt(
 		camera.position,
 		glm::vec3(0.f, 0.f, 0.f),
-		glm::vec3(0.f, 0.f, 1.f)
+		glm::vec3(0.f, 1.f, 0.f)
 	);
 	camera.proj = glm::perspective(
 		glm::radians(60.f),
@@ -1125,7 +1137,7 @@ void Renderer::UpdateScenedata() {
 	scene.light = {
 		glm::vec3(1.f, 1.f, 1.f),
 		10.f,
-		glm::vec3(-1.f, -1.f, 0)
+		glm::vec3(-1.f, -1.f, -1.f)
 	};
 
 	UploadBufferData( &scene, sizeof(SceneData), mSceneBuffer.buffer);
@@ -1136,8 +1148,8 @@ void Renderer::UpdateObjectData() {
 
 	glm::mat4 rotation = glm::rotate(
 		glm::mat4(1.f), 
-		(float)mFrameCount / 60.f * glm::radians(30.f), 
-		glm::vec3(0.f, 0.f, 1.f)
+		0.f, // (float)mFrameCount / 60.f * glm::radians(30.f), 
+		glm::vec3(0.f, 1.f, 0.f)
 	);
 	glm::mat4 translate = glm::translate(
 		glm::mat4(1.f),
