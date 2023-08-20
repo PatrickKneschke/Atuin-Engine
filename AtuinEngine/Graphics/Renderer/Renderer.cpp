@@ -471,8 +471,8 @@ void Renderer::CreateDescriptorResources() {
 	mSceneBuffer.bufferMemory = pCore->AllocateBufferMemory( mSceneBuffer.buffer, mSceneBuffer.memoryType);
 
 	CreateImageResource( mMaterialDiffuseImage, "../../Resources/Materials/brick/brick_diffuse.png");
-	CreateImageResource( mMaterialNormalImage, "../../Resources/Materials/brick/brick_normal.png");
-	CreateImageResource( mMaterialSpecularImage, "../../Resources/Materials/brick/brick_specular.png");
+	CreateImageResource( mMaterialNormalImage, "../../Resources/Materials/brick/brick_normal.png", vk::Format::eR8G8B8A8Unorm);
+	CreateImageResource( mMaterialSpecularImage, "../../Resources/Materials/brick/brick_specular.png", vk::Format::eR8G8B8A8Unorm);
 
 	mObjectBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
 	mObjectBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
@@ -481,7 +481,7 @@ void Renderer::CreateDescriptorResources() {
 }
 
 
-void Renderer::CreateImageResource(ImageResource &image, std::string_view path) {
+void Renderer::CreateImageResource(ImageResource &image, std::string_view path, vk::Format format) {
 
 	// load image data from file
 	int width, height, channels;
@@ -511,7 +511,7 @@ void Renderer::CreateImageResource(ImageResource &image, std::string_view path) 
 	// create image on device memory
 	image.width = width;
 	image.height = height;
-	image.format = vk::Format::eR8G8B8A8Unorm;
+	image.format = format;
 	image.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
 	image.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
 	image.image = pCore->CreateImage( image.width, image.height, image.format, image.usage);
@@ -1136,7 +1136,7 @@ void Renderer::UpdateScenedata() {
 	};
 	scene.light = {
 		glm::vec3(1.f, 1.f, 1.f),
-		10.f,
+		1.f,
 		glm::vec3(-1.f, -1.f, -1.f)
 	};
 

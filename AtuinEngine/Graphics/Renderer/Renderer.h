@@ -55,7 +55,7 @@ private:
     void CreateShaderModules();
     void CreateSamplers();
     void CreateDescriptorResources();
-    void CreateImageResource(ImageResource &image, std::string_view path);
+    void CreateImageResource(ImageResource &image, std::string_view path, vk::Format format = vk::Format::eR8G8B8A8Srgb);
     void LoadModel(std::string_view path);
 
     void CreateDescriptorSetLayouts();
