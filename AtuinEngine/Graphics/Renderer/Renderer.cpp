@@ -64,7 +64,7 @@ void Renderer::StartUp(GLFWwindow *window) {
 	CreatePipeline();
 
 	// dummy model load
-	LoadModel( "../../Resources/Meshes/cube.obj");
+	LoadModel( "../../Resources/Meshes/Default/torus.obj");
 	UploadBufferData(mVertices.Data(), mVertices.GetSize() * sizeof(mVertices[0]), mVertexBuffer.buffer);
 	UploadBufferData(mIndices.Data(), mIndices.GetSize() * sizeof(mIndices[0]), mIndexBuffer.buffer);
 }
@@ -298,7 +298,7 @@ void Renderer::CreateVertexBuffer() {
 
 	mVertexBuffer.usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst;
 	mVertexBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
-	mVertexBuffer.buffer = pCore->CreateBuffer( 24*sizeof(Vertex), mVertexBuffer.usage);
+	mVertexBuffer.buffer = pCore->CreateBuffer( 10000 * sizeof(Vertex), mVertexBuffer.usage);
 	mVertexBuffer.bufferMemory = pCore->AllocateBufferMemory( mVertexBuffer.buffer, mVertexBuffer.memoryType);
 }
 
@@ -307,7 +307,7 @@ void Renderer::CreateIndexBuffer() {
 
 	mIndexBuffer.usage = vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst;
 	mIndexBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
-	mIndexBuffer.buffer = pCore->CreateBuffer( 36*4, mIndexBuffer.usage);
+	mIndexBuffer.buffer = pCore->CreateBuffer( 30000 * 4, mIndexBuffer.usage);
 	mIndexBuffer.bufferMemory = pCore->AllocateBufferMemory( mIndexBuffer.buffer, mIndexBuffer.memoryType);
 }
 
@@ -356,7 +356,6 @@ void Renderer::LoadModel(std::string_view path) {
 			mIndices.PushBack( uniqueVertices[vertex]);
 		}
 	}
-
 
 
 	// calculate tangents
@@ -470,9 +469,9 @@ void Renderer::CreateDescriptorResources() {
 	mSceneBuffer.buffer = pCore->CreateBuffer( sizeof(SceneData), mSceneBuffer.usage);
 	mSceneBuffer.bufferMemory = pCore->AllocateBufferMemory( mSceneBuffer.buffer, mSceneBuffer.memoryType);
 
-	CreateImageResource( mMaterialDiffuseImage, "../../Resources/Materials/brick/brick_diffuse.png");
-	CreateImageResource( mMaterialNormalImage, "../../Resources/Materials/brick/brick_normal.png", vk::Format::eR8G8B8A8Unorm);
-	CreateImageResource( mMaterialSpecularImage, "../../Resources/Materials/brick/brick_specular.png", vk::Format::eR8G8B8A8Unorm);
+	CreateImageResource( mMaterialDiffuseImage, "../../Resources/Materials/Mortar-Bricks/sloppy-mortar-bricks_albedo.png");
+	CreateImageResource( mMaterialNormalImage, "../../Resources/Materials/Mortar-Bricks/sloppy-mortar-bricks_normal.png", vk::Format::eR8G8B8A8Unorm);
+	CreateImageResource( mMaterialSpecularImage, "../../Resources/Materials/Mortar-Bricks/sloppy-mortar-bricks_ao.png", vk::Format::eR8G8B8A8Unorm);
 
 	mObjectBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
 	mObjectBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
@@ -730,8 +729,8 @@ void Renderer::CreatePipeline() {
 		.setRasterizerDiscardEnable( VK_FALSE )
 		.setPolygonMode( vk::PolygonMode::eFill )
 		.setLineWidth( 1.0 )
-		.setCullMode( vk::CullModeFlagBits::eNone )
-		.setFrontFace( vk::FrontFace::eClockwise )
+		.setCullMode( vk::CullModeFlagBits::eBack )
+		.setFrontFace( vk::FrontFace::eCounterClockwise )
 		.setDepthBiasEnable( VK_FALSE )
 		.setDepthBiasConstantFactor( 0.0f )
 		.setDepthBiasClamp( 0.0f )
@@ -1106,10 +1105,9 @@ void Renderer::DrawFrame() {
 void Renderer::UpdateCameraData() {
 
 	CameraData camera;
-	// camera.position = {-2.f, -2.f, -2.f};
-	// camera.position = {2.f, 2.f, 2.f};
-	float angle = (float)mFrameCount / 120.f * glm::radians(30.f);
-	camera.position = {3.f*cos(angle), 3.f, 3.f*sin(angle)};
+	camera.position = {0.f, 3.f, 6.f};
+	// float angle = (float)mFrameCount / 120.f * glm::radians(30.f);
+	// camera.position = {3.f*cos(angle), 3.f, 3.f*sin(angle)};
 	camera.view = glm::lookAt(
 		camera.position,
 		glm::vec3(0.f, 0.f, 0.f),
@@ -1129,6 +1127,9 @@ void Renderer::UpdateCameraData() {
 
 void Renderer::UpdateScenedata() {
 
+	float angle = (float)mFrameCount / 120.f * glm::radians(30.f);
+	glm::vec3 direction = {cos(angle), -1.f, sin(angle)};
+
 	SceneData scene;
 	scene.ambient = {
 		glm::vec3(1.f, 1.f, 1.f),
@@ -1136,8 +1137,8 @@ void Renderer::UpdateScenedata() {
 	};
 	scene.light = {
 		glm::vec3(1.f, 1.f, 1.f),
-		1.f,
-		glm::vec3(-1.f, -1.f, -1.f)
+		2.5f,
+		direction
 	};
 
 	UploadBufferData( &scene, sizeof(SceneData), mSceneBuffer.buffer);
@@ -1148,8 +1149,8 @@ void Renderer::UpdateObjectData() {
 
 	glm::mat4 rotation = glm::rotate(
 		glm::mat4(1.f), 
-		0.f, // (float)mFrameCount / 60.f * glm::radians(30.f), 
-		glm::vec3(0.f, 1.f, 0.f)
+		(float)mFrameCount / 60.f * glm::radians(30.f), 
+		glm::vec3(0.5f, 1.f, 0.75f)
 	);
 	glm::mat4 translate = glm::translate(
 		glm::mat4(1.f),
