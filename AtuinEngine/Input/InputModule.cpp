@@ -1,5 +1,6 @@
 
 #include "InputModule.h"
+#include "App.h"
 #include "GLFWInput.h"
 #include "InputContext.h"
 #include "Core/Config/ConfigManager.h"
@@ -17,8 +18,8 @@ namespace Atuin {
 
 GLFWwindow* InputModule::sWindow = nullptr;
 
-CVar<std::string>* InputModule::pInputContextsPath = ConfigManager::RegisterCVar("Input", "INPUT_CONTEXTS_PATH", std::string("../../Resources/input_contexts.json"));
-CVar<std::string>* InputModule::pInputRangesPath   = ConfigManager::RegisterCVar("Input", "INPUT_RANGES_PATH", std::string("../../Resources/input_ranges.json"));
+CVar<std::string>* InputModule::pInputContextsFile = ConfigManager::RegisterCVar("Input", "INPUT_CONTEXTS_FILE", std::string("input_contexts.json"));
+CVar<std::string>* InputModule::pInputRangesFile   = ConfigManager::RegisterCVar("Input", "INPUT_RANGES_FILE", std::string("input_ranges.json"));
 
 
 InputModule::InputModule() : 
@@ -29,7 +30,7 @@ InputModule::InputModule() :
     mFiles(), 
     mMemory()
 {
-
+    
 }
 
 
@@ -48,9 +49,8 @@ void InputModule::StartUp(GLFWwindow *window) {
     glfwSetMouseButtonCallback(sWindow, MouseListener);
     glfwSetCursorPosCallback(sWindow, CursorPosListener);
 
-    // TODO config variable for file paths ?
-    LoadContexts( pInputContextsPath->Get() );
-    LoadRanges( pInputRangesPath->Get() );
+    LoadContexts( App::sResourceDir->Get() + pInputContextsFile->Get() );
+    LoadRanges( App::sResourceDir->Get() + pInputRangesFile->Get() );
 }
 
 

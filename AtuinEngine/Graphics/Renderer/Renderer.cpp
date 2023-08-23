@@ -4,6 +4,8 @@
 #include "Core/Util/Types.h"
 #include "Core/Config/ConfigManager.h"
 
+#include "App.h"
+
 #include "GLFW/glfw3.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
@@ -64,7 +66,7 @@ void Renderer::StartUp(GLFWwindow *window) {
 	CreatePipeline();
 
 	// dummy model load
-	LoadModel( "../../Resources/Meshes/Default/torus.obj");
+	LoadModel( App::sResourceDir->Get() + "Meshes/Default/torus.obj");
 	UploadBufferData(mVertices.Data(), mVertices.GetSize() * sizeof(mVertices[0]), mVertexBuffer.buffer);
 	UploadBufferData(mIndices.Data(), mIndices.GetSize() * sizeof(mIndices[0]), mIndexBuffer.buffer);
 }
@@ -469,9 +471,9 @@ void Renderer::CreateDescriptorResources() {
 	mSceneBuffer.buffer = pCore->CreateBuffer( sizeof(SceneData), mSceneBuffer.usage);
 	mSceneBuffer.bufferMemory = pCore->AllocateBufferMemory( mSceneBuffer.buffer, mSceneBuffer.memoryType);
 
-	CreateImageResource( mMaterialDiffuseImage, "../../Resources/Materials/Mortar-Bricks/sloppy-mortar-bricks_albedo.png");
-	CreateImageResource( mMaterialNormalImage, "../../Resources/Materials/Mortar-Bricks/sloppy-mortar-bricks_normal.png", vk::Format::eR8G8B8A8Unorm);
-	CreateImageResource( mMaterialSpecularImage, "../../Resources/Materials/Mortar-Bricks/sloppy-mortar-bricks_ao.png", vk::Format::eR8G8B8A8Unorm);
+	CreateImageResource( mMaterialDiffuseImage, App::sResourceDir->Get() + "Materials/Mortar-Bricks/sloppy-mortar-bricks_albedo.png");
+	CreateImageResource( mMaterialNormalImage, App::sResourceDir->Get() + "Materials/Mortar-Bricks/sloppy-mortar-bricks_normal.png", vk::Format::eR8G8B8A8Unorm);
+	CreateImageResource( mMaterialSpecularImage, App::sResourceDir->Get() + "Materials/Mortar-Bricks/sloppy-mortar-bricks_ao.png", vk::Format::eR8G8B8A8Unorm);
 
 	mObjectBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
 	mObjectBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
@@ -682,8 +684,8 @@ void Renderer::CreateDescriptorSets() {
 
 void Renderer::CreateShaderModules() {
 
-	auto vertShaderCode = mFiles.Read( "../../Resources/Shaders/single_mesh_vert.spv" , std::ios::binary);
-	auto fragShaderCode = mFiles.Read( "../../Resources/Shaders/single_material_frag.spv" , std::ios::binary);
+	auto vertShaderCode = mFiles.Read( App::sResourceDir->Get() + "Shaders/single_mesh_vert.spv" , std::ios::binary);
+	auto fragShaderCode = mFiles.Read( App::sResourceDir->Get() + "Shaders/single_material_frag.spv" , std::ios::binary);
 
 	mMeshVertShader = pCore->CreateShaderModule( vertShaderCode.GetSize(), vertShaderCode.Data() );
 	mMaterialFragShader = pCore->CreateShaderModule( fragShaderCode.GetSize(), fragShaderCode.Data() );

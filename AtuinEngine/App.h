@@ -2,6 +2,9 @@
 #pragma once
 
 
+#include "Core/Config/CVar.h"
+
+
 namespace Atuin {
     
 
@@ -17,6 +20,9 @@ class App {
 public: 
 
     static void Quit();
+
+    static CVar<std::string>* sResourceDir;
+
 
     App();
     App(const App &other) = delete;

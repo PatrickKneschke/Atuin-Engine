@@ -13,6 +13,9 @@ namespace Atuin {
 
 App* App::sInstance = nullptr;
 
+// general usage config var
+CVar<std::string>* App::sResourceDir = ConfigManager::RegisterCVar("General", "RESOURCE_DIR", std::string("../../Resources/"));
+
 
 void App::Quit() {
 

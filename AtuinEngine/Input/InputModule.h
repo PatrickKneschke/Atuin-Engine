@@ -10,8 +10,6 @@
 #include "Core/DataStructures/Map.h"
 #include "Core/DataStructures/Json.h"
 
-// #include "json/json.hpp"
-
 #include <functional>
 
 
@@ -67,9 +65,8 @@ private:
 
     static GLFWwindow* sWindow;
 
-    static CVar<std::string>* pInputContextsPath;
-    static CVar<std::string>* pInputRangesPath; 
-
+    static CVar<std::string>* pInputContextsFile;
+    static CVar<std::string>* pInputRangesFile;
 
     void PushInputStates();
     
