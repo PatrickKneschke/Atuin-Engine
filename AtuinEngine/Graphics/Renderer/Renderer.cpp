@@ -66,7 +66,7 @@ void Renderer::StartUp(GLFWwindow *window) {
 	CreatePipeline();
 
 	// dummy model load
-	LoadModel( App::sResourceDir->Get() + "Meshes/Default/torus.obj");
+	LoadModel( App::sResourceDir->Get() + "Meshes/Default/sphere.obj");
 	UploadBufferData(mVertices.Data(), mVertices.GetSize() * sizeof(mVertices[0]), mVertexBuffer.buffer);
 	UploadBufferData(mIndices.Data(), mIndices.GetSize() * sizeof(mIndices[0]), mIndexBuffer.buffer);
 }
@@ -75,7 +75,6 @@ void Renderer::StartUp(GLFWwindow *window) {
 void Renderer::ShutDown() {
 
 	pCore->Device().waitIdle();
-	
 
 	// render related
 	pCore->Device().destroyPipeline( mSingleMaterialPipeline.pipeline);
@@ -112,11 +111,14 @@ void Renderer::ShutDown() {
 	pCore->Device().destroyBuffer( mIndexBuffer.buffer);
 	pCore->Device().freeMemory( mIndexBuffer.bufferMemory);
 
+	// samplers
 	pCore->Device().destroySampler( mSampler);
 
+	// shaders
 	pCore->Device().destroyShaderModule( mMeshVertShader);
 	pCore->Device().destroyShaderModule( mMaterialFragShader);
 
+	// buffers
 	pCore->Device().destroyBuffer( mCameraBuffer.buffer);
 	pCore->Device().freeMemory( mCameraBuffer.bufferMemory);
 
@@ -126,18 +128,28 @@ void Renderer::ShutDown() {
 	pCore->Device().destroyBuffer( mObjectBuffer.buffer);
 	pCore->Device().freeMemory( mObjectBuffer.bufferMemory);
 
-	pCore->Device().destroyImageView( mMaterialDiffuseImage.imageView);
-	pCore->Device().destroyImage( mMaterialDiffuseImage.image);
-	pCore->Device().freeMemory( mMaterialDiffuseImage.imageMemory);
+	// images
+	pCore->Device().destroyImageView( mMaterialAlbedoImage.imageView);
+	pCore->Device().destroyImage( mMaterialAlbedoImage.image);
+	pCore->Device().freeMemory( mMaterialAlbedoImage.imageMemory);
 
 	pCore->Device().destroyImageView( mMaterialNormalImage.imageView);
 	pCore->Device().destroyImage( mMaterialNormalImage.image);
 	pCore->Device().freeMemory( mMaterialNormalImage.imageMemory);
 
-	pCore->Device().destroyImageView( mMaterialSpecularImage.imageView);
-	pCore->Device().destroyImage( mMaterialSpecularImage.image);
-	pCore->Device().freeMemory( mMaterialSpecularImage.imageMemory);
+	pCore->Device().destroyImageView( mMaterialMetallicImage.imageView);
+	pCore->Device().destroyImage( mMaterialMetallicImage.image);
+	pCore->Device().freeMemory( mMaterialMetallicImage.imageMemory);
+
+	pCore->Device().destroyImageView( mMaterialRoughnessImage.imageView);
+	pCore->Device().destroyImage( mMaterialRoughnessImage.image);
+	pCore->Device().freeMemory( mMaterialRoughnessImage.imageMemory);
+
+	pCore->Device().destroyImageView( mMaterialAoImage.imageView);
+	pCore->Device().destroyImage( mMaterialAoImage.image);
+	pCore->Device().freeMemory( mMaterialAoImage.imageMemory);
 	
+	// frame resources
 	for(auto &frame : mFrames) 
 	{
 		pCore->Device().destroyFence( frame.renderFence, nullptr);
@@ -147,7 +159,7 @@ void Renderer::ShutDown() {
 		pCore->Device().destroyCommandPool( frame.commandPool);
 	}
 
-
+	// global sync objects
 	pCore->Device().destroyFence( mGraphicsSubmit.fence);
 	pCore->Device().destroyCommandPool( mGraphicsSubmit.commandPool);
 
@@ -347,7 +359,7 @@ void Renderer::LoadModel(std::string_view path) {
 				attrib.normals[3*index.normal_index + 1],
 				attrib.normals[3*index.normal_index + 2]
 			};
-			vertex.color = {1.0f, 1.0f, 1.0f, 1.0f};				
+			vertex.color = {1.0f, 1.0f, 1.0f, 1.0f};			
 				
 			if(uniqueVertices.find(vertex) == uniqueVertices.end()) 
 			{
@@ -471,9 +483,17 @@ void Renderer::CreateDescriptorResources() {
 	mSceneBuffer.buffer = pCore->CreateBuffer( sizeof(SceneData), mSceneBuffer.usage);
 	mSceneBuffer.bufferMemory = pCore->AllocateBufferMemory( mSceneBuffer.buffer, mSceneBuffer.memoryType);
 
-	CreateImageResource( mMaterialDiffuseImage, App::sResourceDir->Get() + "Materials/Mortar-Bricks/sloppy-mortar-bricks_albedo.png");
-	CreateImageResource( mMaterialNormalImage, App::sResourceDir->Get() + "Materials/Mortar-Bricks/sloppy-mortar-bricks_normal.png", vk::Format::eR8G8B8A8Unorm);
-	CreateImageResource( mMaterialSpecularImage, App::sResourceDir->Get() + "Materials/Mortar-Bricks/sloppy-mortar-bricks_ao.png", vk::Format::eR8G8B8A8Unorm);
+	CreateImageResource( mMaterialAlbedoImage, App::sResourceDir->Get() + "Materials/Rusted_Iron/rusted_iron_albedo.png", vk::Format::eR8G8B8A8Srgb);
+	CreateImageResource( mMaterialNormalImage, App::sResourceDir->Get() + "Materials/Default/default_normal.png");
+	CreateImageResource( mMaterialMetallicImage, App::sResourceDir->Get() + "Materials/Rusted_Iron/rusted_iron_metallic.png");
+	CreateImageResource( mMaterialRoughnessImage, App::sResourceDir->Get() + "Materials/Rusted_Iron/rusted_iron_roughness.png");
+	CreateImageResource( mMaterialAoImage, App::sResourceDir->Get() + "Materials/Default/default_white.png");
+
+	// CreateImageResource( mMaterialAlbedoImage, App::sResourceDir->Get() + "Materials/Mortar_Bricks/mortar_bricks_albedo.png");
+	// CreateImageResource( mMaterialNormalImage, App::sResourceDir->Get() + "Materials/Mortar_Bricks/mortar_bricks_normal.png", vk::Format::eR8G8B8A8Unorm);
+	// CreateImageResource( mMaterialMetallicImage, App::sResourceDir->Get() + "Materials/Default/default_black.png", vk::Format::eR8G8B8A8Unorm);
+	// CreateImageResource( mMaterialRoughnessImage, App::sResourceDir->Get() + "Materials/Mortar_Bricks/mortar_bricks_roughness.png", vk::Format::eR8G8B8A8Unorm);
+	// CreateImageResource( mMaterialAoImage, App::sResourceDir->Get() + "Materials/Mortar_Bricks/mortar_bricks_ao.png", vk::Format::eR8G8B8A8Unorm);
 
 	mObjectBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
 	mObjectBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
@@ -550,7 +570,7 @@ void Renderer::CreateDescriptorSetLayouts() {
 	mPassDataLayout = pCore->CreateDescriptorSetLayout(2, passBindings);
 	
 			
-	auto diffuseSamplerBinding = vk::DescriptorSetLayoutBinding{}
+	auto albedoSamplerBinding = vk::DescriptorSetLayoutBinding{}
 		.setBinding( 0 )
 		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
 		.setDescriptorCount( 1 )
@@ -560,16 +580,26 @@ void Renderer::CreateDescriptorSetLayouts() {
 		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
 		.setDescriptorCount( 1 )
 		.setStageFlags( vk::ShaderStageFlagBits::eFragment );		
-	auto specularSamplerBinding = vk::DescriptorSetLayoutBinding{}
+	auto metallicSamplerBinding = vk::DescriptorSetLayoutBinding{}
 		.setBinding( 2 )
+		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
+		.setDescriptorCount( 1 )
+		.setStageFlags( vk::ShaderStageFlagBits::eFragment );	
+	auto roughnessSamplerBinding = vk::DescriptorSetLayoutBinding{}
+		.setBinding( 3 )
+		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
+		.setDescriptorCount( 1 )
+		.setStageFlags( vk::ShaderStageFlagBits::eFragment );	
+	auto aoSamplerBinding = vk::DescriptorSetLayoutBinding{}
+		.setBinding( 4 )
 		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
 		.setDescriptorCount( 1 )
 		.setStageFlags( vk::ShaderStageFlagBits::eFragment );
 
 	vk::DescriptorSetLayoutBinding materialBindings[] = {
-		diffuseSamplerBinding, normalSamplerBinding, specularSamplerBinding
+		albedoSamplerBinding, normalSamplerBinding, metallicSamplerBinding, roughnessSamplerBinding, aoSamplerBinding
 	};
-	mMaterialDataLayout = pCore->CreateDescriptorSetLayout(3, materialBindings);
+	mMaterialDataLayout = pCore->CreateDescriptorSetLayout(5, materialBindings);
 
 
 	auto objectDataBinding = vk::DescriptorSetLayoutBinding{}
@@ -629,17 +659,17 @@ void Renderer::CreateDescriptorSets() {
 		.setDescriptorType( vk::DescriptorType::eUniformBuffer )
 		.setPBufferInfo( &sceneInfo );
 
-	auto materialDiffuseInfo = vk::DescriptorImageInfo{}
+	auto materialAlbedoInfo = vk::DescriptorImageInfo{}
 		.setImageLayout( vk::ImageLayout::eShaderReadOnlyOptimal )
-		.setImageView( mMaterialDiffuseImage.imageView )
+		.setImageView( mMaterialAlbedoImage.imageView )
 		.setSampler( mSampler );
-	auto materialDiffuseWrite = vk::WriteDescriptorSet{}
+	auto materialAlbedoWrite = vk::WriteDescriptorSet{}
 		.setDstSet( mMaterialDataSet )
 		.setDstBinding( 0 )
 		.setDstArrayElement( 0 )
 		.setDescriptorCount( 1 )
 		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
-		.setPImageInfo( &materialDiffuseInfo );
+		.setPImageInfo( &materialAlbedoInfo );
 	auto materialNormalInfo = vk::DescriptorImageInfo{}
 		.setImageLayout( vk::ImageLayout::eShaderReadOnlyOptimal )
 		.setImageView( mMaterialNormalImage.imageView )
@@ -651,17 +681,39 @@ void Renderer::CreateDescriptorSets() {
 		.setDescriptorCount( 1 )
 		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
 		.setPImageInfo( &materialNormalInfo );
-	auto materialSpecularInfo = vk::DescriptorImageInfo{}
+	auto materialMetallicInfo = vk::DescriptorImageInfo{}
 		.setImageLayout( vk::ImageLayout::eShaderReadOnlyOptimal )
-		.setImageView( mMaterialSpecularImage.imageView )
+		.setImageView( mMaterialMetallicImage.imageView )
 		.setSampler( mSampler );
-	auto materialSpecularWrite = vk::WriteDescriptorSet{}
+	auto materialMetallicWrite = vk::WriteDescriptorSet{}
 		.setDstSet( mMaterialDataSet )
 		.setDstBinding( 2 )
 		.setDstArrayElement( 0 )
 		.setDescriptorCount( 1 )
 		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
-		.setPImageInfo( &materialSpecularInfo );
+		.setPImageInfo( &materialMetallicInfo );
+	auto materialRoughnessInfo = vk::DescriptorImageInfo{}
+		.setImageLayout( vk::ImageLayout::eShaderReadOnlyOptimal )
+		.setImageView( mMaterialRoughnessImage.imageView )
+		.setSampler( mSampler );
+	auto materialRoughnessWrite = vk::WriteDescriptorSet{}
+		.setDstSet( mMaterialDataSet )
+		.setDstBinding( 3 )
+		.setDstArrayElement( 0 )
+		.setDescriptorCount( 1 )
+		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
+		.setPImageInfo( &materialRoughnessInfo );
+	auto materialAoInfo = vk::DescriptorImageInfo{}
+		.setImageLayout( vk::ImageLayout::eShaderReadOnlyOptimal )
+		.setImageView( mMaterialAoImage.imageView )
+		.setSampler( mSampler );
+	auto materialAoWrite = vk::WriteDescriptorSet{}
+		.setDstSet( mMaterialDataSet )
+		.setDstBinding( 3 )
+		.setDstArrayElement( 0 )
+		.setDescriptorCount( 1 )
+		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
+		.setPImageInfo( &materialAoInfo );
 
 	auto objectInfo = vk::DescriptorBufferInfo{}
 		.setBuffer( mObjectBuffer.buffer )
@@ -676,16 +728,16 @@ void Renderer::CreateDescriptorSets() {
 		.setPBufferInfo( &objectInfo );	
 
 	vk::WriteDescriptorSet descriptorWrites[] = {
-		cameraWrite, sceneWrite, materialDiffuseWrite, materialNormalWrite, materialSpecularWrite, objectWrite
+		cameraWrite, sceneWrite, materialAlbedoWrite, materialNormalWrite, materialMetallicWrite, materialRoughnessWrite, materialAoWrite, objectWrite
 	};
-	pCore->Device().updateDescriptorSets(6, descriptorWrites, 0, nullptr);
+	pCore->Device().updateDescriptorSets(8, descriptorWrites, 0, nullptr);
 }
 
 
 void Renderer::CreateShaderModules() {
 
 	auto vertShaderCode = mFiles.Read( App::sResourceDir->Get() + "Shaders/single_mesh_vert.spv" , std::ios::binary);
-	auto fragShaderCode = mFiles.Read( App::sResourceDir->Get() + "Shaders/single_material_frag.spv" , std::ios::binary);
+	auto fragShaderCode = mFiles.Read( App::sResourceDir->Get() + "Shaders/single_material_pbr_frag.spv" , std::ios::binary);
 
 	mMeshVertShader = pCore->CreateShaderModule( vertShaderCode.GetSize(), vertShaderCode.Data() );
 	mMaterialFragShader = pCore->CreateShaderModule( fragShaderCode.GetSize(), fragShaderCode.Data() );
@@ -1008,7 +1060,7 @@ void Renderer::DrawFrame() {
 
 	//start renderpass
 	vk::ClearValue clearValues[2];
-	clearValues[0].setColor( vk::ClearColorValue().setFloat32({0.2f, 0.2f, 0.2f, 1.0f}) );
+	clearValues[0].setColor( vk::ClearColorValue().setFloat32({0.1f, 0.1f, 0.1f, 1.0f}) );
 	clearValues[1].setDepthStencil( {1.0f, 0} ); 
 
 	auto renderInfo = vk::RenderPassBeginInfo{}
@@ -1107,7 +1159,7 @@ void Renderer::DrawFrame() {
 void Renderer::UpdateCameraData() {
 
 	CameraData camera;
-	camera.position = {0.f, 3.f, 6.f};
+	camera.position = {4.f, 2.f, 4.f};
 	// float angle = (float)mFrameCount / 120.f * glm::radians(30.f);
 	// camera.position = {3.f*cos(angle), 3.f, 3.f*sin(angle)};
 	camera.view = glm::lookAt(
@@ -1130,16 +1182,15 @@ void Renderer::UpdateCameraData() {
 void Renderer::UpdateScenedata() {
 
 	float angle = (float)mFrameCount / 120.f * glm::radians(30.f);
-	glm::vec3 direction = {cos(angle), -1.f, sin(angle)};
-
+	glm::vec3 direction = {cos(angle), 0.f, sin(angle)};
 	SceneData scene;
 	scene.ambient = {
 		glm::vec3(1.f, 1.f, 1.f),
-		0.1f
+		0.03f
 	};
 	scene.light = {
 		glm::vec3(1.f, 1.f, 1.f),
-		2.5f,
+		1.0f,
 		direction
 	};
 
@@ -1151,7 +1202,7 @@ void Renderer::UpdateObjectData() {
 
 	glm::mat4 rotation = glm::rotate(
 		glm::mat4(1.f), 
-		(float)mFrameCount / 60.f * glm::radians(30.f), 
+		0.f, //(float)mFrameCount / 60.f * glm::radians(30.f), 
 		glm::vec3(0.5f, 1.f, 0.75f)
 	);
 	glm::mat4 translate = glm::translate(

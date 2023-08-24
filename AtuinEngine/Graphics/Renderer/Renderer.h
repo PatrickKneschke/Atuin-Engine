@@ -55,7 +55,7 @@ private:
     void CreateShaderModules();
     void CreateSamplers();
     void CreateDescriptorResources();
-    void CreateImageResource(ImageResource &image, std::string_view path, vk::Format format = vk::Format::eR8G8B8A8Srgb);
+    void CreateImageResource(ImageResource &image, std::string_view path, vk::Format format = vk::Format::eR8G8B8A8Unorm);
     void LoadModel(std::string_view path);
 
     void CreateDescriptorSetLayouts();
@@ -119,9 +119,12 @@ private:
     vk::DescriptorSet mMaterialDataSet;
     vk::DescriptorSet mObjectDataSet;
 
-    ImageResource mMaterialDiffuseImage;
+    ImageResource mMaterialAlbedoImage;
     ImageResource mMaterialNormalImage;
-    ImageResource mMaterialSpecularImage;
+    ImageResource mMaterialMetallicImage;
+    ImageResource mMaterialRoughnessImage;
+    ImageResource mMaterialAoImage;
+
     Buffer mObjectBuffer;
 
 };
