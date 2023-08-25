@@ -465,7 +465,7 @@ void Renderer::CreateSamplers() {
 	mSampler = pCore->CreateSampler(
 		vk::Filter::eLinear, vk::Filter::eLinear,
 		vk::SamplerMipmapMode::eNearest,
-		vk::SamplerAddressMode::eClampToBorder, vk::SamplerAddressMode::eClampToBorder, vk::SamplerAddressMode::eClampToBorder,
+		vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat,
 		false
 	);
 }
@@ -489,11 +489,11 @@ void Renderer::CreateDescriptorResources() {
 	CreateImageResource( mMaterialRoughnessImage, App::sResourceDir->Get() + "Materials/Rusted_Iron/rusted_iron_roughness.png");
 	CreateImageResource( mMaterialAoImage, App::sResourceDir->Get() + "Materials/Default/default_white.png");
 
-	// CreateImageResource( mMaterialAlbedoImage, App::sResourceDir->Get() + "Materials/Mortar_Bricks/mortar_bricks_albedo.png");
-	// CreateImageResource( mMaterialNormalImage, App::sResourceDir->Get() + "Materials/Mortar_Bricks/mortar_bricks_normal.png", vk::Format::eR8G8B8A8Unorm);
-	// CreateImageResource( mMaterialMetallicImage, App::sResourceDir->Get() + "Materials/Default/default_black.png", vk::Format::eR8G8B8A8Unorm);
-	// CreateImageResource( mMaterialRoughnessImage, App::sResourceDir->Get() + "Materials/Mortar_Bricks/mortar_bricks_roughness.png", vk::Format::eR8G8B8A8Unorm);
-	// CreateImageResource( mMaterialAoImage, App::sResourceDir->Get() + "Materials/Mortar_Bricks/mortar_bricks_ao.png", vk::Format::eR8G8B8A8Unorm);
+	// CreateImageResource( mMaterialAlbedoImage, App::sResourceDir->Get() + "Materials/Mortar_Bricks/mortar_bricks_albedo.png", vk::Format::eR8G8B8A8Srgb);
+	// CreateImageResource( mMaterialNormalImage, App::sResourceDir->Get() + "Materials/Mortar_Bricks/mortar_bricks_normal.png");
+	// CreateImageResource( mMaterialMetallicImage, App::sResourceDir->Get() + "Materials/Default/default_black.png");
+	// CreateImageResource( mMaterialRoughnessImage, App::sResourceDir->Get() + "Materials/Mortar_Bricks/mortar_bricks_roughness.png");
+	// CreateImageResource( mMaterialAoImage, App::sResourceDir->Get() + "Materials/Mortar_Bricks/mortar_bricks_ao.png");
 
 	mObjectBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
 	mObjectBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
@@ -709,7 +709,7 @@ void Renderer::CreateDescriptorSets() {
 		.setSampler( mSampler );
 	auto materialAoWrite = vk::WriteDescriptorSet{}
 		.setDstSet( mMaterialDataSet )
-		.setDstBinding( 3 )
+		.setDstBinding( 4 )
 		.setDstArrayElement( 0 )
 		.setDescriptorCount( 1 )
 		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
@@ -1159,9 +1159,9 @@ void Renderer::DrawFrame() {
 void Renderer::UpdateCameraData() {
 
 	CameraData camera;
-	camera.position = {4.f, 2.f, 4.f};
+	camera.position = {4.f, 0.f, 0.f};
 	// float angle = (float)mFrameCount / 120.f * glm::radians(30.f);
-	// camera.position = {3.f*cos(angle), 3.f, 3.f*sin(angle)};
+	// camera.position = {4.f*cos(angle), 0.f, 4.f*sin(angle)};
 	camera.view = glm::lookAt(
 		camera.position,
 		glm::vec3(0.f, 0.f, 0.f),
@@ -1181,7 +1181,7 @@ void Renderer::UpdateCameraData() {
 
 void Renderer::UpdateScenedata() {
 
-	float angle = (float)mFrameCount / 120.f * glm::radians(30.f);
+	float angle = (float)mFrameCount / 60.f * glm::radians(30.f);
 	glm::vec3 direction = {cos(angle), 0.f, sin(angle)};
 	SceneData scene;
 	scene.ambient = {
