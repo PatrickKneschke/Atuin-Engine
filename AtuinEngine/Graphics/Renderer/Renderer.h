@@ -8,9 +8,9 @@
 #include "Core/Memory/Memory.h"
 #include "Core/Jobs/Jobs.h"
 #include "Core/Files/Files.h"
-
 #include "Core/DataStructures/Array.h"
-#include <fstream>
+#include "Core/DataStructures/Map.h"
+
 
 
 class GLFWwindow;
@@ -81,22 +81,26 @@ private:
     GLFWwindow* pWindow;
     RendererCore* pCore;
 
+    ImmediateSubmitContext mGraphicsSubmit;
+    ImmediateSubmitContext mTransferSubmit;
+
     Swapchain mSwapchain;
     ImageResource mDepthImage;
+
+    // TODO shadow pass, opaque pass, transparency pass, deferred pass
     vk::RenderPass mRenderPass;
     Array<vk::Framebuffer> mFramebuffers; 
 
     Array<FrameResources> mFrames;
     U64 mFrameCount;
 
-    ImmediateSubmitContext mGraphicsSubmit;
-    ImmediateSubmitContext mTransferSubmit;
-
     Buffer mVertexBuffer;
     Buffer mIndexBuffer;
 
+    // TODO use dynamic uniform buffer or move into FrameResource?
     Buffer mCameraBuffer;
     Buffer mSceneBuffer;
+    Buffer mObjectBuffer;
     
     vk::Sampler mSampler;
 
@@ -125,7 +129,11 @@ private:
     ImageResource mMaterialRoughnessImage;
     ImageResource mMaterialAoImage;
 
-    Buffer mObjectBuffer;
+    
+    // resource cache
+    Map<U64, ImageResource> mTextures;
+    Map<U64, Material*> mMaterials;
+    Map<U64, Mesh*> mMeshes;
 
 };
 

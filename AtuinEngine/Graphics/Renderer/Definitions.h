@@ -84,6 +84,7 @@ struct ImageResource {
 struct Buffer {
 	vk::Buffer				buffer;
 	vk::DeviceMemory		bufferMemory;
+	vk::DeviceSize          bufferSize;
 	vk::BufferUsageFlags	usage;
 	vk::MemoryPropertyFlags	memoryType;
 };
@@ -147,6 +148,24 @@ struct Vertex {
 				&& normal == other.normal && tangent == other.tangent;
 	}
 };
+
+
+
+struct Material {
+
+	vk::DescriptorSet materialDescriptors;
+};
+
+
+struct Mesh {
+
+	glm::mat4 transform;
+	U64 meshId;
+	U64 matrialId;
+	glm::vec4 sphereBounds;
+	// RenderStage renderStage -> bitmask
+};
+
 
 
 struct CameraData {

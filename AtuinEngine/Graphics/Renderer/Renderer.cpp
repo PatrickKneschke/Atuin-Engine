@@ -3,7 +3,6 @@
 #include "RendererCore.h"
 #include "Core/Util/Types.h"
 #include "Core/Config/ConfigManager.h"
-
 #include "App.h"
 
 #include "GLFW/glfw3.h"
@@ -66,7 +65,7 @@ void Renderer::StartUp(GLFWwindow *window) {
 	CreatePipeline();
 
 	// dummy model load
-	LoadModel( App::sResourceDir->Get() + "Meshes/Default/sphere.obj");
+	LoadModel( App::sResourceDir->Get() + "Meshes/Default/torus.obj");
 	UploadBufferData(mVertices.Data(), mVertices.GetSize() * sizeof(mVertices[0]), mVertexBuffer.buffer);
 	UploadBufferData(mIndices.Data(), mIndices.GetSize() * sizeof(mIndices[0]), mIndexBuffer.buffer);
 }
@@ -310,18 +309,20 @@ void Renderer::RecreateSwapchain() {
 
 void Renderer::CreateVertexBuffer() {
 
+	mVertexBuffer.bufferSize = 10000 * sizeof(Vertex);
 	mVertexBuffer.usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst;
 	mVertexBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
-	mVertexBuffer.buffer = pCore->CreateBuffer( 10000 * sizeof(Vertex), mVertexBuffer.usage);
+	mVertexBuffer.buffer = pCore->CreateBuffer( mVertexBuffer.bufferSize, mVertexBuffer.usage);
 	mVertexBuffer.bufferMemory = pCore->AllocateBufferMemory( mVertexBuffer.buffer, mVertexBuffer.memoryType);
 }
 
 
 void Renderer::CreateIndexBuffer() {
 
+	mIndexBuffer.bufferSize = 30000 * 4;
 	mIndexBuffer.usage = vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst;
 	mIndexBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
-	mIndexBuffer.buffer = pCore->CreateBuffer( 30000 * 4, mIndexBuffer.usage);
+	mIndexBuffer.buffer = pCore->CreateBuffer( mIndexBuffer.bufferSize, mIndexBuffer.usage);
 	mIndexBuffer.bufferMemory = pCore->AllocateBufferMemory( mIndexBuffer.buffer, mIndexBuffer.memoryType);
 }
 
@@ -424,6 +425,7 @@ void Renderer::UploadBufferData( void *bufferData, Size size, vk::Buffer targetB
 Buffer Renderer::CreateStagingBuffer(Size bufferSize) {
 
 	Buffer stagingBuffer;
+	stagingBuffer.bufferSize = bufferSize;
 	stagingBuffer.usage = vk::BufferUsageFlagBits::eTransferSrc;
 	stagingBuffer.memoryType = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
 	stagingBuffer.buffer = pCore->CreateBuffer( bufferSize, stagingBuffer.usage);
@@ -473,14 +475,16 @@ void Renderer::CreateSamplers() {
 
 void Renderer::CreateDescriptorResources() {
 
+	mCameraBuffer.bufferSize = sizeof(CameraData);
 	mCameraBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
 	mCameraBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
-	mCameraBuffer.buffer = pCore->CreateBuffer( sizeof(CameraData), mCameraBuffer.usage);
+	mCameraBuffer.buffer = pCore->CreateBuffer( mCameraBuffer.bufferSize, mCameraBuffer.usage);
 	mCameraBuffer.bufferMemory = pCore->AllocateBufferMemory( mCameraBuffer.buffer, mCameraBuffer.memoryType);
 
+	mSceneBuffer.bufferSize = sizeof(SceneData);
 	mSceneBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
 	mSceneBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
-	mSceneBuffer.buffer = pCore->CreateBuffer( sizeof(SceneData), mSceneBuffer.usage);
+	mSceneBuffer.buffer = pCore->CreateBuffer( mSceneBuffer.bufferSize, mSceneBuffer.usage);
 	mSceneBuffer.bufferMemory = pCore->AllocateBufferMemory( mSceneBuffer.buffer, mSceneBuffer.memoryType);
 
 	CreateImageResource( mMaterialAlbedoImage, App::sResourceDir->Get() + "Materials/Rusted_Iron/rusted_iron_albedo.png", vk::Format::eR8G8B8A8Srgb);
@@ -489,15 +493,10 @@ void Renderer::CreateDescriptorResources() {
 	CreateImageResource( mMaterialRoughnessImage, App::sResourceDir->Get() + "Materials/Rusted_Iron/rusted_iron_roughness.png");
 	CreateImageResource( mMaterialAoImage, App::sResourceDir->Get() + "Materials/Default/default_white.png");
 
-	// CreateImageResource( mMaterialAlbedoImage, App::sResourceDir->Get() + "Materials/Mortar_Bricks/mortar_bricks_albedo.png", vk::Format::eR8G8B8A8Srgb);
-	// CreateImageResource( mMaterialNormalImage, App::sResourceDir->Get() + "Materials/Mortar_Bricks/mortar_bricks_normal.png");
-	// CreateImageResource( mMaterialMetallicImage, App::sResourceDir->Get() + "Materials/Default/default_black.png");
-	// CreateImageResource( mMaterialRoughnessImage, App::sResourceDir->Get() + "Materials/Mortar_Bricks/mortar_bricks_roughness.png");
-	// CreateImageResource( mMaterialAoImage, App::sResourceDir->Get() + "Materials/Mortar_Bricks/mortar_bricks_ao.png");
-
+	mObjectBuffer.bufferSize = sizeof(ObjectData);
 	mObjectBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
 	mObjectBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
-	mObjectBuffer.buffer = pCore->CreateBuffer( sizeof(ObjectData), mObjectBuffer.usage);
+	mObjectBuffer.buffer = pCore->CreateBuffer( mObjectBuffer.bufferSize, mObjectBuffer.usage);
 	mObjectBuffer.bufferMemory = pCore->AllocateBufferMemory( mObjectBuffer.buffer, mObjectBuffer.memoryType);
 }
 
@@ -639,7 +638,7 @@ void Renderer::CreateDescriptorSets() {
 	auto cameraInfo = vk::DescriptorBufferInfo{}
 		.setBuffer( mCameraBuffer.buffer )
 		.setOffset(0)
-		.setRange( sizeof(CameraData) );
+		.setRange( mCameraBuffer.bufferSize );
 	auto cameraWrite = vk::WriteDescriptorSet{}
 		.setDstSet( mPassDataSet )
 		.setDstBinding( 0 )
@@ -650,7 +649,7 @@ void Renderer::CreateDescriptorSets() {
 	auto sceneInfo = vk::DescriptorBufferInfo{}
 		.setBuffer( mSceneBuffer.buffer )
 		.setOffset(0)
-		.setRange( sizeof(SceneData) );
+		.setRange( mSceneBuffer.bufferSize );
 	auto sceneWrite = vk::WriteDescriptorSet{}
 		.setDstSet( mPassDataSet )
 		.setDstBinding( 1 )
@@ -718,7 +717,7 @@ void Renderer::CreateDescriptorSets() {
 	auto objectInfo = vk::DescriptorBufferInfo{}
 		.setBuffer( mObjectBuffer.buffer )
 		.setOffset(0)
-		.setRange( sizeof(ObjectData) );
+		.setRange( mObjectBuffer.bufferSize );
 	auto objectWrite = vk::WriteDescriptorSet{}
 		.setDstSet( mObjectDataSet )
 		.setDstBinding( 0 )
@@ -1159,7 +1158,7 @@ void Renderer::DrawFrame() {
 void Renderer::UpdateCameraData() {
 
 	CameraData camera;
-	camera.position = {4.f, 0.f, 0.f};
+	camera.position = {2.f, 3.f, 4.f};
 	// float angle = (float)mFrameCount / 120.f * glm::radians(30.f);
 	// camera.position = {4.f*cos(angle), 0.f, 4.f*sin(angle)};
 	camera.view = glm::lookAt(
@@ -1181,7 +1180,7 @@ void Renderer::UpdateCameraData() {
 
 void Renderer::UpdateScenedata() {
 
-	float angle = (float)mFrameCount / 60.f * glm::radians(30.f);
+	float angle = (float)mFrameCount / 120.f * glm::radians(30.f);
 	glm::vec3 direction = {cos(angle), 0.f, sin(angle)};
 	SceneData scene;
 	scene.ambient = {
@@ -1190,7 +1189,7 @@ void Renderer::UpdateScenedata() {
 	};
 	scene.light = {
 		glm::vec3(1.f, 1.f, 1.f),
-		1.0f,
+		2.5f,
 		direction
 	};
 
@@ -1202,7 +1201,7 @@ void Renderer::UpdateObjectData() {
 
 	glm::mat4 rotation = glm::rotate(
 		glm::mat4(1.f), 
-		0.f, //(float)mFrameCount / 60.f * glm::radians(30.f), 
+		(float)mFrameCount / 60.f * glm::radians(30.f), 
 		glm::vec3(0.5f, 1.f, 0.75f)
 	);
 	glm::mat4 translate = glm::translate(
