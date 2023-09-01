@@ -78,6 +78,8 @@ struct ImageResource {
 	vk::MemoryPropertyFlags memoryType;
 	U32                     width;
 	U32                     height;
+
+	//TODO craete DescriptorImageInfo
 };
 
 // stores a buffer, its device memory, usage and memory type
@@ -87,6 +89,8 @@ struct Buffer {
 	vk::DeviceSize          bufferSize;
 	vk::BufferUsageFlags	usage;
 	vk::MemoryPropertyFlags	memoryType;
+
+	//TODO create DescriptorBufferInfo
 };
 
 // stores all data of a single mesh vertex
@@ -148,24 +152,6 @@ struct Vertex {
 				&& normal == other.normal && tangent == other.tangent;
 	}
 };
-
-
-
-struct Material {
-
-	vk::DescriptorSet materialDescriptors;
-};
-
-
-struct Mesh {
-
-	glm::mat4 transform;
-	U64 meshId;
-	U64 matrialId;
-	glm::vec4 sphereBounds;
-	// RenderStage renderStage -> bitmask
-};
-
 
 
 struct CameraData {

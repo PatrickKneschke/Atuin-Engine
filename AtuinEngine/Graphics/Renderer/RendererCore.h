@@ -62,6 +62,7 @@ public:
         vk::Buffer buffer, 
         vk::MemoryPropertyFlags properties
     ) const;
+    
     vk::Image CreateImage(
 		U32 width,
 		U32 height,
@@ -99,6 +100,7 @@ public:
         vk::CompareOp compareOp = vk::CompareOp::eAlways,
 		vk::BorderColor borderColor = vk::BorderColor::eFloatOpaqueBlack
     ) const;
+
     vk::CommandPool CreateCommandPool(
         U32 queueFamily,
 		vk::CommandPoolCreateFlags flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer
@@ -112,9 +114,11 @@ public:
         U32 count,
         vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary
     ) const;
+
 	vk::Fence CreateFence( vk::FenceCreateFlags signaled = vk::FenceCreateFlags{} ) const;	
 	vk::Semaphore CreateSemaphore() const;
     vk::ShaderModule CreateShaderModule( Size codeSize, const char* code ) const;
+
     vk::DescriptorPool CreateDescriptorPool(
         U32 maxSets,
         U32 count, 
@@ -124,6 +128,7 @@ public:
     vk::DescriptorSetLayout CreateDescriptorSetLayout( U32 count, vk::DescriptorSetLayoutBinding* bindings ) const;
     vk::DescriptorSet AllocateDescriptorSet( vk::DescriptorPool pool, vk::DescriptorSetLayout layout) const;
     Array<vk::DescriptorSet> AllocateDescriptorSets( vk::DescriptorPool pool, U32 count, vk::DescriptorSetLayout* layouts ) const;
+
     vk::PipelineLayout CreatePipelineLayout(
         U32 setLayoutCount,
         vk::DescriptorSetLayout* setLayouts,
@@ -189,7 +194,6 @@ private:
     vk::Queue mGraphicsQueue; // for graphics, graphics-related compute and gpu-gpu transfer ops
     vk::Queue mComputeQueue;  // for async compute ops
     vk::Queue mTransferQueue; // for cpu-gpu transfer ops
-
 };
 
 

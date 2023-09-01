@@ -97,7 +97,7 @@ private:
     Buffer mVertexBuffer;
     Buffer mIndexBuffer;
 
-    // TODO use dynamic uniform buffer or move into FrameResource?
+    // TODO use dynamic uniform buffer or move into FrameResource ?
     Buffer mCameraBuffer;
     Buffer mSceneBuffer;
     Buffer mObjectBuffer;
@@ -130,10 +130,6 @@ private:
     ImageResource mMaterialAoImage;
 
     
-    // resource cache
-    Map<U64, ImageResource> mTextures;
-    Map<U64, Material*> mMaterials;
-    Map<U64, Mesh*> mMeshes;
 
 };
 
