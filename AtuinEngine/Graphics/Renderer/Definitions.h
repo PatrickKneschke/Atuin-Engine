@@ -166,6 +166,7 @@ struct CameraData {
 struct ObjectData {
 
 	glm::mat4 model;
+	// glm::vec4 sphereBounds;
 };
 
 

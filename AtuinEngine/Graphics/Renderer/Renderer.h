@@ -11,12 +11,38 @@
 #include "Core/DataStructures/Array.h"
 #include "Core/DataStructures/Map.h"
 
+#include <functional>
+
 
 
 class GLFWwindow;
 
 namespace Atuin {
-    
+
+
+class DeletionStack {
+
+public:
+
+    void Push( std::function<void()> &&func) {
+
+        mDeletors.PushBack( std::move(func));
+    }
+
+    void Flush() {
+
+        while ( !mDeletors.IsEmpty())
+        {
+            mDeletors.Back()();
+            mDeletors.PopBack();
+        }
+    }
+
+private:
+
+    Array<std::function<void()>> mDeletors;
+};
+
 
 class RendererCore;
 
@@ -80,6 +106,8 @@ private:
 
     GLFWwindow* pWindow;
     RendererCore* pCore;
+
+    DeletionStack mDeletionStack;
 
     ImmediateSubmitContext mGraphicsSubmit;
     ImmediateSubmitContext mTransferSubmit;

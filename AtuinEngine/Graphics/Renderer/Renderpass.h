@@ -96,7 +96,7 @@ struct Renderpass {
     // render objects
     PassType passType;
     vk::RenderPass renderpass;
-    vk::Framebuffer framebuffer;
+    Array<vk::Framebuffer> mFramebuffers;
 
     // objects participating in this render pass
     Array<RenderObject> renderObjects;

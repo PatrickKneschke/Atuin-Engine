@@ -154,8 +154,8 @@ public:
             T *ptr;
     };
 
-    using reverse_iterator = std::reverse_iterator<iterator>;
-    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+    // using reverse_iterator = std::reverse_iterator<iterator>;
+    // using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
 
 public:
@@ -205,10 +205,10 @@ public:
     const_iterator Cbegin() const { return const_iterator(pData); }
     iterator End() { return iterator(pData + mSize); }
     const_iterator Cend() const { return const_iterator(pData + mSize); }
-    reverse_iterator Rbegin() { return reverse_iterator(pData + mSize - 1); }
-    const_iterator Crbegin() const { return const_reverse_iterator(pData + mSize - 1); }
-    iterator Rend() { return reverse_iterator(pData - 1); }
-    const_iterator Crend() const { return const_iterator(pData - 1); }
+    // reverse_iterator Rbegin() { return reverse_iterator(pData + mSize - 1); }
+    // const_reverse_iterator Crbegin() const { return const_reverse_iterator(pData + mSize - 1); }
+    // reverse_iterator Rend() { return reverse_iterator(pData - 1); }
+    // const_reverse_iterator Crend() const { return const_iterator(pData - 1); }
 
     bool operator== (const Array &rhs) const;
     bool operator!= (const Array &rhs) const;
@@ -641,17 +641,17 @@ Array<T>::iterator end(Array<T> &arr) { return arr.End(); }
 template<typename T>
 Array<T>::const_iterator end(const Array<T> &arr) { return arr.Cend(); }
 
-template<typename T>
-Array<T>::iterator rbegin(Array<T> &arr) { return arr.Rbegin(); }
+// template<typename T>
+// Array<T>::reverse_iterator rbegin(Array<T> &arr) { return arr.Rbegin(); }
 
-template<typename T>
-Array<T>::iterator rbegin(const Array<T> &arr) { return arr.Crbegin(); }
+// template<typename T>
+// Array<T>::reverse_iterator rbegin(const Array<T> &arr) { return arr.Crbegin(); }
 
-template<typename T>
-Array<T>::iterator rend(Array<T> &arr) { return arr.Rend(); }
+// template<typename T>
+// Array<T>::reverse_iterator rend(Array<T> &arr) { return arr.Rend(); }
 
-template<typename T>
-Array<T>::iterator rend(const Array<T> &arr) { return arr.Crend(); }
+// template<typename T>
+// Array<T>::reverse_iterator rend(const Array<T> &arr) { return arr.Crend(); }
 
 
 } // Atuin

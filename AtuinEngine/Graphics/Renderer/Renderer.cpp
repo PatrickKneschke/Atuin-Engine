@@ -75,24 +75,14 @@ void Renderer::ShutDown() {
 
 	pCore->Device().waitIdle();
 
-	// render related
-	pCore->Device().destroyPipeline( mSingleMaterialPipeline.pipeline);
-	pCore->Device().destroyPipelineLayout( mSingleMaterialPipeline.pipelineLayout);
+	mDeletionStack.Flush();
 
-	pCore->Device().destroyDescriptorSetLayout( mPassDataLayout);
-	pCore->Device().destroyDescriptorSetLayout( mObjectDataLayout);
-	pCore->Device().destroyDescriptorSetLayout( mMaterialDataLayout); 
-
-	pCore->Device().destroyDescriptorPool( mDescriptorPool);
-
+	// presentation related
 	for (auto &framebuffer : mFramebuffers)
 	{
 		pCore->Device().destroyFramebuffer(framebuffer);
 	}	
 
-	pCore->Device().destroyRenderPass( mRenderPass);
-
-	// presentation related
 	pCore->Device().destroyImageView( mDepthImage.imageView);
 	pCore->Device().destroyImage( mDepthImage.image);
 	pCore->Device().freeMemory( mDepthImage.imageMemory);
@@ -102,68 +92,6 @@ void Renderer::ShutDown() {
 		pCore->Device().destroyImageView( imageView);
 	}
 	pCore->Device().destroySwapchainKHR( mSwapchain.swapchain, nullptr);
-
-	// resources
-	pCore->Device().destroyBuffer( mVertexBuffer.buffer);
-	pCore->Device().freeMemory( mVertexBuffer.bufferMemory);
-
-	pCore->Device().destroyBuffer( mIndexBuffer.buffer);
-	pCore->Device().freeMemory( mIndexBuffer.bufferMemory);
-
-	// samplers
-	pCore->Device().destroySampler( mSampler);
-
-	// shaders
-	pCore->Device().destroyShaderModule( mMeshVertShader);
-	pCore->Device().destroyShaderModule( mMaterialFragShader);
-
-	// buffers
-	pCore->Device().destroyBuffer( mCameraBuffer.buffer);
-	pCore->Device().freeMemory( mCameraBuffer.bufferMemory);
-
-	pCore->Device().destroyBuffer( mSceneBuffer.buffer);
-	pCore->Device().freeMemory( mSceneBuffer.bufferMemory);
-
-	pCore->Device().destroyBuffer( mObjectBuffer.buffer);
-	pCore->Device().freeMemory( mObjectBuffer.bufferMemory);
-
-	// images
-	pCore->Device().destroyImageView( mMaterialAlbedoImage.imageView);
-	pCore->Device().destroyImage( mMaterialAlbedoImage.image);
-	pCore->Device().freeMemory( mMaterialAlbedoImage.imageMemory);
-
-	pCore->Device().destroyImageView( mMaterialNormalImage.imageView);
-	pCore->Device().destroyImage( mMaterialNormalImage.image);
-	pCore->Device().freeMemory( mMaterialNormalImage.imageMemory);
-
-	pCore->Device().destroyImageView( mMaterialMetallicImage.imageView);
-	pCore->Device().destroyImage( mMaterialMetallicImage.image);
-	pCore->Device().freeMemory( mMaterialMetallicImage.imageMemory);
-
-	pCore->Device().destroyImageView( mMaterialRoughnessImage.imageView);
-	pCore->Device().destroyImage( mMaterialRoughnessImage.image);
-	pCore->Device().freeMemory( mMaterialRoughnessImage.imageMemory);
-
-	pCore->Device().destroyImageView( mMaterialAoImage.imageView);
-	pCore->Device().destroyImage( mMaterialAoImage.image);
-	pCore->Device().freeMemory( mMaterialAoImage.imageMemory);
-	
-	// frame resources
-	for(auto &frame : mFrames) 
-	{
-		pCore->Device().destroyFence( frame.renderFence, nullptr);
-		pCore->Device().destroySemaphore( frame.renderSemaphore, nullptr);
-		pCore->Device().destroySemaphore( frame.presentSemaphore, nullptr);
-		
-		pCore->Device().destroyCommandPool( frame.commandPool);
-	}
-
-	// global sync objects
-	pCore->Device().destroyFence( mGraphicsSubmit.fence);
-	pCore->Device().destroyCommandPool( mGraphicsSubmit.commandPool);
-
-	pCore->Device().destroyFence( mTransferSubmit.fence);
-	pCore->Device().destroyCommandPool( mTransferSubmit.commandPool);
 
 	// core
 	mMemory.Delete(pCore);
@@ -253,6 +181,10 @@ void Renderer::CreateRenderPass() {
 
 	vk::AttachmentDescription attachments[] = {presentAttachment, depthAttachment};
 	mRenderPass = pCore->CreateRenderPass(2, attachments, 1, &subpass, 1, &dependency);
+
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyRenderPass( mRenderPass);
+	});
 }
 
 
@@ -314,6 +246,11 @@ void Renderer::CreateVertexBuffer() {
 	mVertexBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
 	mVertexBuffer.buffer = pCore->CreateBuffer( mVertexBuffer.bufferSize, mVertexBuffer.usage);
 	mVertexBuffer.bufferMemory = pCore->AllocateBufferMemory( mVertexBuffer.buffer, mVertexBuffer.memoryType);
+
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyBuffer( mVertexBuffer.buffer);
+		pCore->Device().freeMemory( mVertexBuffer.bufferMemory);
+	});
 }
 
 
@@ -324,6 +261,11 @@ void Renderer::CreateIndexBuffer() {
 	mIndexBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
 	mIndexBuffer.buffer = pCore->CreateBuffer( mIndexBuffer.bufferSize, mIndexBuffer.usage);
 	mIndexBuffer.bufferMemory = pCore->AllocateBufferMemory( mIndexBuffer.buffer, mIndexBuffer.memoryType);
+
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyBuffer( mIndexBuffer.buffer);
+		pCore->Device().freeMemory( mIndexBuffer.bufferMemory);
+	});
 }
 
 
@@ -446,6 +388,14 @@ void Renderer::CreateFrameResources() {
 
 		frame.commandPool = pCore->CreateCommandPool( pCore->QueueFamilies().graphicsFamily);
 		frame.commandBuffer = pCore->AllocateCommandBuffer( frame.commandPool);
+
+		mDeletionStack.Push( [&](){
+			pCore->Device().destroyFence( frame.renderFence, nullptr);
+			pCore->Device().destroySemaphore( frame.renderSemaphore, nullptr);
+			pCore->Device().destroySemaphore( frame.presentSemaphore, nullptr);
+			
+			pCore->Device().destroyCommandPool( frame.commandPool);
+		});
 	}	
 }
 
@@ -459,6 +409,14 @@ void Renderer::CreateSubmitContexts() {
 	mTransferSubmit.fence = pCore->CreateFence();
 	mTransferSubmit.commandPool = pCore->CreateCommandPool( pCore->QueueFamilies().transferFamily);
 	mTransferSubmit.commandBuffer = pCore->AllocateCommandBuffer( mTransferSubmit.commandPool);
+
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyFence( mGraphicsSubmit.fence);
+		pCore->Device().destroyCommandPool( mGraphicsSubmit.commandPool);
+
+		pCore->Device().destroyFence( mTransferSubmit.fence);
+		pCore->Device().destroyCommandPool( mTransferSubmit.commandPool);
+	});
 }
 
 
@@ -470,6 +428,10 @@ void Renderer::CreateSamplers() {
 		vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat,
 		false
 	);
+
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroySampler( mSampler);
+	});
 }
 
 
@@ -481,11 +443,21 @@ void Renderer::CreateDescriptorResources() {
 	mCameraBuffer.buffer = pCore->CreateBuffer( mCameraBuffer.bufferSize, mCameraBuffer.usage);
 	mCameraBuffer.bufferMemory = pCore->AllocateBufferMemory( mCameraBuffer.buffer, mCameraBuffer.memoryType);
 
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyBuffer( mCameraBuffer.buffer);
+		pCore->Device().freeMemory( mCameraBuffer.bufferMemory);
+	});
+
 	mSceneBuffer.bufferSize = sizeof(SceneData);
 	mSceneBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
 	mSceneBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
 	mSceneBuffer.buffer = pCore->CreateBuffer( mSceneBuffer.bufferSize, mSceneBuffer.usage);
 	mSceneBuffer.bufferMemory = pCore->AllocateBufferMemory( mSceneBuffer.buffer, mSceneBuffer.memoryType);
+	
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyBuffer( mSceneBuffer.buffer);
+		pCore->Device().freeMemory( mSceneBuffer.bufferMemory);
+	});
 
 	CreateImageResource( mMaterialAlbedoImage, App::sResourceDir->Get() + "Materials/Rusted_Iron/rusted_iron_albedo.png", vk::Format::eR8G8B8A8Srgb);
 	CreateImageResource( mMaterialNormalImage, App::sResourceDir->Get() + "Materials/Default/default_normal.png");
@@ -498,6 +470,11 @@ void Renderer::CreateDescriptorResources() {
 	mObjectBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
 	mObjectBuffer.buffer = pCore->CreateBuffer( mObjectBuffer.bufferSize, mObjectBuffer.usage);
 	mObjectBuffer.bufferMemory = pCore->AllocateBufferMemory( mObjectBuffer.buffer, mObjectBuffer.memoryType);
+
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyBuffer( mObjectBuffer.buffer);
+		pCore->Device().freeMemory( mObjectBuffer.bufferMemory);
+	});
 }
 
 
@@ -547,6 +524,12 @@ void Renderer::CreateImageResource(ImageResource &image, std::string_view path, 
 	stbi_image_free(pixels);
 	pCore->Device().destroyBuffer( stagingBuffer.buffer, nullptr);
 	pCore->Device().freeMemory( stagingBuffer.bufferMemory, nullptr);
+
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyImageView( image.imageView);
+		pCore->Device().destroyImage( image.image);
+		pCore->Device().freeMemory( image.imageMemory);
+	});
 }
 
 
@@ -566,8 +549,7 @@ void Renderer::CreateDescriptorSetLayouts() {
 	vk::DescriptorSetLayoutBinding passBindings[] = {
 		cameraDataBinding, sceneDataBinding
 	};
-	mPassDataLayout = pCore->CreateDescriptorSetLayout(2, passBindings);
-	
+	mPassDataLayout = pCore->CreateDescriptorSetLayout(2, passBindings);	
 			
 	auto albedoSamplerBinding = vk::DescriptorSetLayoutBinding{}
 		.setBinding( 0 )
@@ -608,6 +590,12 @@ void Renderer::CreateDescriptorSetLayouts() {
 		.setStageFlags( vk::ShaderStageFlagBits::eVertex );
 	
 	mObjectDataLayout = pCore->CreateDescriptorSetLayout(1, &objectDataBinding);
+
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyDescriptorSetLayout( mPassDataLayout);
+		pCore->Device().destroyDescriptorSetLayout( mObjectDataLayout);
+		pCore->Device().destroyDescriptorSetLayout( mMaterialDataLayout); 
+	});
 }
 
 
@@ -620,6 +608,10 @@ void Renderer::CreateDescriptorPool() {
 	};
 
 	mDescriptorPool = pCore->CreateDescriptorPool(10*pFrameOverlap->Get(), 2, poolSizes);
+
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyDescriptorPool( mDescriptorPool);
+	});
 }
 
 
@@ -740,6 +732,11 @@ void Renderer::CreateShaderModules() {
 
 	mMeshVertShader = pCore->CreateShaderModule( vertShaderCode.GetSize(), vertShaderCode.Data() );
 	mMaterialFragShader = pCore->CreateShaderModule( fragShaderCode.GetSize(), fragShaderCode.Data() );
+
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyShaderModule( mMeshVertShader);
+		pCore->Device().destroyShaderModule( mMaterialFragShader);
+	});
 }
 
 
@@ -845,6 +842,11 @@ void Renderer::CreatePipeline() {
 	mSingleMaterialPipeline.subpass = 0;
 
 	pCore->CreatePipeline( mSingleMaterialPipeline );
+
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyPipeline( mSingleMaterialPipeline.pipeline);
+		pCore->Device().destroyPipelineLayout( mSingleMaterialPipeline.pipelineLayout);
+	});
 }
 
 
