@@ -79,7 +79,15 @@ struct ImageResource {
 	U32                     width;
 	U32                     height;
 
-	//TODO craete DescriptorImageInfo
+	vk::DescriptorImageInfo DescriptorInfo( vk::Sampler sampler) {
+
+		auto imageInfo = vk::DescriptorImageInfo{}
+			.setImageLayout( vk::ImageLayout::eShaderReadOnlyOptimal )
+			.setImageView( imageView )
+			.setSampler( sampler );
+
+		return imageInfo;
+	}
 };
 
 // stores a buffer, its device memory, usage and memory type
@@ -90,7 +98,15 @@ struct Buffer {
 	vk::BufferUsageFlags	usage;
 	vk::MemoryPropertyFlags	memoryType;
 
-	//TODO create DescriptorBufferInfo
+	vk::DescriptorBufferInfo DescriptorInfo( U32 offset = 0, Size range = VK_WHOLE_SIZE) {
+
+		auto bufferInfo = vk::DescriptorBufferInfo{}
+			.setBuffer( buffer )
+			.setOffset( offset )
+			.setRange( range );
+
+		return bufferInfo;
+	}
 };
 
 // stores all data of a single mesh vertex

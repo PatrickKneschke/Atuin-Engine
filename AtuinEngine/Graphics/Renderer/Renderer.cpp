@@ -627,10 +627,7 @@ void Renderer::CreateDescriptorSets() {
 	mObjectDataSet = descriptorSets[2];
 
 
-	auto cameraInfo = vk::DescriptorBufferInfo{}
-		.setBuffer( mCameraBuffer.buffer )
-		.setOffset(0)
-		.setRange( mCameraBuffer.bufferSize );
+	auto cameraInfo = mCameraBuffer.DescriptorInfo();
 	auto cameraWrite = vk::WriteDescriptorSet{}
 		.setDstSet( mPassDataSet )
 		.setDstBinding( 0 )
@@ -638,10 +635,8 @@ void Renderer::CreateDescriptorSets() {
 		.setDescriptorCount( 1 )
 		.setDescriptorType( vk::DescriptorType::eUniformBuffer )
 		.setPBufferInfo( &cameraInfo );
-	auto sceneInfo = vk::DescriptorBufferInfo{}
-		.setBuffer( mSceneBuffer.buffer )
-		.setOffset(0)
-		.setRange( mSceneBuffer.bufferSize );
+
+	auto sceneInfo = mSceneBuffer.DescriptorInfo();
 	auto sceneWrite = vk::WriteDescriptorSet{}
 		.setDstSet( mPassDataSet )
 		.setDstBinding( 1 )
@@ -650,10 +645,7 @@ void Renderer::CreateDescriptorSets() {
 		.setDescriptorType( vk::DescriptorType::eUniformBuffer )
 		.setPBufferInfo( &sceneInfo );
 
-	auto materialAlbedoInfo = vk::DescriptorImageInfo{}
-		.setImageLayout( vk::ImageLayout::eShaderReadOnlyOptimal )
-		.setImageView( mMaterialAlbedoImage.imageView )
-		.setSampler( mSampler );
+	auto materialAlbedoInfo = mMaterialAlbedoImage.DescriptorInfo( mSampler);
 	auto materialAlbedoWrite = vk::WriteDescriptorSet{}
 		.setDstSet( mMaterialDataSet )
 		.setDstBinding( 0 )
@@ -661,10 +653,8 @@ void Renderer::CreateDescriptorSets() {
 		.setDescriptorCount( 1 )
 		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
 		.setPImageInfo( &materialAlbedoInfo );
-	auto materialNormalInfo = vk::DescriptorImageInfo{}
-		.setImageLayout( vk::ImageLayout::eShaderReadOnlyOptimal )
-		.setImageView( mMaterialNormalImage.imageView )
-		.setSampler( mSampler );
+
+	auto materialNormalInfo = mMaterialNormalImage.DescriptorInfo( mSampler);
 	auto materialNormalWrite = vk::WriteDescriptorSet{}
 		.setDstSet( mMaterialDataSet )
 		.setDstBinding( 1 )
@@ -672,10 +662,8 @@ void Renderer::CreateDescriptorSets() {
 		.setDescriptorCount( 1 )
 		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
 		.setPImageInfo( &materialNormalInfo );
-	auto materialMetallicInfo = vk::DescriptorImageInfo{}
-		.setImageLayout( vk::ImageLayout::eShaderReadOnlyOptimal )
-		.setImageView( mMaterialMetallicImage.imageView )
-		.setSampler( mSampler );
+
+	auto materialMetallicInfo = mMaterialMetallicImage.DescriptorInfo( mSampler);
 	auto materialMetallicWrite = vk::WriteDescriptorSet{}
 		.setDstSet( mMaterialDataSet )
 		.setDstBinding( 2 )
@@ -683,10 +671,8 @@ void Renderer::CreateDescriptorSets() {
 		.setDescriptorCount( 1 )
 		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
 		.setPImageInfo( &materialMetallicInfo );
-	auto materialRoughnessInfo = vk::DescriptorImageInfo{}
-		.setImageLayout( vk::ImageLayout::eShaderReadOnlyOptimal )
-		.setImageView( mMaterialRoughnessImage.imageView )
-		.setSampler( mSampler );
+
+	auto materialRoughnessInfo = mMaterialRoughnessImage.DescriptorInfo( mSampler);
 	auto materialRoughnessWrite = vk::WriteDescriptorSet{}
 		.setDstSet( mMaterialDataSet )
 		.setDstBinding( 3 )
@@ -694,10 +680,8 @@ void Renderer::CreateDescriptorSets() {
 		.setDescriptorCount( 1 )
 		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
 		.setPImageInfo( &materialRoughnessInfo );
-	auto materialAoInfo = vk::DescriptorImageInfo{}
-		.setImageLayout( vk::ImageLayout::eShaderReadOnlyOptimal )
-		.setImageView( mMaterialAoImage.imageView )
-		.setSampler( mSampler );
+		
+	auto materialAoInfo = mMaterialAoImage.DescriptorInfo( mSampler);
 	auto materialAoWrite = vk::WriteDescriptorSet{}
 		.setDstSet( mMaterialDataSet )
 		.setDstBinding( 4 )
@@ -706,10 +690,7 @@ void Renderer::CreateDescriptorSets() {
 		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
 		.setPImageInfo( &materialAoInfo );
 
-	auto objectInfo = vk::DescriptorBufferInfo{}
-		.setBuffer( mObjectBuffer.buffer )
-		.setOffset(0)
-		.setRange( mObjectBuffer.bufferSize );
+	auto objectInfo = mObjectBuffer.DescriptorInfo();
 	auto objectWrite = vk::WriteDescriptorSet{}
 		.setDstSet( mObjectDataSet )
 		.setDstBinding( 0 )
