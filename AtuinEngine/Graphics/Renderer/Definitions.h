@@ -49,6 +49,7 @@ struct Swapchain {
 	vk::Extent2D         extent;
 };
 
+
 // stores pipeline, pipeline layout and all data used to create it
 struct Pipeline {
 

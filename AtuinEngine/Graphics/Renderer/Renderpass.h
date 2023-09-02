@@ -3,6 +3,7 @@
 
 
 #include "Definitions.h"
+#include "RendererCore.h"
 #include "Core/Util/Types.h"
 #include "Core/DataStructures/Array.h"
 
@@ -96,7 +97,7 @@ struct Renderpass {
     // render objects
     PassType passType;
     vk::RenderPass renderpass;
-    Array<vk::Framebuffer> mFramebuffers;
+    Array<vk::Framebuffer> framebuffers;
 
     // objects participating in this render pass
     Array<RenderObject> renderObjects;
@@ -120,6 +121,9 @@ struct Renderpass {
     // dirty flags
     bool rebuildBatches;
     bool rebuildInstances;
+
+    void CreateRenderPass( vk::Device device, Array<vk::AttachmentDescription> &attachments, I32 depthAttachmentIdx = -1);
+    void CreateFramebuffers( vk::Device device, U32 imageWidth, U32 imageHeight, Array<Array<vk::ImageView>> &attachments);
 };
 
     

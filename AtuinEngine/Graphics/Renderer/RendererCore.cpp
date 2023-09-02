@@ -667,60 +667,6 @@ vk::PipelineLayout RendererCore::CreatePipelineLayout(
 }
 
 
-vk::RenderPass RendererCore::CreateRenderPass(
-    U32 attachmentCount,
-    vk::AttachmentDescription* attachments,
-    U32 subpassCount,
-    vk::SubpassDescription* subpasses,
-    U32 dependencyCount,
-    vk::SubpassDependency* dependencies ) const
-{
-	auto renderPassInfo = vk::RenderPassCreateInfo{}
-		.setAttachmentCount( attachmentCount )
-		.setPAttachments( attachments )
-		.setSubpassCount( subpassCount )
-		.setPSubpasses( subpasses )
-		.setDependencyCount( dependencyCount )
-		.setPDependencies( dependencies );
-
-	vk::RenderPass renderPass;
-	vk::Result result = mDevice.createRenderPass(&renderPassInfo, nullptr, &renderPass);	
-	if(result != vk::Result::eSuccess)
-	{
-		throw std::runtime_error("Failed to create render pass : "+ vk::to_string(result));
-	}
-
-	return renderPass;
-}
-
-
-vk::Framebuffer RendererCore::createFrameBuffer(
-    vk::RenderPass renderPass,
-    U32 attachmentCount,
-    vk::ImageView* attachments,
-    U32 width,
-    U32 height,
-    U32 layers ) const
-{
-	auto framebufferInfo = vk::FramebufferCreateInfo{}
-		.setRenderPass( renderPass )
-		.setAttachmentCount( attachmentCount )
-		.setPAttachments( attachments )
-		.setWidth( width )
-		.setHeight( height )
-		.setLayers( layers );
-
-	vk::Framebuffer framebuffer;
-	vk::Result result = mDevice.createFramebuffer(&framebufferInfo, nullptr, &framebuffer);	
-	if(result != vk::Result::eSuccess)
-	{
-		throw std::runtime_error("Failed to create framebuffer : "+ vk::to_string(result));
-	}
-
-	return framebuffer;
-}
-
-
 void RendererCore::CreatePipeline( Pipeline &pipeline ) const {
 
 	auto pipelineInfo = vk::GraphicsPipelineCreateInfo{}

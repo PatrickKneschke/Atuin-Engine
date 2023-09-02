@@ -3,6 +3,7 @@
 
 
 #include "Definitions.h"
+#include "Renderpass.h"
 #include "Core/Config/CVar.h"
 #include "Core/Debug/Log.h"
 #include "Core/Memory/Memory.h"
@@ -61,8 +62,9 @@ public:
 private:
 
 	void CreateDepthResources();
-    void CreateRenderPass();
+    void CreateRenderPasses();
     void CreateFramebuffers();
+    void DestroyFramebuffers();
     void RecreateSwapchain();
 
     void CreateVertexBuffer();
@@ -116,6 +118,10 @@ private:
     ImageResource mDepthImage;
 
     // TODO shadow pass, opaque pass, transparency pass, deferred pass
+    Renderpass mShadowPass;
+    Renderpass mOpaquePass;
+    Renderpass mTransparentPass;
+
     vk::RenderPass mRenderPass;
     Array<vk::Framebuffer> mFramebuffers; 
 

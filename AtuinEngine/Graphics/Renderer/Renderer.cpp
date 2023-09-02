@@ -46,7 +46,7 @@ void Renderer::StartUp(GLFWwindow *window) {
 	pCore->CreateSwapchain(mSwapchain);
     
 	CreateDepthResources();
-	CreateRenderPass();	
+	CreateRenderPasses();	
 	CreateFramebuffers();
 
 	CreateVertexBuffer();
@@ -78,10 +78,7 @@ void Renderer::ShutDown() {
 	mDeletionStack.Flush();
 
 	// presentation related
-	for (auto &framebuffer : mFramebuffers)
-	{
-		pCore->Device().destroyFramebuffer(framebuffer);
-	}	
+	DestroyFramebuffers();	
 
 	pCore->Device().destroyImageView( mDepthImage.imageView);
 	pCore->Device().destroyImage( mDepthImage.image);
@@ -125,9 +122,7 @@ void Renderer::CreateDepthResources() {
 }
 
 
-void Renderer::CreateRenderPass() {
-
-	// TODO placeholder default render pass -> set up deferred renderer
+void Renderer::CreateRenderPasses() {
 
 	// attachements
 	auto presentAttachment = vk::AttachmentDescription{}
@@ -149,61 +144,37 @@ void Renderer::CreateRenderPass() {
 		.setStencilStoreOp( vk::AttachmentStoreOp::eDontCare )
 		.setInitialLayout( vk::ImageLayout::eUndefined )
 		.setFinalLayout( vk::ImageLayout::eDepthStencilAttachmentOptimal );
-		
-	// subpasses
-	auto presentAttachmentRef = vk::AttachmentReference{}
-		.setAttachment( 0 )
-		.setLayout( vk::ImageLayout::eColorAttachmentOptimal );
-		
-	auto depthAttachmentRef = vk::AttachmentReference{}
-		.setAttachment( 1 )
-		.setLayout( vk::ImageLayout::eDepthStencilAttachmentOptimal );
-	
-		
-	auto subpass = vk::SubpassDescription{}
-		.setPipelineBindPoint( vk::PipelineBindPoint::eGraphics )
-		.setColorAttachmentCount( 1 )
-		.setPColorAttachments( &presentAttachmentRef )
-		.setPDepthStencilAttachment( &depthAttachmentRef )
-		.setPResolveAttachments( nullptr );
-	
-	// dependencies
-	auto dependency = vk::SubpassDependency{}
-		.setSrcSubpass( VK_SUBPASS_EXTERNAL )
-		.setDstSubpass( 0 )
-		.setSrcStageMask( vk::PipelineStageFlagBits::eColorAttachmentOutput |
-						  vk::PipelineStageFlagBits::eEarlyFragmentTests )
-		.setSrcAccessMask( vk::AccessFlagBits::eNone )
-		.setDstStageMask( vk::PipelineStageFlagBits::eColorAttachmentOutput |
-						  vk::PipelineStageFlagBits::eEarlyFragmentTests )
-		.setDstAccessMask( vk::AccessFlagBits::eColorAttachmentWrite |
-						   vk::AccessFlagBits::eDepthStencilAttachmentWrite );
 
-	vk::AttachmentDescription attachments[] = {presentAttachment, depthAttachment};
-	mRenderPass = pCore->CreateRenderPass(2, attachments, 1, &subpass, 1, &dependency);
+	Array<vk::AttachmentDescription> attachments = {
+		presentAttachment, depthAttachment
+	};
+
+	mOpaquePass.CreateRenderPass( pCore->Device(), attachments, 1);
 
 	mDeletionStack.Push( [&](){
-		pCore->Device().destroyRenderPass( mRenderPass);
+		pCore->Device().destroyRenderPass( mOpaquePass.renderpass);
 	});
 }
 
 
 void Renderer::CreateFramebuffers() {
 
-	mFramebuffers.Resize(mSwapchain.imageCount);
-	for(Size i=0; i < mSwapchain.imageCount; i++)
+	Array<Array<vk::ImageView>> attachments;
+	for (U32 i = 0; i < mSwapchain.imageCount; i++)
 	{
-		vk::ImageView attachments[] = {
-			mSwapchain.imageViews[i],
-			mDepthImage.imageView
-		};
-
-		mFramebuffers[i] = pCore->createFrameBuffer(
-			mRenderPass, 
-			2, attachments, 
-			mSwapchain.extent.width, mSwapchain.extent.height
-		);
+		attachments.PushBack( {mSwapchain.imageViews[i], mDepthImage.imageView} );
 	}
+	
+	mOpaquePass.CreateFramebuffers( pCore->Device(), mSwapchain.extent.width, mSwapchain.extent.height, attachments);
+}
+
+
+void Renderer::DestroyFramebuffers() {
+
+	for (auto &framebuffer : mOpaquePass.framebuffers)
+	{
+		pCore->Device().destroyFramebuffer( framebuffer);
+	}	
 }
 
 
@@ -213,10 +184,7 @@ void Renderer::RecreateSwapchain() {
 
 	// cleanup old objects	
 	// framebuffers
-	for(auto &framebuffer : mFramebuffers) 
-	{
-		pCore->Device().destroyFramebuffer(framebuffer, nullptr);
-	}
+	DestroyFramebuffers();
 
 	// depth image
 	pCore->Device().destroyImageView(mDepthImage.imageView, nullptr);
@@ -819,7 +787,7 @@ void Renderer::CreatePipeline() {
 	mSingleMaterialPipeline.pipelineLayout = pCore->CreatePipelineLayout( 3, descriptorSetLayouts );
 
 	// render pass
-	mSingleMaterialPipeline.renderpass = mRenderPass;
+	mSingleMaterialPipeline.renderpass = mOpaquePass.renderpass;
 	mSingleMaterialPipeline.subpass = 0;
 
 	pCore->CreatePipeline( mSingleMaterialPipeline );
@@ -1046,9 +1014,9 @@ void Renderer::DrawFrame() {
 	clearValues[1].setDepthStencil( {1.0f, 0} ); 
 
 	auto renderInfo = vk::RenderPassBeginInfo{}
-		.setRenderPass( mRenderPass )
+		.setRenderPass( mOpaquePass.renderpass )
 		.setRenderArea( {{0, 0}, mSwapchain.extent} )
-		.setFramebuffer( mFramebuffers[imageIndex] )
+		.setFramebuffer( mOpaquePass.framebuffers[imageIndex] )
 		.setClearValueCount( 2 )
 		.setPClearValues( clearValues );		
 	cmd.beginRenderPass(renderInfo, vk::SubpassContents::eInline);

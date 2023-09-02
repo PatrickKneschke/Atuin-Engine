@@ -135,22 +135,6 @@ public:
         U32 pushConstantCount = 0,
         vk::PushConstantRange* pushConstants = nullptr
     ) const;
-    vk::RenderPass CreateRenderPass(
-        U32 attachmentCount,
-        vk::AttachmentDescription* attachments,
-        U32 subpassCount,
-        vk::SubpassDescription* subpasses,
-        U32 dependencyCount = 0,
-        vk::SubpassDependency* dependencies = nullptr
-    ) const;
-    vk::Framebuffer createFrameBuffer(
-        vk::RenderPass renderPass,
-        U32 attachmentCount,
-        vk::ImageView* attachments,
-        U32 width,
-        U32 height,
-        U32 layers = 1
-    ) const;
     void CreatePipeline( Pipeline &pipeline ) const;
     void PrepareSwapchain( Swapchain &swapchain ) const; 
     void CreateSwapchain( Swapchain &swapcahin ) const;
