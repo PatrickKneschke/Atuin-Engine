@@ -129,6 +129,9 @@ public:
     vk::DescriptorSet AllocateDescriptorSet( vk::DescriptorPool pool, vk::DescriptorSetLayout layout) const;
     Array<vk::DescriptorSet> AllocateDescriptorSets( vk::DescriptorPool pool, U32 count, vk::DescriptorSetLayout* layouts ) const;
 
+    vk::RenderPass CreateRenderPass( Array<vk::AttachmentDescription> &attachments,  I32 depthAttachmentIdx = -1);
+    vk::Framebuffer CreateFramebuffer( vk::RenderPass renderpass, Array<vk::ImageView> &attachments, U32 imageWidth, U32 imageHeight, U32 layers = 1);
+
     vk::PipelineLayout CreatePipelineLayout(
         U32 setLayoutCount,
         vk::DescriptorSetLayout* setLayouts,
@@ -136,8 +139,11 @@ public:
         vk::PushConstantRange* pushConstants = nullptr
     ) const;
     void CreatePipeline( Pipeline &pipeline ) const;
+
     void PrepareSwapchain( Swapchain &swapchain ) const; 
     void CreateSwapchain( Swapchain &swapcahin ) const;
+
+
     
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(

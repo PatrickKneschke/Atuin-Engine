@@ -3,7 +3,7 @@
 
 
 #include "Definitions.h"
-#include "Renderpass.h"
+#include "MeshPass.h"
 #include "Core/Config/CVar.h"
 #include "Core/Debug/Log.h"
 #include "Core/Memory/Memory.h"
@@ -117,13 +117,16 @@ private:
     Swapchain mSwapchain;
     ImageResource mDepthImage;
 
-    // TODO shadow pass, opaque pass, transparency pass, deferred pass
-    Renderpass mShadowPass;
-    Renderpass mOpaquePass;
-    Renderpass mTransparentPass;
+    vk::RenderPass mForwardPass;
+    vk::RenderPass mShadowpass;
 
-    vk::RenderPass mRenderPass;
-    Array<vk::Framebuffer> mFramebuffers; 
+    Array<vk::Framebuffer> mForwardFramebuffers;
+    Array<vk::Framebuffer> mShadowFramebuffers;
+
+    // mesh passes TODO shadow pass, transparency pass
+    MeshPass mShadowMeshPass;
+    MeshPass mOpaqueMeshPass;
+    MeshPass mTransparentMeshPass;
 
     Array<FrameResources> mFrames;
     U64 mFrameCount;

@@ -92,13 +92,10 @@ struct MultiBatch {
 };
 
 
-struct Renderpass {
+struct MeshPass {
 
-    // render objects
     PassType passType;
-    vk::RenderPass renderpass;
-    Array<vk::Framebuffer> framebuffers;
-
+    
     // objects participating in this render pass
     Array<RenderObject> renderObjects;
     // indices into the object array
@@ -121,9 +118,6 @@ struct Renderpass {
     // dirty flags
     bool rebuildBatches;
     bool rebuildInstances;
-
-    void CreateRenderPass( vk::Device device, Array<vk::AttachmentDescription> &attachments, I32 depthAttachmentIdx = -1);
-    void CreateFramebuffers( vk::Device device, U32 imageWidth, U32 imageHeight, Array<Array<vk::ImageView>> &attachments);
 };
 
     

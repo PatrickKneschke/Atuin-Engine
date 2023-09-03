@@ -2,12 +2,12 @@
 add_library(Renderer 
     Renderer.cpp
     RendererCore.cpp  
-    Renderpass.cpp 
+    MeshPass.cpp 
     Descriptors.cpp 
     ResourceManager.cpp 
     Renderer.h 
     RendererCore.h
-    Renderpass.h  
+    MeshPass.h  
     Descriptors.h
     ResourceManager.h 
 )

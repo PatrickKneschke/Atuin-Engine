@@ -644,6 +644,79 @@ Array<vk::DescriptorSet> RendererCore::AllocateDescriptorSets( vk::DescriptorPoo
 }
 
 
+vk::RenderPass RendererCore::CreateRenderPass( Array<vk::AttachmentDescription> &attachments, I32 depthAttachmentIdx) {
+
+    U32 attachmentCount = (U32)attachments.GetSize();
+    Array<vk::AttachmentReference> colorRefs;
+    for ( U32 i = 0; i < attachmentCount; i++)
+    {
+        if ( i == (U32)depthAttachmentIdx)
+        {
+            continue;
+        }
+        colorRefs.PushBack( vk::AttachmentReference{ i, vk::ImageLayout::eColorAttachmentOptimal});
+    }
+	auto depthRef = vk::AttachmentReference{ (U32)depthAttachmentIdx, vk::ImageLayout::eDepthStencilAttachmentOptimal};
+		
+	auto subpass = vk::SubpassDescription{}
+		.setPipelineBindPoint( vk::PipelineBindPoint::eGraphics )
+		.setColorAttachmentCount( (U32)colorRefs.GetSize() )
+		.setPColorAttachments( colorRefs.Data())
+		.setPDepthStencilAttachment( depthAttachmentIdx < 0 ? nullptr : &depthRef )
+		.setPResolveAttachments( nullptr );
+	
+	// dependencies
+	auto dependency = vk::SubpassDependency{}
+		.setSrcSubpass( VK_SUBPASS_EXTERNAL )
+		.setDstSubpass( 0 )
+		.setSrcStageMask( vk::PipelineStageFlagBits::eColorAttachmentOutput |
+						  vk::PipelineStageFlagBits::eEarlyFragmentTests )
+		.setSrcAccessMask( vk::AccessFlagBits::eNone )
+		.setDstStageMask( vk::PipelineStageFlagBits::eColorAttachmentOutput |
+						  vk::PipelineStageFlagBits::eEarlyFragmentTests )
+		.setDstAccessMask( vk::AccessFlagBits::eColorAttachmentWrite |
+						   vk::AccessFlagBits::eDepthStencilAttachmentWrite );
+
+    auto renderPassInfo = vk::RenderPassCreateInfo{}
+		.setAttachmentCount( attachmentCount )
+		.setPAttachments( attachments.Data() )
+		.setSubpassCount( 1 )
+		.setPSubpasses( &subpass )
+		.setDependencyCount( 1 )
+		.setPDependencies( &dependency );
+
+	vk::RenderPass renderPass;
+	vk::Result result = mDevice.createRenderPass(&renderPassInfo, nullptr, &renderPass);	
+	if(result != vk::Result::eSuccess)
+	{
+		throw std::runtime_error("Failed to create render pass : "+ vk::to_string(result));
+	}
+
+	return renderPass;
+}
+
+
+vk::Framebuffer RendererCore::CreateFramebuffer( vk::RenderPass renderpass, Array<vk::ImageView> &attachments, U32 imageWidth, U32 imageHeight, U32 layers) {
+
+	auto framebufferInfo = vk::FramebufferCreateInfo{}
+        .setRenderPass( renderpass )
+        .setAttachmentCount( (U32)attachments.GetSize() )
+        .setPAttachments( attachments.Data() )
+        .setWidth( imageWidth )
+        .setHeight( imageHeight )
+        .setLayers( layers );
+
+	vk::Framebuffer framebuffer;
+    vk::Result result = mDevice.createFramebuffer(&framebufferInfo, nullptr, &framebuffer);	
+    if(result != vk::Result::eSuccess)
+    {
+        throw std::runtime_error("Failed to create framebuffer : "+ vk::to_string(result));
+    }
+
+	return framebuffer;
+}
+
+
 vk::PipelineLayout RendererCore::CreatePipelineLayout(
     U32 setLayoutCount,
     vk::DescriptorSetLayout* setLayouts,

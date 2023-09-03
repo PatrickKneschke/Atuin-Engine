@@ -33,7 +33,6 @@ Renderer::Renderer() :
 
 Renderer::~Renderer() {
 
-
 }
 
 
@@ -49,11 +48,12 @@ void Renderer::StartUp(GLFWwindow *window) {
 	CreateRenderPasses();	
 	CreateFramebuffers();
 
+	CreateSubmitContexts();
+
 	CreateVertexBuffer();
 	CreateIndexBuffer();
 
 	CreateFrameResources();
-	CreateSubmitContexts();
 	CreateShaderModules();
 	CreateSamplers();
 	CreateDescriptorResources();
@@ -145,33 +145,41 @@ void Renderer::CreateRenderPasses() {
 		.setInitialLayout( vk::ImageLayout::eUndefined )
 		.setFinalLayout( vk::ImageLayout::eDepthStencilAttachmentOptimal );
 
+	// forward pass
 	Array<vk::AttachmentDescription> attachments = {
 		presentAttachment, depthAttachment
 	};
 
-	mOpaquePass.CreateRenderPass( pCore->Device(), attachments, 1);
+	mForwardPass = pCore->CreateRenderPass( attachments, 1);
 
 	mDeletionStack.Push( [&](){
-		pCore->Device().destroyRenderPass( mOpaquePass.renderpass);
+		pCore->Device().destroyRenderPass( mForwardPass);
 	});
+
+	// shadow pass
 }
 
 
 void Renderer::CreateFramebuffers() {
 
-	Array<Array<vk::ImageView>> attachments;
+	mForwardFramebuffers.Resize( mSwapchain.imageCount);
 	for (U32 i = 0; i < mSwapchain.imageCount; i++)
 	{
-		attachments.PushBack( {mSwapchain.imageViews[i], mDepthImage.imageView} );
+		// forward pass
+		Array<vk::ImageView> forwardAttachments =  {
+			mSwapchain.imageViews[i], mDepthImage.imageView
+		};
+		mForwardFramebuffers[i] = pCore->CreateFramebuffer( mForwardPass, forwardAttachments, mSwapchain.extent.width, mSwapchain.extent.height);
+
+		// shadow pass
+		
 	}
-	
-	mOpaquePass.CreateFramebuffers( pCore->Device(), mSwapchain.extent.width, mSwapchain.extent.height, attachments);
 }
 
 
 void Renderer::DestroyFramebuffers() {
 
-	for (auto &framebuffer : mOpaquePass.framebuffers)
+	for (auto &framebuffer : mForwardFramebuffers)
 	{
 		pCore->Device().destroyFramebuffer( framebuffer);
 	}	
@@ -787,7 +795,7 @@ void Renderer::CreatePipeline() {
 	mSingleMaterialPipeline.pipelineLayout = pCore->CreatePipelineLayout( 3, descriptorSetLayouts );
 
 	// render pass
-	mSingleMaterialPipeline.renderpass = mOpaquePass.renderpass;
+	mSingleMaterialPipeline.renderpass = mForwardPass;
 	mSingleMaterialPipeline.subpass = 0;
 
 	pCore->CreatePipeline( mSingleMaterialPipeline );
@@ -1014,9 +1022,9 @@ void Renderer::DrawFrame() {
 	clearValues[1].setDepthStencil( {1.0f, 0} ); 
 
 	auto renderInfo = vk::RenderPassBeginInfo{}
-		.setRenderPass( mOpaquePass.renderpass )
+		.setRenderPass( mForwardPass )
 		.setRenderArea( {{0, 0}, mSwapchain.extent} )
-		.setFramebuffer( mOpaquePass.framebuffers[imageIndex] )
+		.setFramebuffer( mForwardFramebuffers[imageIndex] )
 		.setClearValueCount( 2 )
 		.setPClearValues( clearValues );		
 	cmd.beginRenderPass(renderInfo, vk::SubpassContents::eInline);
