@@ -3,7 +3,6 @@
 
 
 #include "Definitions.h"
-#include "RendererCore.h"
 #include "Core/Util/Types.h"
 #include "Core/DataStructures/Array.h"
 
@@ -11,19 +10,6 @@
 
 
 namespace Atuin {
-
-
-// struct MeshData; // loaded from file -> vertices, indices
-// struct Mesh {
-
-//     MeshData* meshData;
-
-//     U32 firstVertex;
-//     U32 vertexCount;
-//     U32 firstIndex;
-//     U32 indexCount;
-// };
-
 
 
 enum class PassType : U8 {
@@ -64,8 +50,8 @@ struct RenderObject {
     glm::mat4 transform;
     glm::vec4 sphereBounds;
 
-    U64 meshId;
-    U64 materialId;
+    U64 meshIdx;
+    U64 materialIdx;
 
     PassData<I64> passIndex;
 };
@@ -73,13 +59,13 @@ struct RenderObject {
 // used to draw one instance of a RenderObject at <objectId>
 struct RenderBatch {
 
-    U64 objectId;
+    U64 objectIdx;
 };
 
 // used to render <count> instances of a RenderObject at <objectId>
 struct IndirectBatch {
 
-    U64 objectId;
+    U64 objectIdx;
     U32 first;
     U32 count;
 };

@@ -3,6 +3,7 @@
 
 
 #include "Definitions.h"
+#include "Mesh.h"
 #include "MeshPass.h"
 #include "Core/Config/CVar.h"
 #include "Core/Debug/Log.h"
@@ -131,8 +132,15 @@ private:
     Array<FrameResources> mFrames;
     U64 mFrameCount;
 
-    Buffer mVertexBuffer;
-    Buffer mIndexBuffer;
+    // holds all the vertex data of unique meshes in the scene
+    Buffer mCombinedVertexBuffer;
+    // holds all the index data of unique meshes in the scene
+    Buffer mCombinedIndexBuffer;
+
+    // list of all meshes in use
+    Array<Mesh> mMeshes;
+    // list of all materials in use
+
 
     // TODO use dynamic uniform buffer or move into FrameResource ?
     Buffer mCameraBuffer;
