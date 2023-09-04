@@ -50,8 +50,8 @@ struct RenderObject {
     glm::mat4 transform;
     glm::vec4 sphereBounds;
 
-    U64 meshIdx;
-    U64 materialIdx;
+    U32 meshIdx;
+    U32 materialIdx;
 
     PassData<I64> passIndex;
 };
@@ -59,13 +59,13 @@ struct RenderObject {
 // used to draw one instance of a RenderObject at <objectId>
 struct RenderBatch {
 
-    U64 objectIdx;
+    U32 objectIdx;
 };
 
 // used to render <count> instances of a RenderObject at <objectId>
 struct IndirectBatch {
 
-    U64 objectIdx;
+    U32 objectIdx;
     U32 first;
     U32 count;
 };

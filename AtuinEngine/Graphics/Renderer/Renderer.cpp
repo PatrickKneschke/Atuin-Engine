@@ -66,8 +66,8 @@ void Renderer::StartUp(GLFWwindow *window) {
 
 	// dummy model load
 	LoadModel( App::sResourceDir->Get() + "Meshes/Default/torus.obj");
-	UploadBufferData(mVertices.Data(), mVertices.GetSize() * sizeof(mVertices[0]), mVertexBuffer.buffer);
-	UploadBufferData(mIndices.Data(), mIndices.GetSize() * sizeof(mIndices[0]), mIndexBuffer.buffer);
+	UploadBufferData(mVertices.Data(), mVertices.GetSize() * sizeof(mVertices[0]), mCombinedVertexBuffer.buffer);
+	UploadBufferData(mIndices.Data(), mIndices.GetSize() * sizeof(mIndices[0]), mCombinedIndexBuffer.buffer);
 }
 
 
@@ -172,7 +172,7 @@ void Renderer::CreateFramebuffers() {
 		mForwardFramebuffers[i] = pCore->CreateFramebuffer( mForwardPass, forwardAttachments, mSwapchain.extent.width, mSwapchain.extent.height);
 
 		// shadow pass
-		
+
 	}
 }
 
@@ -215,32 +215,76 @@ void Renderer::RecreateSwapchain() {
 }
 
 
+void Renderer::RegisterMeshObject( const MeshObject &object) {
+
+	RenderObject newObject;
+	newObject.transform = object.transform;
+	newObject.sphereBounds = object.sphereBounds;
+	newObject.meshIdx = RegisteMesh( object.mesh);
+	newObject.materialIdx = RegisteMaterial( object.material);
+	
+	// submit to mesh passes
+}
+
+
+U32 Renderer::RegisteMesh( Mesh *mesh) {
+
+	auto it = mMeshIndices.Find( mesh);
+	if ( it != mMeshIndices.End())
+	{
+		return it->second;
+	}
+
+	U32 index = (U32)mMeshes.GetSize();
+	mMeshes.PushBack( mesh);
+	mMeshIndices[mesh] = index;
+
+	return index;
+}
+
+
+U32 Renderer::RegisteMaterial( Material *material) {
+
+	auto it = mMaterialIndices.Find( material);
+	if ( it != mMaterialIndices.End())
+	{
+		return it->second;
+	}
+
+	U32 index = (U32)mMaterials.GetSize();
+	mMaterials.PushBack( material);
+	mMaterialIndices[material] = index;
+
+	return index;
+}
+
+
 void Renderer::CreateVertexBuffer() {
 
-	mVertexBuffer.bufferSize = 10000 * sizeof(Vertex);
-	mVertexBuffer.usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst;
-	mVertexBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
-	mVertexBuffer.buffer = pCore->CreateBuffer( mVertexBuffer.bufferSize, mVertexBuffer.usage);
-	mVertexBuffer.bufferMemory = pCore->AllocateBufferMemory( mVertexBuffer.buffer, mVertexBuffer.memoryType);
+	mCombinedVertexBuffer.bufferSize = 10000 * sizeof(Vertex);
+	mCombinedVertexBuffer.usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst;
+	mCombinedVertexBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
+	mCombinedVertexBuffer.buffer = pCore->CreateBuffer( mCombinedVertexBuffer.bufferSize, mCombinedVertexBuffer.usage);
+	mCombinedVertexBuffer.bufferMemory = pCore->AllocateBufferMemory( mCombinedVertexBuffer.buffer, mCombinedVertexBuffer.memoryType);
 
 	mDeletionStack.Push( [&](){
-		pCore->Device().destroyBuffer( mVertexBuffer.buffer);
-		pCore->Device().freeMemory( mVertexBuffer.bufferMemory);
+		pCore->Device().destroyBuffer( mCombinedVertexBuffer.buffer);
+		pCore->Device().freeMemory( mCombinedVertexBuffer.bufferMemory);
 	});
 }
 
 
 void Renderer::CreateIndexBuffer() {
 
-	mIndexBuffer.bufferSize = 30000 * 4;
-	mIndexBuffer.usage = vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst;
-	mIndexBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
-	mIndexBuffer.buffer = pCore->CreateBuffer( mIndexBuffer.bufferSize, mIndexBuffer.usage);
-	mIndexBuffer.bufferMemory = pCore->AllocateBufferMemory( mIndexBuffer.buffer, mIndexBuffer.memoryType);
+	mCombinedIndexBuffer.bufferSize = 30000 * 4;
+	mCombinedIndexBuffer.usage = vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst;
+	mCombinedIndexBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
+	mCombinedIndexBuffer.buffer = pCore->CreateBuffer( mCombinedIndexBuffer.bufferSize, mCombinedIndexBuffer.usage);
+	mCombinedIndexBuffer.bufferMemory = pCore->AllocateBufferMemory( mCombinedIndexBuffer.buffer, mCombinedIndexBuffer.memoryType);
 
 	mDeletionStack.Push( [&](){
-		pCore->Device().destroyBuffer( mIndexBuffer.buffer);
-		pCore->Device().freeMemory( mIndexBuffer.bufferMemory);
+		pCore->Device().destroyBuffer( mCombinedIndexBuffer.buffer);
+		pCore->Device().freeMemory( mCombinedIndexBuffer.bufferMemory);
 	});
 }
 
@@ -257,7 +301,7 @@ void Renderer::LoadModel(std::string_view path) {
 		throw std::runtime_error(warning + error);
 	}
 		
-	std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+	std::unordered_map<Vertex, uint32_t> uniqueVertices;
 		
 	for(const auto &shape : shapes) 
 	{
@@ -1048,10 +1092,10 @@ void Renderer::DrawFrame() {
 		vk::PipelineBindPoint::eGraphics, mSingleMaterialPipeline.pipeline
 	);
 
-	vk::Buffer vertexBuffers[] = {mVertexBuffer.buffer};
+	vk::Buffer vertexBuffers[] = {mCombinedVertexBuffer.buffer};
 	Size offsets[] = {0};
 	cmd.bindVertexBuffers( 0, 1, vertexBuffers, offsets);
-	cmd.bindIndexBuffer( mIndexBuffer.buffer, 0, vk::IndexType::eUint32);
+	cmd.bindIndexBuffer( mCombinedIndexBuffer.buffer, 0, vk::IndexType::eUint32);
 		
 	vk::DescriptorSet descriptorSets[] = {
 		mPassDataSet, mMaterialDataSet, mObjectDataSet

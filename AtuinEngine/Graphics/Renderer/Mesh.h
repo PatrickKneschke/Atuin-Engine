@@ -70,7 +70,7 @@ struct Vertex {
 	}
 };
 
-// vertex data of teh mesh loaded from file and stored in resource manager
+// vertex data of the mesh loaded from file and stored in resource manager
 struct MeshData{
 
     Array<Vertex> vertices;

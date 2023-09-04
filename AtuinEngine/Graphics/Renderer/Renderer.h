@@ -3,6 +3,7 @@
 
 
 #include "Definitions.h"
+#include "Material.h"
 #include "Mesh.h"
 #include "MeshPass.h"
 #include "Core/Config/CVar.h"
@@ -46,6 +47,16 @@ private:
 };
 
 
+struct MeshObject {
+
+    glm::mat4 transform;
+    glm::vec4 sphereBounds;
+
+    Mesh* mesh;
+    Material* material;
+};
+
+
 class RendererCore;
 
 class Renderer {
@@ -68,6 +79,10 @@ private:
     void DestroyFramebuffers();
     void RecreateSwapchain();
 
+    void RegisterMeshObject( const MeshObject &object);
+    U32 RegisteMesh( Mesh *mesh);
+    U32 RegisteMaterial( Material *material);
+
     void CreateVertexBuffer();
     void CreateIndexBuffer();
 
@@ -79,10 +94,11 @@ private:
 
     FrameResources& CurrentFrame() { return mFrames[mFrameCount % pFrameOverlap->Get()]; }
 
-    void CreateFrameResources();
     void CreateSubmitContexts();
+    void CreateFrameResources();
     void CreateShaderModules();
     void CreateSamplers();
+
     void CreateDescriptorResources();
     void CreateImageResource(ImageResource &image, std::string_view path, vk::Format format = vk::Format::eR8G8B8A8Unorm);
     void LoadModel(std::string_view path);
@@ -137,10 +153,14 @@ private:
     // holds all the index data of unique meshes in the scene
     Buffer mCombinedIndexBuffer;
 
+    // list of all objects to be rendered
+    Array<RenderObject> mRenderObjects;
     // list of all meshes in use
-    Array<Mesh> mMeshes;
+    Array<Mesh*> mMeshes;
+    Map<Mesh*, U32> mMeshIndices; 
     // list of all materials in use
-
+    Array<Material*> mMaterials;
+    Map<Material*, U32> mMaterialIndices;
 
     // TODO use dynamic uniform buffer or move into FrameResource ?
     Buffer mCameraBuffer;
