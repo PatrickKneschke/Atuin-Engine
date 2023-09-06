@@ -85,7 +85,6 @@ EngineLoop::~EngineLoop(){
 
 
 void EngineLoop::Run() {
-    
 
     StartUp();
 
