@@ -31,11 +31,11 @@ public:
         return data[ (Size)pass ];
     }
 
-    void Clear() {
+    void Clear(T defaultValue) {
 
         for (Size i = 0; i < (Size)PassType::COUNT; i++)
         {
-            data[i] = T();
+            data[i] = defaultValue;
         }        
     }
 
@@ -60,7 +60,14 @@ struct RenderObject {
 struct RenderBatch {
 
     U32 objectIdx;
+    U64 sortKey;
+
+    bool operator== (const RenderBatch &rhs) {
+
+        return objectIdx == rhs.objectIdx && sortKey == rhs.sortKey;
+    }
 };
+
 
 // used to render <count> instances of a RenderObject at <objectId>
 struct IndirectBatch {
@@ -82,12 +89,13 @@ struct MeshPass {
 
     PassType passType;
     
+    // objects in pass that need to be processed into batches
+    Array<RenderObject> unbatchedObjects;
     // objects participating in this render pass
     Array<RenderObject> renderObjects;
     // indices into the object array
-    Array<U64> unbatchedObjects;
-    Array<U64> deleteObjects;
-    Array<U64> reuseObjects;
+    Array<U32> deleteObjects;
+    Array<U32> reuseObjects;
 
     // batches of draw command data sorted by material and mesh
     Array<RenderBatch> renderBatches;
@@ -108,3 +116,7 @@ struct MeshPass {
 
     
 } // Atuin
+
+
+// comparison operators for RenderBatch
+bool operator< (const Atuin::RenderBatch &lhs, const Atuin::RenderBatch &rhs);

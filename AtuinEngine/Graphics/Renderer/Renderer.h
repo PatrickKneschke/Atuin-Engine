@@ -80,8 +80,10 @@ private:
     void RecreateSwapchain();
 
     void RegisterMeshObject( const MeshObject &object);
-    U32 RegisteMesh( Mesh *mesh);
-    U32 RegisteMaterial( Material *material);
+    U32 RegisterMesh( Mesh *mesh);
+    U32 RegisterMaterial( Material *material);
+    void UpdateMeshPass( MeshPass *pass);
+    void BuildMeshPassBatches( MeshPass *pass);
 
     void CreateVertexBuffer();
     void CreateIndexBuffer();
@@ -134,16 +136,13 @@ private:
     Swapchain mSwapchain;
     ImageResource mDepthImage;
 
+    // render passes and framebuffers
+
     vk::RenderPass mForwardPass;
     vk::RenderPass mShadowpass;
 
     Array<vk::Framebuffer> mForwardFramebuffers;
     Array<vk::Framebuffer> mShadowFramebuffers;
-
-    // mesh passes TODO shadow pass, transparency pass
-    MeshPass mShadowMeshPass;
-    MeshPass mOpaqueMeshPass;
-    MeshPass mTransparentMeshPass;
 
     Array<FrameResources> mFrames;
     U64 mFrameCount;
@@ -155,12 +154,19 @@ private:
 
     // list of all objects to be rendered
     Array<RenderObject> mRenderObjects;
+    // indices of objects that have been updated since last frame
+    Array<U32> mDirtyObjectIndices;
     // list of all meshes in use
     Array<Mesh*> mMeshes;
     Map<Mesh*, U32> mMeshIndices; 
     // list of all materials in use
     Array<Material*> mMaterials;
     Map<Material*, U32> mMaterialIndices;
+
+    // mesh passes
+    MeshPass mShadowMeshPass;
+    MeshPass mOpaqueMeshPass;
+    MeshPass mTransparentMeshPass;
 
     // TODO use dynamic uniform buffer or move into FrameResource ?
     Buffer mCameraBuffer;
