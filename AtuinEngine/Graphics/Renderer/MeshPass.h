@@ -45,6 +45,21 @@ private:
 };
 
 
+struct IndirectData {
+
+    vk::DrawIndexedIndirectCommand drawIndirectCmd;
+    U32 batchIdx;
+    U32 objectIdx;
+};
+
+
+struct InstanceData {
+
+    U32 batchIdx;
+    U32 objectIdx;
+};
+
+
 struct RenderObject {
 
     glm::mat4 transform;
@@ -105,7 +120,7 @@ struct MeshPass {
     // GPU buffer containing final draw indirects after culling
     Buffer drawIndirectBuffer;
     // GPU buffer containing objectId for each instance after culling
-    Buffer instanceObjBuffer;
+    Buffer instanceIdxBuffer;
     // GPU buffer to hold indirect batch ID and object ID for each instance
     Buffer instanceDataBuffer;
 

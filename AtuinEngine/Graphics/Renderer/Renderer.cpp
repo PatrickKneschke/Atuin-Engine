@@ -285,164 +285,6 @@ U32 Renderer::RegisterMaterial( Material *material) {
 }
 
 
-void Renderer::UpdateMeshPass( MeshPass *pass) {
-
-	// handle deleted render objects
-	if ( !pass->deleteObjects.IsEmpty())
-	{
-		mLog.Info( LogChannel::GRAPHICS, FormatStr( "Deleting %d objects from mesh pass %d.", pass->deleteObjects.GetSize(), (U8)pass->passType));
-
-		// render batches of deleted objects
-		Array<RenderBatch> deleteBatches;
-		deleteBatches.Reserve( pass->deleteObjects.GetSize());
-		for ( U32 idx : pass->deleteObjects)
-		{
-			pass->reuseObjects.PushBack( idx);
-
-			RenderBatch newBatch;
-			newBatch.objectIdx = idx;
-			newBatch.sortKey = (U64)pass->renderObjects[idx].materialIdx << 32 | pass->renderObjects[idx].meshIdx;
-
-			deleteBatches.PushBack( newBatch);
-		}
-		pass->deleteObjects.Clear();
-
-		// remove deleted batches from renderBatches array
-		std::sort( deleteBatches.Begin(), deleteBatches.End());
-
-		Array<RenderBatch> newBatches;
-		newBatches.Reserve( pass->renderBatches.GetSize());
-		std::set_difference( pass->renderBatches.Begin(), pass->renderBatches.End(), deleteBatches.Begin(), deleteBatches.End(), newBatches.Begin());
-		pass->renderBatches = std::move( newBatches);
-
-		pass->rebuildBatches = true;
-	}
-
-	// handle unbatched objects
-	if ( !pass->unbatchedObjects.IsEmpty())
-	{
-		mLog.Info( LogChannel::GRAPHICS, FormatStr( "Adding %d objects to mesh pass %d.", pass->unbatchedObjects.GetSize(), (U8)pass->passType));
-
-		Array<RenderBatch> newBatches;
-		newBatches.Reserve( pass->unbatchedObjects.GetSize());
-		for ( auto &obj : pass->unbatchedObjects)
-		{
-			// insert new render object and create renderbatch for it
-			U32 newIndex;
-			if ( !pass->reuseObjects.IsEmpty())
-			{
-				newIndex = pass->reuseObjects.Back();
-				pass->reuseObjects.PopBack();
-				pass->renderObjects[ newIndex] = obj;
-			}
-			else
-			{
-				newIndex = (U32)pass->renderObjects.GetSize();
-				pass->renderObjects.PushBack( obj);
-			}
-			
-			RenderBatch newBatch;
-			newBatch.objectIdx = newIndex;
-			newBatch.sortKey = (U64)pass->renderObjects[newIndex].materialIdx << 32 | pass->renderObjects[newIndex].meshIdx;
-			newBatches.PushBack( newBatch);
-		}
-		pass->unbatchedObjects.Clear();
-
-		// combine new batches with renderBatches and sort
-		std::sort( newBatches.Begin(), newBatches.End());
-		if ( pass->renderBatches.IsEmpty())
-		{
-			pass->renderBatches = std::move( newBatches);
-		}
-		else 
-		{
-			Size oldSize = pass->renderBatches.GetSize();
-			Size newSize = oldSize + newBatches.GetSize();
-			pass->renderBatches.Reserve( newSize);
-			for ( auto &batch : newBatches)
-			{
-				pass->renderBatches.PushBack( batch);
-			}
-
-			auto begin = pass->renderBatches.Begin();
-			auto middle = begin + oldSize;
-			auto end = begin + newSize;
-			std::inplace_merge( begin, middle, end);
-		}
-
-		pass->rebuildBatches = true;
-	}
-
-	// rebuild indirect batches
-	BuildMeshPassBatches(pass);
-}
-
-
-void Renderer::BuildMeshPassBatches( MeshPass *pass) {
-
-	// do nothing if batches are unchanged
-	if( !pass->rebuildBatches)
-	{
-		return;
-	}
-
-	// rebuild indirect batches
-	pass->indirectBatches.Clear();
-	pass->multiBatches.Clear();
-
-	IndirectBatch newBatch;
-	newBatch.first = 0;
-	newBatch.count = 0;
-	newBatch.objectIdx = 0;
-	
-	MultiBatch newMultiBatch;
-	newMultiBatch.first = 0;
-	newMultiBatch.count = 1;
-
-	pass->indirectBatches.PushBack( newBatch);
-	pass->multiBatches.PushBack( newMultiBatch);
-
-	U32 lastMaterial = pass->renderObjects[0].materialIdx;
-	U32 lastMesh = pass->renderObjects[0].meshIdx;
-	U32 numBatches = (U32)pass->renderBatches.GetSize();
-	for ( U32 idx = 0; idx < numBatches; idx++)
-	{
-		RenderObject &obj = pass->renderObjects[ pass->renderBatches[idx].objectIdx ];
-
-		if ( obj.materialIdx != lastMaterial || obj.meshIdx != lastMesh)
-		{
-			newBatch.first = idx;
-			newBatch.count = 1;
-			newBatch.objectIdx = pass->renderBatches[idx].objectIdx;
-			pass->indirectBatches.PushBack( newBatch);
-
-			if ( obj.materialIdx != lastMaterial)
-			{
-				newMultiBatch.first = (U32)pass->indirectBatches.GetSize();
-				newMultiBatch.count = 1;
-				pass->multiBatches.PushBack( newMultiBatch);
-
-				lastMaterial = obj.materialIdx;
-			}
-			else 
-			{
-				pass->multiBatches.Back().count++;
-			}
-
-			if ( obj.meshIdx != lastMesh)
-			{
-				lastMesh = obj.meshIdx;
-			}
-			
-		}
-		else 
-		{
-			pass->indirectBatches.Back().count++;
-		}
-	}	
-}
-
-
 void Renderer::MergeMeshes() {
 
 	// assign meshes their proper position in the vertex and index arrays
@@ -512,6 +354,195 @@ void Renderer::MergeMeshes() {
 	pCore->Device().freeMemory( stagingVertexBuffer.bufferMemory);
 	pCore->Device().destroyBuffer( stagingIndexBuffer.buffer);
 	pCore->Device().freeMemory( stagingIndexBuffer.bufferMemory);
+}
+
+
+void Renderer::UpdateMeshPass( MeshPass *pass) {
+
+	// handle deleted render objects
+	if ( !pass->deleteObjects.IsEmpty())
+	{
+		mLog.Info( LogChannel::GRAPHICS, FormatStr( "Deleting %d objects from mesh pass %d.", pass->deleteObjects.GetSize(), (U8)pass->passType));
+
+		// render batches of deleted objects
+		Array<RenderBatch> deleteBatches;
+		deleteBatches.Reserve( pass->deleteObjects.GetSize());
+		for ( U32 idx : pass->deleteObjects)
+		{
+			pass->reuseObjects.PushBack( idx);
+
+			RenderBatch newBatch;
+			newBatch.objectIdx = idx;
+			newBatch.sortKey = (U64)pass->renderObjects[idx].materialIdx << 32 | pass->renderObjects[idx].meshIdx;
+
+			deleteBatches.PushBack( newBatch);
+		}
+		pass->deleteObjects.Clear();
+
+		// remove deleted batches from renderBatches array
+		std::sort( deleteBatches.Begin(), deleteBatches.End());
+
+		Array<RenderBatch> newBatches;
+		newBatches.Reserve( pass->renderBatches.GetSize());
+		std::set_difference( pass->renderBatches.Begin(), pass->renderBatches.End(), deleteBatches.Begin(), deleteBatches.End(), newBatches.Begin());
+		pass->renderBatches = std::move( newBatches);
+
+		pass->rebuildBatches = true;
+		pass->rebuildInstances = true;
+	}
+
+	// handle unbatched objects
+	if ( !pass->unbatchedObjects.IsEmpty())
+	{
+		mLog.Info( LogChannel::GRAPHICS, FormatStr( "Adding %d objects to mesh pass %d.", pass->unbatchedObjects.GetSize(), (U8)pass->passType));
+
+		Array<RenderBatch> newBatches;
+		newBatches.Reserve( pass->unbatchedObjects.GetSize());
+		for ( auto &obj : pass->unbatchedObjects)
+		{
+			// insert new render object and create renderbatch for it
+			U32 newIndex;
+			if ( !pass->reuseObjects.IsEmpty())
+			{
+				newIndex = pass->reuseObjects.Back();
+				pass->reuseObjects.PopBack();
+				pass->renderObjects[ newIndex] = obj;
+			}
+			else
+			{
+				newIndex = (U32)pass->renderObjects.GetSize();
+				pass->renderObjects.PushBack( obj);
+			}
+			
+			RenderBatch newBatch;
+			newBatch.objectIdx = newIndex;
+			newBatch.sortKey = (U64)pass->renderObjects[newIndex].materialIdx << 32 | pass->renderObjects[newIndex].meshIdx;
+			newBatches.PushBack( newBatch);
+		}
+		pass->unbatchedObjects.Clear();
+
+		// combine new batches with renderBatches and sort
+		std::sort( newBatches.Begin(), newBatches.End());
+		if ( pass->renderBatches.IsEmpty())
+		{
+			pass->renderBatches = std::move( newBatches);
+		}
+		else 
+		{
+			Size oldSize = pass->renderBatches.GetSize();
+			Size newSize = oldSize + newBatches.GetSize();
+			pass->renderBatches.Reserve( newSize);
+			for ( auto &batch : newBatches)
+			{
+				pass->renderBatches.PushBack( batch);
+			}
+
+			auto begin = pass->renderBatches.Begin();
+			auto middle = begin + oldSize;
+			auto end = begin + newSize;
+			std::inplace_merge( begin, middle, end);
+		}
+
+		pass->rebuildBatches = true;
+		pass->rebuildInstances = true;
+	}
+
+	// rebuild indirect batches
+	BuildMeshPassBatches(pass);
+
+	// resize Gpu side buffers if necessary
+	if ( pass->drawIndirectBuffer.bufferSize < pass->indirectBatches.GetSize() * sizeof(IndirectData))
+	{
+		CreateBuffer(
+			pass->drawIndirectBuffer,
+			pass->indirectBatches.GetSize() * sizeof(IndirectData),
+			vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eIndirectBuffer | vk::BufferUsageFlagBits::eTransferDst,
+			vk::MemoryPropertyFlagBits::eDeviceLocal
+		);
+	}
+	if ( pass->instanceDataBuffer.bufferSize < pass->renderBatches.GetSize() * sizeof(InstanceData))
+	{
+		CreateBuffer(
+			pass->instanceDataBuffer,
+			pass->renderBatches.GetSize() * sizeof(InstanceData),
+			vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+			vk::MemoryPropertyFlagBits::eDeviceLocal
+		);
+	}
+	if ( pass->instanceIdxBuffer.bufferSize < pass->renderBatches.GetSize() * sizeof(U32))
+	{
+		CreateBuffer(
+			pass->instanceIdxBuffer,
+			pass->renderBatches.GetSize() * sizeof(U32),
+			vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+			vk::MemoryPropertyFlagBits::eDeviceLocal
+		);
+	}
+}
+
+
+void Renderer::BuildMeshPassBatches( MeshPass *pass) {
+
+	// do nothing if batches are unchanged
+	if( !pass->rebuildBatches)
+	{
+		return;
+	}
+
+	// rebuild indirect batches
+	pass->indirectBatches.Clear();
+	pass->multiBatches.Clear();
+
+	IndirectBatch newBatch;
+	newBatch.first = 0;
+	newBatch.count = 0;
+	newBatch.objectIdx = 0;
+	
+	MultiBatch newMultiBatch;
+	newMultiBatch.first = 0;
+	newMultiBatch.count = 1;
+
+	pass->indirectBatches.PushBack( newBatch);
+	pass->multiBatches.PushBack( newMultiBatch);
+
+	U32 lastMaterial = pass->renderObjects[0].materialIdx;
+	U32 lastMesh = pass->renderObjects[0].meshIdx;
+	U32 numBatches = (U32)pass->renderBatches.GetSize();
+	for ( U32 idx = 0; idx < numBatches; idx++)
+	{
+		RenderObject &obj = pass->renderObjects[ pass->renderBatches[idx].objectIdx ];
+
+		if ( obj.materialIdx != lastMaterial || obj.meshIdx != lastMesh)
+		{
+			newBatch.first = idx;
+			newBatch.count = 1;
+			newBatch.objectIdx = pass->renderBatches[idx].objectIdx;
+			pass->indirectBatches.PushBack( newBatch);
+
+			if ( obj.materialIdx != lastMaterial)
+			{
+				newMultiBatch.first = (U32)pass->indirectBatches.GetSize();
+				newMultiBatch.count = 1;
+				pass->multiBatches.PushBack( newMultiBatch);
+
+				lastMaterial = obj.materialIdx;
+			}
+			else 
+			{
+				pass->multiBatches.Back().count++;
+			}
+
+			if ( obj.meshIdx != lastMesh)
+			{
+				lastMesh = obj.meshIdx;
+			}
+			
+		}
+		else 
+		{
+			pass->indirectBatches.Back().count++;
+		}
+	}	
 }
 
 

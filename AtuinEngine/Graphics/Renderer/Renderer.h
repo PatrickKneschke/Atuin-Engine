@@ -95,9 +95,10 @@ private:
     void RegisterMeshObject( const MeshObject &object);
     U32 RegisterMesh( Mesh *mesh);
     U32 RegisterMaterial( Material *material);
+    void MergeMeshes();
     void UpdateMeshPass( MeshPass *pass);
     void BuildMeshPassBatches( MeshPass *pass);
-    void MergeMeshes();
+    void BuildMeshPassInstances( MeshPass *pass);
 
     void CreateBuffer( Buffer &buffer, Size size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags memoryType);
 
