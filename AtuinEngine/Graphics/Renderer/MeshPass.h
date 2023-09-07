@@ -60,17 +60,6 @@ struct InstanceData {
 };
 
 
-struct RenderObject {
-
-    glm::mat4 transform;
-    glm::vec4 sphereBounds;
-
-    U32 meshIdx;
-    U32 materialIdx;
-
-    PassData<I64> passIndex;
-};
-
 // used to draw one instance of a RenderObject at <objectId>
 struct RenderBatch {
 
@@ -104,13 +93,13 @@ struct MeshPass {
 
     PassType passType;
     
-    // objects in pass that need to be processed into batches
-    Array<RenderObject> unbatchedObjects;
-    // objects participating in this render pass
-    Array<RenderObject> renderObjects;
-    // indices into the object array
-    Array<U32> deleteObjects;
-    Array<U32> reuseObjects;
+    // indices of render objects that need to be added to the pass
+    Array<U32> unbatchedIndices;
+    // indices of render objects participating in this render pass
+    Array<U32> objectIndices;
+    // indices into the pass object array
+    Array<U32> deleteObjectIndices;
+    Array<U32> reuseObjectIndices;
 
     // batches of draw command data sorted by material and mesh
     Array<RenderBatch> renderBatches;
@@ -125,8 +114,8 @@ struct MeshPass {
     Buffer instanceDataBuffer;
 
     // dirty flags
-    bool rebuildBatches;
-    bool rebuildInstances;
+    bool rebuildBatches = false;
+    bool rebuildInstances = false;
 };
 
     

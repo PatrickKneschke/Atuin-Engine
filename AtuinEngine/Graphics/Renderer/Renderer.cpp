@@ -77,6 +77,7 @@ void Renderer::ShutDown() {
 
 	mDeletionStack.Flush();
 
+	// vertex and index buffers
 	pCore->Device().destroyBuffer( mCombinedVertexBuffer.buffer);
 	pCore->Device().freeMemory( mCombinedVertexBuffer.bufferMemory);
 	pCore->Device().destroyBuffer( mCombinedIndexBuffer.buffer);
@@ -104,6 +105,7 @@ void Renderer::Update() {
 
 	// TODO make async calls
 
+	UpdateObjectBuffer();
 	UpdateMeshPass( &mShadowMeshPass);
 	UpdateMeshPass( &mOpaqueMeshPass);
 	UpdateMeshPass( &mTransparentMeshPass);
@@ -233,22 +235,26 @@ void Renderer::RegisterMeshObject( const MeshObject &object) {
 	newObject.sphereBounds = object.sphereBounds;
 	newObject.meshIdx = RegisterMesh( object.mesh);
 	newObject.materialIdx = RegisterMaterial( object.material);
-	// newObject.passIndex created after bath processing
+	// newObject.passIndex created after batch processing
+
+	U32 objIdx = (U32)mRenderObjects.GetSize();
+	mRenderObjects.PushBack( newObject);
+	mDirtyObjectIndices.PushBack( objIdx);
 	
 	// submit to mesh passes
 	newObject.passIndex.Clear( -1);
 
 	if ( object.material->usedInPass[PassType::SHADOW] )
 	{
-		mShadowMeshPass.unbatchedObjects.PushBack( newObject);
+		mShadowMeshPass.unbatchedIndices.PushBack( objIdx);
 	}
 	if ( object.material->usedInPass[PassType::OPAQUE] )
 	{
-		mOpaqueMeshPass.unbatchedObjects.PushBack( newObject);
+		mOpaqueMeshPass.unbatchedIndices.PushBack( objIdx);
 	}
 	if ( object.material->usedInPass[PassType::TRANSPARENT] )
 	{
-		mTransparentMeshPass.unbatchedObjects.PushBack( newObject);
+		mTransparentMeshPass.unbatchedIndices.PushBack( objIdx);
 	}
 }
 
@@ -360,24 +366,25 @@ void Renderer::MergeMeshes() {
 void Renderer::UpdateMeshPass( MeshPass *pass) {
 
 	// handle deleted render objects
-	if ( !pass->deleteObjects.IsEmpty())
+	if ( !pass->deleteObjectIndices.IsEmpty())
 	{
-		mLog.Info( LogChannel::GRAPHICS, FormatStr( "Deleting %d objects from mesh pass %d.", pass->deleteObjects.GetSize(), (U8)pass->passType));
+		mLog.Info( LogChannel::GRAPHICS, FormatStr( "Deleting %d objects from mesh pass %d.", pass->deleteObjectIndices.GetSize(), (U8)pass->passType));
 
 		// render batches of deleted objects
 		Array<RenderBatch> deleteBatches;
-		deleteBatches.Reserve( pass->deleteObjects.GetSize());
-		for ( U32 idx : pass->deleteObjects)
+		deleteBatches.Reserve( pass->deleteObjectIndices.GetSize());
+		for ( U32 idx : pass->deleteObjectIndices)
 		{
-			pass->reuseObjects.PushBack( idx);
+			pass->reuseObjectIndices.PushBack( idx);
+			RenderObject &obj = mRenderObjects[ pass->objectIndices[idx]];
 
 			RenderBatch newBatch;
-			newBatch.objectIdx = idx;
-			newBatch.sortKey = (U64)pass->renderObjects[idx].materialIdx << 32 | pass->renderObjects[idx].meshIdx;
+			newBatch.objectIdx = pass->objectIndices[idx];
+			newBatch.sortKey = (U64)obj.materialIdx << 32 | obj.meshIdx;
 
 			deleteBatches.PushBack( newBatch);
 		}
-		pass->deleteObjects.Clear();
+		pass->deleteObjectIndices.Clear();
 
 		// remove deleted batches from renderBatches array
 		std::sort( deleteBatches.Begin(), deleteBatches.End());
@@ -392,34 +399,37 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 	}
 
 	// handle unbatched objects
-	if ( !pass->unbatchedObjects.IsEmpty())
+	if ( !pass->unbatchedIndices.IsEmpty())
 	{
-		mLog.Info( LogChannel::GRAPHICS, FormatStr( "Adding %d objects to mesh pass %d.", pass->unbatchedObjects.GetSize(), (U8)pass->passType));
+		mLog.Info( LogChannel::GRAPHICS, FormatStr( "Adding %d objects to mesh pass %d.", pass->unbatchedIndices.GetSize(), (U8)pass->passType));
 
 		Array<RenderBatch> newBatches;
-		newBatches.Reserve( pass->unbatchedObjects.GetSize());
-		for ( auto &obj : pass->unbatchedObjects)
+		newBatches.Reserve( pass->unbatchedIndices.GetSize());
+		for ( U32 idx : pass->unbatchedIndices)
 		{
 			// insert new render object and create renderbatch for it
 			U32 newIndex;
-			if ( !pass->reuseObjects.IsEmpty())
+			if ( !pass->reuseObjectIndices.IsEmpty())
 			{
-				newIndex = pass->reuseObjects.Back();
-				pass->reuseObjects.PopBack();
-				pass->renderObjects[ newIndex] = obj;
+				newIndex = pass->reuseObjectIndices.Back();
+				pass->reuseObjectIndices.PopBack();
+				pass->objectIndices[ newIndex] = idx;
 			}
 			else
 			{
-				newIndex = (U32)pass->renderObjects.GetSize();
-				pass->renderObjects.PushBack( obj);
+				newIndex = (U32)pass->objectIndices.GetSize();
+				pass->objectIndices.PushBack( idx);
 			}
+
+			RenderObject &obj = mRenderObjects[ pass->objectIndices[idx]];
+			obj.passIndex[ pass->passType] = newIndex;
 			
 			RenderBatch newBatch;
 			newBatch.objectIdx = newIndex;
-			newBatch.sortKey = (U64)pass->renderObjects[newIndex].materialIdx << 32 | pass->renderObjects[newIndex].meshIdx;
+			newBatch.sortKey = (U64)obj.materialIdx << 32 | obj.meshIdx;
 			newBatches.PushBack( newBatch);
 		}
-		pass->unbatchedObjects.Clear();
+		pass->unbatchedIndices.Clear();
 
 		// combine new batches with renderBatches and sort
 		std::sort( newBatches.Begin(), newBatches.End());
@@ -478,6 +488,13 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
 	}
+
+	// update gpu side buffers
+    UpdateMeshPassBatchBuffer( pass);
+    UpdateMeshPassInstanceBuffer( pass);
+
+	pass->rebuildBatches = false;
+	pass->rebuildInstances = false;
 }
 
 
@@ -505,12 +522,13 @@ void Renderer::BuildMeshPassBatches( MeshPass *pass) {
 	pass->indirectBatches.PushBack( newBatch);
 	pass->multiBatches.PushBack( newMultiBatch);
 
-	U32 lastMaterial = pass->renderObjects[0].materialIdx;
-	U32 lastMesh = pass->renderObjects[0].meshIdx;
+	U32 lastMaterial = mRenderObjects[ pass->renderBatches[0].objectIdx].materialIdx;
+	U32 lastMesh = mRenderObjects[ pass->renderBatches[0].objectIdx].meshIdx;
+
 	U32 numBatches = (U32)pass->renderBatches.GetSize();
 	for ( U32 idx = 0; idx < numBatches; idx++)
 	{
-		RenderObject &obj = pass->renderObjects[ pass->renderBatches[idx].objectIdx ];
+		RenderObject &obj = mRenderObjects[ pass->renderBatches[idx].objectIdx ];
 
 		if ( obj.materialIdx != lastMaterial || obj.meshIdx != lastMesh)
 		{
@@ -546,15 +564,148 @@ void Renderer::BuildMeshPassBatches( MeshPass *pass) {
 }
 
 
+void Renderer::UpdateMeshPassBatchBuffer( MeshPass *pass) {
+
+	if ( !pass->rebuildBatches)
+	{
+		return;
+	}
+
+	Size copySize = pass->indirectBatches.GetSize() * sizeof(IndirectData);
+
+	// fill staging buffer
+	Buffer stagingBuffer = CreateStagingBuffer( copySize);
+	void *data;
+	vk::Result result = pCore->Device().mapMemory( stagingBuffer.bufferMemory, 0, copySize, vk::MemoryMapFlags(), &data);
+	if( result != vk::Result::eSuccess )
+	{
+		throw std::runtime_error("Failed to map staging buffer memory " + vk::to_string(result));
+	}
+
+	IndirectData *indirectData = (IndirectData*)data;
+	for ( U32 i = 0; i < pass->indirectBatches.GetSize(); i++)
+	{
+		IndirectBatch batch = pass->indirectBatches[i];
+		Mesh *mesh = mMeshes[ mRenderObjects[batch.objectIdx].meshIdx ];
+
+		indirectData[i].batchIdx = i;
+		indirectData[i].objectIdx = 0;
+		indirectData[i].drawIndirectCmd
+			.setVertexOffset( mesh->firstVertex )
+			.setFirstIndex( mesh->firstIndex )
+			.setIndexCount( mesh->indexCount )
+			.setFirstInstance( batch.first )
+			.setInstanceCount( 0 );
+	}
+
+	pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
+
+	// upload buffer data to Gpu memory
+	CopyBuffer( stagingBuffer.buffer, pass->drawIndirectBuffer.buffer, 0, stagingBuffer.bufferSize);
+
+	// cleanup
+	pCore->Device().destroyBuffer( stagingBuffer.buffer);
+	pCore->Device().freeMemory( stagingBuffer.bufferMemory);
+}
+    
+	
+void Renderer::UpdateMeshPassInstanceBuffer( MeshPass *pass) {
+
+	if ( !pass->rebuildInstances)
+	{
+		return;
+	}
+
+	Size copySize = pass->indirectBatches.GetSize() * sizeof(InstanceData);
+
+	// fill staging buffer
+	Buffer stagingBuffer = CreateStagingBuffer( copySize);
+	void *data;
+	vk::Result result = pCore->Device().mapMemory( stagingBuffer.bufferMemory, 0, copySize, vk::MemoryMapFlags(), &data);
+	if( result != vk::Result::eSuccess )
+	{
+		throw std::runtime_error("Failed to map staging buffer memory " + vk::to_string(result));
+	}
+
+	InstanceData *instanceData = (InstanceData*)data;
+	for ( U32 batchIdx = 0; batchIdx < pass->indirectBatches.GetSize(); batchIdx++)
+	{
+		IndirectBatch batch = pass->indirectBatches[ batchIdx];
+		for ( U32 i = 0; i < batch.count; i++)
+		{
+			instanceData[ batch.first + i].batchIdx = batchIdx;
+			instanceData[ batch.first + i].objectIdx = pass->renderBatches[ batch.first + i].objectIdx;
+		}
+	}
+
+	pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
+
+	// upload buffer data to Gpu memory
+	CopyBuffer( stagingBuffer.buffer, pass->drawIndirectBuffer.buffer, 0, stagingBuffer.bufferSize);
+
+	// cleanup
+	pCore->Device().destroyBuffer( stagingBuffer.buffer);
+	pCore->Device().freeMemory( stagingBuffer.bufferMemory);
+}
+
+
+void Renderer::UpdateObjectBuffer() {
+
+	// do nothing if object data has not changed
+	if ( mDirtyObjectIndices.IsEmpty())
+	{
+		return;
+	}
+
+	Size copySize = mRenderObjects.GetSize() * sizeof(ObjectData);
+	// recreate object buffer if necessary
+	if ( mObjectBuffer.bufferSize < copySize)
+	{
+		CreateBuffer( 
+			mObjectBuffer,
+			copySize,
+			vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+			vk::MemoryPropertyFlagBits::eDeviceLocal	
+		);
+	}
+
+	// TODO allow for partial update if not too many objects changed
+
+	// fill stating buffer
+	Buffer stagingBuffer = CreateStagingBuffer( copySize);
+	void *data;
+	vk::Result result = pCore->Device().mapMemory( stagingBuffer.bufferMemory, 0, copySize, vk::MemoryMapFlags(), &data);
+	if( result != vk::Result::eSuccess )
+	{
+		throw std::runtime_error("Failed to map staging buffer memory " + vk::to_string(result));
+	}
+
+	ObjectData *objData = (ObjectData*)data;
+	for ( Size i = 0; i < mRenderObjects.GetSize(); i++)
+	{
+		objData[i].transform = mRenderObjects[i].transform;
+	}
+
+	pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
+
+	// upload buffer data to Gpu memory
+	CopyBuffer( stagingBuffer.buffer, mObjectBuffer.buffer, 0, stagingBuffer.bufferSize);
+
+	// cleanup
+	pCore->Device().destroyBuffer( stagingBuffer.buffer);
+	pCore->Device().freeMemory( stagingBuffer.bufferMemory);
+}
+
+
 void Renderer::CreateBuffer( Buffer &buffer, Size size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags memoryType) {
 
 	if ( (bool)buffer.buffer)
 	{
-		CurrentFrame().deletionStack.Push([&](){
+		// CurrentFrame().deletionStack.Push([&](){
 
-				pCore->Device().destroyBuffer( mCombinedIndexBuffer.buffer);
-				pCore->Device().freeMemory( mCombinedIndexBuffer.bufferMemory);
-		});
+			pCore->Device().destroyBuffer( buffer.buffer);
+			pCore->Device().freeMemory( buffer.bufferMemory);
+		// });
 	}
 
 	buffer.bufferSize = size;
@@ -661,7 +812,7 @@ void Renderer::UploadBufferData( void *bufferData, Size size, vk::Buffer targetB
 
 	Buffer stagingBuffer = CreateStagingBuffer( size);
 
-	// transfer image data to staging buffer
+	// transfer data to staging buffer
 	void *data;
 	vk::Result result = pCore->Device().mapMemory( stagingBuffer.bufferMemory, 0, size, vk::MemoryMapFlags(), &data);
 	if( result == vk::Result::eSuccess ) 
@@ -1306,6 +1457,7 @@ void Renderer::CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, Size offse
 void Renderer::DrawFrame() {
 
 	auto frame = CurrentFrame();
+	
 	UpdateCameraData();
 	UpdateScenedata();
 	UpdateObjectData();
@@ -1334,6 +1486,7 @@ void Renderer::DrawFrame() {
 			throw std::runtime_error("Error while getting swapchain image " + vk::to_string(result));
 		}
 	}
+
 	
 	// wait for render fence to record render commands
 	result = pCore->Device().waitForFences(frame.renderFence, true, 1e9);
@@ -1346,6 +1499,7 @@ void Renderer::DrawFrame() {
 	{
 		throw std::runtime_error("Error while resetting render fence " + vk::to_string(result));
 	}
+
 
 	// get current frames command buffer and reset
 	auto &cmd = frame.commandBuffer;
@@ -1385,6 +1539,7 @@ void Renderer::DrawFrame() {
 	cmd.setViewport( 0, 1, &viewport);
 	cmd.setScissor( 0, 1, &scissor);
 
+
 	cmd.bindPipeline(
 		vk::PipelineBindPoint::eGraphics, mSingleMaterialPipeline.pipeline
 	);
@@ -1393,6 +1548,7 @@ void Renderer::DrawFrame() {
 	Size offsets[] = {0};
 	cmd.bindVertexBuffers( 0, 1, vertexBuffers, offsets);
 	cmd.bindIndexBuffer( mCombinedIndexBuffer.buffer, 0, vk::IndexType::eUint32);
+
 		
 	vk::DescriptorSet descriptorSets[] = {
 		mPassDataSet, mMaterialDataSet, mObjectDataSet
@@ -1400,13 +1556,12 @@ void Renderer::DrawFrame() {
 	cmd.bindDescriptorSets( 
 		vk::PipelineBindPoint::eGraphics, mSingleMaterialPipeline.pipelineLayout, 0, 3, descriptorSets, 0, nullptr		
 	);
-	
+
 	cmd.drawIndexed( (U32)mIndices.GetSize(), 1, 0, 0, 0);
-	
+
 	cmd.endRenderPass();
 	
 	cmd.end();
-
 
 	// submit render commands
 	vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -1513,7 +1668,7 @@ void Renderer::UpdateObjectData() {
 		glm::vec3(1.f, 1.f, 1.f)
 	);
 	ObjectData obj;
-	obj.model = translate * rotation * scale;
+	obj.transform = translate * rotation * scale;
 	
 	UploadBufferData( &obj, sizeof(ObjectData), mObjectBuffer.buffer);
 }

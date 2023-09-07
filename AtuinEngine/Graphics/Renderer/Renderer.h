@@ -56,10 +56,10 @@ struct FrameResources {
 	vk::CommandPool commandPool;
 	vk::CommandBuffer commandBuffer;
 
-    DeletionStack deletionStack;
+    // DeletionStack deletionStack;
 };
 
-
+// mesh + material combination as stored in the ModelComponent of Entities
 struct MeshObject {
 
     glm::mat4 transform;
@@ -67,6 +67,18 @@ struct MeshObject {
 
     Mesh* mesh;
     Material* material;
+};
+
+// representation of a MeshObject inside the Renderer
+struct RenderObject {
+
+    glm::mat4 transform;
+    glm::vec4 sphereBounds;
+
+    U32 meshIdx;
+    U32 materialIdx;
+
+    PassData<I64> passIndex;
 };
 
 
@@ -98,7 +110,9 @@ private:
     void MergeMeshes();
     void UpdateMeshPass( MeshPass *pass);
     void BuildMeshPassBatches( MeshPass *pass);
-    void BuildMeshPassInstances( MeshPass *pass);
+    void UpdateMeshPassBatchBuffer( MeshPass *pass);
+    void UpdateMeshPassInstanceBuffer( MeshPass *pass);
+    void UpdateObjectBuffer();
 
     void CreateBuffer( Buffer &buffer, Size size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags memoryType);
 
