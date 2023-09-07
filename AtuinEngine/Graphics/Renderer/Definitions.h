@@ -95,7 +95,7 @@ struct ImageResource {
 struct Buffer {
 	vk::Buffer				buffer;
 	vk::DeviceMemory		bufferMemory;
-	vk::DeviceSize          bufferSize;
+	vk::DeviceSize          bufferSize = 0;
 	vk::BufferUsageFlags	usage;
 	vk::MemoryPropertyFlags	memoryType;
 
@@ -146,17 +146,6 @@ struct SceneData {
 
 	AmbientLight ambient;
 	DirectionalLight light;
-};
-
-
-struct FrameResources {
-
-	vk::Fence renderFence;
-	vk::Semaphore renderSemaphore;
-	vk::Semaphore presentSemaphore;
-
-	vk::CommandPool commandPool;
-	vk::CommandBuffer commandBuffer;
 };
 
 

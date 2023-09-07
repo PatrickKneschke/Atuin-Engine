@@ -47,6 +47,19 @@ private:
 };
 
 
+struct FrameResources {
+
+	vk::Fence renderFence;
+	vk::Semaphore renderSemaphore;
+	vk::Semaphore presentSemaphore;
+
+	vk::CommandPool commandPool;
+	vk::CommandBuffer commandBuffer;
+
+    DeletionStack deletionStack;
+};
+
+
 struct MeshObject {
 
     glm::mat4 transform;
@@ -84,9 +97,13 @@ private:
     U32 RegisterMaterial( Material *material);
     void UpdateMeshPass( MeshPass *pass);
     void BuildMeshPassBatches( MeshPass *pass);
+    void MergeMeshes();
+
+    void CreateBuffer( Buffer &buffer, Size size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags memoryType);
 
     void CreateVertexBuffer();
     void CreateIndexBuffer();
+
 
     Buffer CreateStagingBuffer(Size bufferSize);
     void UploadBufferData( void *bufferData, Size size, vk::Buffer targetBuffer, Size offset = 0);

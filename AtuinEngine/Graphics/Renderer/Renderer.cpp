@@ -77,6 +77,11 @@ void Renderer::ShutDown() {
 
 	mDeletionStack.Flush();
 
+	pCore->Device().destroyBuffer( mCombinedVertexBuffer.buffer);
+	pCore->Device().freeMemory( mCombinedVertexBuffer.bufferMemory);
+	pCore->Device().destroyBuffer( mCombinedIndexBuffer.buffer);
+	pCore->Device().freeMemory( mCombinedIndexBuffer.bufferMemory);
+
 	// presentation related
 	DestroyFramebuffers();	
 
@@ -316,6 +321,8 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 	// handle unbatched objects
 	if ( !pass->unbatchedObjects.IsEmpty())
 	{
+		mLog.Info( LogChannel::GRAPHICS, FormatStr( "Adding %d objects to mesh pass %d.", pass->unbatchedObjects.GetSize(), (U8)pass->passType));
+
 		Array<RenderBatch> newBatches;
 		newBatches.Reserve( pass->unbatchedObjects.GetSize());
 		for ( auto &obj : pass->unbatchedObjects)
@@ -436,6 +443,98 @@ void Renderer::BuildMeshPassBatches( MeshPass *pass) {
 }
 
 
+void Renderer::MergeMeshes() {
+
+	// assign meshes their proper position in the vertex and index arrays
+	U32 totalVertices = 0;
+	U32 totalIndices = 0;
+	for ( auto mesh : mMeshes)
+	{
+		mesh->firstVertex = totalVertices;
+		mesh->firstIndex = totalIndices;
+		
+		totalVertices += mesh->vertexCount;
+		totalIndices += mesh->indexCount;
+	}
+
+	// recreate vertex and index buffers if they are too small
+	if( totalVertices > mCombinedVertexBuffer.bufferSize)
+	{
+		CreateBuffer( 
+			mCombinedVertexBuffer,
+			totalVertices * sizeof(Vertex), 
+			vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
+			vk::MemoryPropertyFlagBits::eDeviceLocal
+		);
+	}
+	if( totalIndices > mCombinedIndexBuffer.bufferSize)
+	{
+		CreateBuffer( 
+			mCombinedIndexBuffer,
+			totalIndices * sizeof(U32), 
+			vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst,
+			vk::MemoryPropertyFlagBits::eDeviceLocal
+		);
+	}
+
+	// fill staging buffers
+	Buffer stagingVertexBuffer = CreateStagingBuffer( totalVertices * sizeof(Vertex));
+	void *vertexData;
+	vk::Result result = pCore->Device().mapMemory( stagingVertexBuffer.bufferMemory, 0, stagingVertexBuffer.bufferSize, vk::MemoryMapFlags(), &vertexData);
+	if( result != vk::Result::eSuccess ) 
+	{
+		throw std::runtime_error("Failed to map staging buffer memory " + vk::to_string(result));
+	}
+
+	Buffer stagingIndexBuffer = CreateStagingBuffer( totalIndices * sizeof(U32));
+	void *indexData;
+	result = pCore->Device().mapMemory( stagingIndexBuffer.bufferMemory, 0, stagingIndexBuffer.bufferSize, vk::MemoryMapFlags(), &indexData);
+	if( result != vk::Result::eSuccess ) 
+	{
+		throw std::runtime_error("Failed to map staging buffer memory " + vk::to_string(result));
+	}
+
+	for ( auto mesh : mMeshes)
+	{
+		memcpy( (Byte*)vertexData + mesh->firstVertex * sizeof(Vertex), mesh->meshData->vertices.Data(), mesh->vertexCount * sizeof(Vertex));
+		memcpy( (Byte*)indexData + mesh->firstIndex * sizeof(U32), mesh->meshData->indices.Data(), mesh->indexCount * sizeof(U32));
+	}
+
+	pCore->Device().unmapMemory( stagingVertexBuffer.bufferMemory);
+	pCore->Device().unmapMemory( stagingIndexBuffer.bufferMemory);
+
+	// upload buffer data to Gpu memory
+	CopyBuffer( stagingVertexBuffer.buffer, mCombinedVertexBuffer.buffer, 0, stagingVertexBuffer.bufferSize);
+	CopyBuffer( stagingIndexBuffer.buffer, mCombinedIndexBuffer.buffer, 0, stagingIndexBuffer.bufferSize);
+
+	// cleanup
+	pCore->Device().destroyBuffer( stagingVertexBuffer.buffer);
+	pCore->Device().freeMemory( stagingVertexBuffer.bufferMemory);
+	pCore->Device().destroyBuffer( stagingIndexBuffer.buffer);
+	pCore->Device().freeMemory( stagingIndexBuffer.bufferMemory);
+}
+
+
+void Renderer::CreateBuffer( Buffer &buffer, Size size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags memoryType) {
+
+	if ( (bool)buffer.buffer)
+	{
+		CurrentFrame().deletionStack.Push([&](){
+
+				pCore->Device().destroyBuffer( mCombinedIndexBuffer.buffer);
+				pCore->Device().freeMemory( mCombinedIndexBuffer.bufferMemory);
+		});
+	}
+
+	buffer.bufferSize = size;
+	buffer.usage = usage;
+	buffer.memoryType = memoryType;
+
+	buffer.buffer = pCore->CreateBuffer( buffer.bufferSize, buffer.usage);
+	buffer.bufferMemory = pCore->AllocateBufferMemory( buffer.buffer, buffer.memoryType);
+}
+
+
 void Renderer::CreateVertexBuffer() {
 
 	mCombinedVertexBuffer.bufferSize = 10000 * sizeof(Vertex);
@@ -443,11 +542,6 @@ void Renderer::CreateVertexBuffer() {
 	mCombinedVertexBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
 	mCombinedVertexBuffer.buffer = pCore->CreateBuffer( mCombinedVertexBuffer.bufferSize, mCombinedVertexBuffer.usage);
 	mCombinedVertexBuffer.bufferMemory = pCore->AllocateBufferMemory( mCombinedVertexBuffer.buffer, mCombinedVertexBuffer.memoryType);
-
-	mDeletionStack.Push( [&](){
-		pCore->Device().destroyBuffer( mCombinedVertexBuffer.buffer);
-		pCore->Device().freeMemory( mCombinedVertexBuffer.bufferMemory);
-	});
 }
 
 
@@ -458,11 +552,6 @@ void Renderer::CreateIndexBuffer() {
 	mCombinedIndexBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
 	mCombinedIndexBuffer.buffer = pCore->CreateBuffer( mCombinedIndexBuffer.bufferSize, mCombinedIndexBuffer.usage);
 	mCombinedIndexBuffer.bufferMemory = pCore->AllocateBufferMemory( mCombinedIndexBuffer.buffer, mCombinedIndexBuffer.memoryType);
-
-	mDeletionStack.Push( [&](){
-		pCore->Device().destroyBuffer( mCombinedIndexBuffer.buffer);
-		pCore->Device().freeMemory( mCombinedIndexBuffer.bufferMemory);
-	});
 }
 
 
