@@ -77,11 +77,14 @@ struct MeshData{
     Array<U32> indices;
 };
 
+
 // mesh reference used to build indirect draw commmands
 struct Mesh {
 
-    MeshData* meshData;
+	// pointer to mesh data provided from ResourceManager
+    MeshData *meshData;
 
+	// ranges the mesh occupies in the Renderers combined vertex and index buffers
     U32 firstVertex;
     U32 vertexCount;
     U32 firstIndex;

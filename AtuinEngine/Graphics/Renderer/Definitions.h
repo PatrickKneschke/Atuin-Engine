@@ -70,7 +70,7 @@ struct Pipeline {
 };
 
 // stores an image, its device memory, image view and relevant data
-struct ImageResource {
+struct Image {
 	vk::Image               image;
 	vk::DeviceMemory        imageMemory;
 	vk::ImageView           imageView;

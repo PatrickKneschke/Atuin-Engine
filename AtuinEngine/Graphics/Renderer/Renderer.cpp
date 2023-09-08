@@ -1,15 +1,12 @@
 
 #include "Renderer.h"
 #include "RendererCore.h"
+#include "ResourceManager.h"
 #include "Core/Util/Types.h"
 #include "Core/Config/ConfigManager.h"
 #include "App.h"
 
 #include "GLFW/glfw3.h"
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb/stb_image.h"
-#define TINYOBJLOADER_IMPLEMENTATION
-#include "tinyobjloader/tiny_obj_loader.h"
 
 
 
@@ -25,6 +22,7 @@ Renderer::Renderer() :
 	mJobs(), 
 	pWindow {nullptr}, 
 	pCore {nullptr},
+	pResources {nullptr},
 	mFrameCount {0}
 {
 
@@ -40,6 +38,7 @@ void Renderer::StartUp(GLFWwindow *window) {
 
 	pWindow = window;
 	pCore = mMemory.New<RendererCore>(pWindow);
+	pResources = mMemory.New<ResourceManager>();
 
 	pCore->PrepareSwapchain(mSwapchain);
 	pCore->CreateSwapchain(mSwapchain);
@@ -927,11 +926,11 @@ void Renderer::CreateDescriptorResources() {
 		pCore->Device().freeMemory( mSceneBuffer.bufferMemory);
 	});
 
-	CreateImageResource( mMaterialAlbedoImage, App::sResourceDir->Get() + "Materials/Rusted_Iron/rusted_iron_albedo.png", vk::Format::eR8G8B8A8Srgb);
-	CreateImageResource( mMaterialNormalImage, App::sResourceDir->Get() + "Materials/Default/default_normal.png");
-	CreateImageResource( mMaterialMetallicImage, App::sResourceDir->Get() + "Materials/Rusted_Iron/rusted_iron_metallic.png");
-	CreateImageResource( mMaterialRoughnessImage, App::sResourceDir->Get() + "Materials/Rusted_Iron/rusted_iron_roughness.png");
-	CreateImageResource( mMaterialAoImage, App::sResourceDir->Get() + "Materials/Default/default_white.png");
+	CreateImage( mMaterialAlbedoImage, App::sResourceDir->Get() + "Materials/Rusted_Iron/rusted_iron_albedo.png", vk::Format::eR8G8B8A8Srgb);
+	CreateImage( mMaterialNormalImage, App::sResourceDir->Get() + "Materials/Default/default_normal.png");
+	CreateImage( mMaterialMetallicImage, App::sResourceDir->Get() + "Materials/Rusted_Iron/rusted_iron_metallic.png");
+	CreateImage( mMaterialRoughnessImage, App::sResourceDir->Get() + "Materials/Rusted_Iron/rusted_iron_roughness.png");
+	CreateImage( mMaterialAoImage, App::sResourceDir->Get() + "Materials/Default/default_white.png");
 
 	mObjectBuffer.bufferSize = sizeof(ObjectData);
 	mObjectBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
@@ -946,7 +945,7 @@ void Renderer::CreateDescriptorResources() {
 }
 
 
-void Renderer::CreateImageResource(ImageResource &image, std::string_view path, vk::Format format) {
+void Renderer::CreateImage(Image &image, std::string_view path, vk::Format format) {
 
 	// load image data from file
 	int width, height, channels;

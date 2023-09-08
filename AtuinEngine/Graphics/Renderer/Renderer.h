@@ -67,6 +67,8 @@ struct MeshObject {
 
     Mesh* mesh;
     Material* material;
+    // std::string meshPath;
+    // std::string materialPath;
 };
 
 // representation of a MeshObject inside the Renderer
@@ -83,6 +85,7 @@ struct RenderObject {
 
 
 class RendererCore;
+class ResourceManager;
 
 class Renderer {
 
@@ -134,7 +137,7 @@ private:
     void CreateSamplers();
 
     void CreateDescriptorResources();
-    void CreateImageResource(ImageResource &image, std::string_view path, vk::Format format = vk::Format::eR8G8B8A8Unorm);
+    void CreateImage(Image &image, std::string_view path, vk::Format format = vk::Format::eR8G8B8A8Unorm);
     void LoadModel(std::string_view path);
 
     void CreateDescriptorSetLayouts();
@@ -159,6 +162,7 @@ private:
 
     GLFWwindow* pWindow;
     RendererCore* pCore;
+    ResourceManager* pResources;
 
     DeletionStack mDeletionStack;
 
@@ -166,7 +170,7 @@ private:
     ImmediateSubmitContext mTransferSubmit;
 
     Swapchain mSwapchain;
-    ImageResource mDepthImage;
+    Image mDepthImage;
 
     // render passes and framebuffers
 
@@ -226,11 +230,11 @@ private:
     vk::DescriptorSet mMaterialDataSet;
     vk::DescriptorSet mObjectDataSet;
 
-    ImageResource mMaterialAlbedoImage;
-    ImageResource mMaterialNormalImage;
-    ImageResource mMaterialMetallicImage;
-    ImageResource mMaterialRoughnessImage;
-    ImageResource mMaterialAoImage;
+    Image mMaterialAlbedoImage;
+    Image mMaterialNormalImage;
+    Image mMaterialMetallicImage;
+    Image mMaterialRoughnessImage;
+    Image mMaterialAoImage;
 
     
 
