@@ -232,8 +232,8 @@ void Renderer::RegisterMeshObject( const MeshObject &object) {
 	RenderObject newObject;
 	newObject.transform = object.transform;
 	newObject.sphereBounds = object.sphereBounds;
-	newObject.meshIdx = RegisterMesh( object.mesh);
-	newObject.materialIdx = RegisterMaterial( object.material);
+	newObject.meshId = RegisterMesh( object.meshName);
+	newObject.materialId = RegisterMaterial( object.materialName);
 	// newObject.passIndex created after batch processing
 
 	U32 objIdx = (U32)mRenderObjects.GetSize();
@@ -243,50 +243,81 @@ void Renderer::RegisterMeshObject( const MeshObject &object) {
 	// submit to mesh passes
 	newObject.passIndex.Clear( -1);
 
-	if ( object.material->usedInPass[PassType::SHADOW] )
+	Material &material = mMaterials[ newObject.materialId];
+	if ( material.usedInPass[PassType::SHADOW] )
 	{
 		mShadowMeshPass.unbatchedIndices.PushBack( objIdx);
 	}
-	if ( object.material->usedInPass[PassType::OPAQUE] )
+	if ( material.usedInPass[PassType::OPAQUE] )
 	{
 		mOpaqueMeshPass.unbatchedIndices.PushBack( objIdx);
 	}
-	if ( object.material->usedInPass[PassType::TRANSPARENT] )
+	if ( material.usedInPass[PassType::TRANSPARENT] )
 	{
 		mTransparentMeshPass.unbatchedIndices.PushBack( objIdx);
 	}
 }
 
 
-U32 Renderer::RegisterMesh( Mesh *mesh) {
+U64 Renderer::RegisterMesh( std::string_view meshName) {
 
-	auto it = mMeshIndices.Find( mesh);
-	if ( it != mMeshIndices.End())
+	U64 meshId = SID( meshName.data());
+	if ( mMeshes.Find( meshId) == mMeshes.End())
 	{
-		return it->second;
+		CreateMesh( meshName);
 	}
 
-	U32 index = (U32)mMeshes.GetSize();
-	mMeshes.PushBack( mesh);
-	mMeshIndices[mesh] = index;
-
-	return index;
+	return meshId;
 }
 
 
-U32 Renderer::RegisterMaterial( Material *material) {
+U64 Renderer::RegisterMaterial( std::string_view materialName) {
 
-	auto it = mMaterialIndices.Find( material);
-	if ( it != mMaterialIndices.End())
+	U64 materialId = SID( materialName.data());
+	if ( mMeshes.Find( materialId) == mMeshes.End())
 	{
-		return it->second;
+		CreateMaterial( materialName);
 	}
 
-	U32 index = (U32)mMaterials.GetSize();
-	mMaterials.PushBack( material);
-	mMaterialIndices[material] = index;
+	return materialId;
+}
 
-	return index;
+
+void Renderer::CreateMesh( std::string_view meshName) {
+
+	U64 meshId = SID( meshName.data());
+	Mesh &mesh = mMeshes[ meshId];
+	mesh.meshData = pResources->Get<MeshData>( meshName);
+	mesh.vertexCount = mesh.meshData->vertices.GetSize();
+	mesh.indexCount = mesh.meshData->indices.GetSize();
+}
+
+
+void Renderer::CreateMaterial( std::string_view materialName) {
+
+	U64 materialId = SID( materialName.data());
+	Material &material = mMaterials[ materialId];
+	material.materialName = materialName;
+
+	// read material json
+	// get pipelines 
+	// get iamges and build descriptor sets
+}
+
+
+void Renderer::CreateTexture( std::string_view textureName) {
+
+	U64 imageId = SID( textureName.data());
+	Image &image = mTextures[ imageId];
+
+	// get image data
+	// build image
+}
+
+
+void Renderer::CreatePipeline( std::string_view pipelineName) {
+
+	
 }
 
 
@@ -295,13 +326,13 @@ void Renderer::MergeMeshes() {
 	// assign meshes their proper position in the vertex and index arrays
 	U32 totalVertices = 0;
 	U32 totalIndices = 0;
-	for ( auto mesh : mMeshes)
+	for ( auto &[meshId, mesh] : mMeshes)
 	{
-		mesh->firstVertex = totalVertices;
-		mesh->firstIndex = totalIndices;
+		mesh.firstVertex = totalVertices;
+		mesh.firstIndex = totalIndices;
 		
-		totalVertices += mesh->vertexCount;
-		totalIndices += mesh->indexCount;
+		totalVertices += mesh.vertexCount;
+		totalIndices += mesh.indexCount;
 	}
 
 	// recreate vertex and index buffers if they are too small
@@ -341,10 +372,10 @@ void Renderer::MergeMeshes() {
 		throw std::runtime_error("Failed to map staging buffer memory " + vk::to_string(result));
 	}
 
-	for ( auto mesh : mMeshes)
+	for ( auto &[meshId, mesh] : mMeshes)
 	{
-		memcpy( (Byte*)vertexData + mesh->firstVertex * sizeof(Vertex), mesh->meshData->vertices.Data(), mesh->vertexCount * sizeof(Vertex));
-		memcpy( (Byte*)indexData + mesh->firstIndex * sizeof(U32), mesh->meshData->indices.Data(), mesh->indexCount * sizeof(U32));
+		memcpy( (Byte*)vertexData + mesh.firstVertex * sizeof(Vertex), mesh.meshData->vertices.Data(), mesh.vertexCount * sizeof(Vertex));
+		memcpy( (Byte*)indexData + mesh.firstIndex * sizeof(U32), mesh.meshData->indices.Data(), mesh.indexCount * sizeof(U32));
 	}
 
 	pCore->Device().unmapMemory( stagingVertexBuffer.bufferMemory);
@@ -363,6 +394,7 @@ void Renderer::MergeMeshes() {
 
 
 void Renderer::UpdateMeshPass( MeshPass *pass) {
+	// TODO use better sortKey including the materials pipeline
 
 	// handle deleted render objects
 	if ( !pass->deleteObjectIndices.IsEmpty())
@@ -379,7 +411,7 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 
 			RenderBatch newBatch;
 			newBatch.objectIdx = pass->objectIndices[idx];
-			newBatch.sortKey = (U64)obj.materialIdx << 32 | obj.meshIdx;
+			newBatch.sortKey = (U64)obj.materialId << 32 | obj.meshId;
 
 			deleteBatches.PushBack( newBatch);
 		}
@@ -425,7 +457,7 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 			
 			RenderBatch newBatch;
 			newBatch.objectIdx = newIndex;
-			newBatch.sortKey = (U64)obj.materialIdx << 32 | obj.meshIdx;
+			newBatch.sortKey = (U64)obj.materialId << 32 | obj.meshId;
 			newBatches.PushBack( newBatch);
 		}
 		pass->unbatchedIndices.Clear();
@@ -521,37 +553,37 @@ void Renderer::BuildMeshPassBatches( MeshPass *pass) {
 	pass->indirectBatches.PushBack( newBatch);
 	pass->multiBatches.PushBack( newMultiBatch);
 
-	U32 lastMaterial = mRenderObjects[ pass->renderBatches[0].objectIdx].materialIdx;
-	U32 lastMesh = mRenderObjects[ pass->renderBatches[0].objectIdx].meshIdx;
+	U64 lastMaterial = mRenderObjects[ pass->renderBatches[0].objectIdx].materialId;
+	U64 lastMesh = mRenderObjects[ pass->renderBatches[0].objectIdx].meshId;
 
 	U32 numBatches = (U32)pass->renderBatches.GetSize();
 	for ( U32 idx = 0; idx < numBatches; idx++)
 	{
 		RenderObject &obj = mRenderObjects[ pass->renderBatches[idx].objectIdx ];
 
-		if ( obj.materialIdx != lastMaterial || obj.meshIdx != lastMesh)
+		if ( obj.materialId != lastMaterial || obj.meshId != lastMesh)
 		{
 			newBatch.first = idx;
 			newBatch.count = 1;
 			newBatch.objectIdx = pass->renderBatches[idx].objectIdx;
 			pass->indirectBatches.PushBack( newBatch);
 
-			if ( obj.materialIdx != lastMaterial)
+			if ( obj.materialId != lastMaterial)
 			{
 				newMultiBatch.first = (U32)pass->indirectBatches.GetSize();
 				newMultiBatch.count = 1;
 				pass->multiBatches.PushBack( newMultiBatch);
 
-				lastMaterial = obj.materialIdx;
+				lastMaterial = obj.materialId;
 			}
 			else 
 			{
 				pass->multiBatches.Back().count++;
 			}
 
-			if ( obj.meshIdx != lastMesh)
+			if ( obj.meshId != lastMesh)
 			{
-				lastMesh = obj.meshIdx;
+				lastMesh = obj.meshId;
 			}
 			
 		}
@@ -585,14 +617,14 @@ void Renderer::UpdateMeshPassBatchBuffer( MeshPass *pass) {
 	for ( U32 i = 0; i < pass->indirectBatches.GetSize(); i++)
 	{
 		IndirectBatch batch = pass->indirectBatches[i];
-		Mesh *mesh = mMeshes[ mRenderObjects[batch.objectIdx].meshIdx ];
+		Mesh &mesh = mMeshes[ mRenderObjects[batch.objectIdx].meshId ];
 
 		indirectData[i].batchIdx = i;
 		indirectData[i].objectIdx = 0;
 		indirectData[i].drawIndirectCmd
-			.setVertexOffset( mesh->firstVertex )
-			.setFirstIndex( mesh->firstIndex )
-			.setIndexCount( mesh->indexCount )
+			.setVertexOffset( mesh.firstVertex )
+			.setFirstIndex( mesh.firstIndex )
+			.setIndexCount( mesh.indexCount )
 			.setFirstInstance( batch.first )
 			.setInstanceCount( 0 );
 	}

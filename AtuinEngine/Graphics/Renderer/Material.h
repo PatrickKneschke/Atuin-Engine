@@ -10,15 +10,23 @@
 namespace Atuin {
     
 
+// used to request a material from the cache
+struct MaterialInfo {
+
+    PassData<std::string> pipelineName;
+    PassData<Array<std::string>> textureNames;
+};
+
+
 // used for binding the material descriptor and pipeline when changed
 struct Material {
 
-    U64 materialId;
-
     PassData<bool> usedInPass;
     
-    PassData<vk::Pipeline> pipeline;
-    PassData<vk::PipelineLayout> pipelineLayout;
+    // PassData<vk::Pipeline> pipeline;
+    // PassData<vk::PipelineLayout> pipelineLayout;
+    std::string materialName;
+    PassData<U64> pipelineId;
     PassData<vk::DescriptorSet> descriptorSet;
 };
 
@@ -28,7 +36,6 @@ struct Texture {
     vk::ImageView imageView;
     vk::Sampler sampler;
 };
-
 
 
 } // Atuin

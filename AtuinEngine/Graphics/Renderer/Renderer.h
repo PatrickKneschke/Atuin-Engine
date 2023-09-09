@@ -65,10 +65,10 @@ struct MeshObject {
     glm::mat4 transform;
     glm::vec4 sphereBounds;
 
-    Mesh* mesh;
-    Material* material;
-    // std::string meshPath;
-    // std::string materialPath;
+    // Mesh* mesh;
+    // Material* material;
+    std::string meshName;
+    std::string materialName;
 };
 
 // representation of a MeshObject inside the Renderer
@@ -77,8 +77,8 @@ struct RenderObject {
     glm::mat4 transform;
     glm::vec4 sphereBounds;
 
-    U32 meshIdx;
-    U32 materialIdx;
+    U64 meshId;
+    U64 materialId;
 
     PassData<I64> passIndex;
 };
@@ -108,8 +108,13 @@ private:
     void RecreateSwapchain();
 
     void RegisterMeshObject( const MeshObject &object);
-    U32 RegisterMesh( Mesh *mesh);
-    U32 RegisterMaterial( Material *material);
+    U64 RegisterMesh( std::string_view meshName);
+    U64 RegisterMaterial( std::string_view materialName);
+    void CreateMesh( std::string_view meshName);
+    void CreateMaterial( std::string_view materialName);
+    void CreateTexture( std::string_view textureName);
+    void CreatePipeline( std::string_view pipelineName);
+
     void MergeMeshes();
     void UpdateMeshPass( MeshPass *pass);
     void BuildMeshPassBatches( MeshPass *pass);
@@ -192,12 +197,19 @@ private:
     Array<RenderObject> mRenderObjects;
     // indices of objects that have been updated since last frame
     Array<U32> mDirtyObjectIndices;
-    // list of all meshes in use
-    Array<Mesh*> mMeshes;
-    Map<Mesh*, U32> mMeshIndices; 
-    // list of all materials in use
-    Array<Material*> mMaterials;
-    Map<Material*, U32> mMaterialIndices;
+
+    // render resource caches
+    Map<U64, Mesh> mMeshes;
+    Map<U64, Material> mMaterials;
+    Map<U64, Image> mTextures;
+    Map<U64, Pipeline> mPipelines;
+
+    // // list of all meshes in use
+    // Array<Mesh*> mMeshes;
+    // Map<Mesh*, U32> mMeshIndices; 
+    // // list of all materials in use
+    // Array<Material*> mMaterials;
+    // Map<Material*, U32> mMaterialIndices;
 
     // mesh passes
     MeshPass mShadowMeshPass;
