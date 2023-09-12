@@ -208,6 +208,43 @@ void RendererCore::CreateDevice() {
     {
 		enabledFeatures.setSamplerAnisotropy(VK_TRUE);
     }
+	if (availableFeatures.sampleRateShading)
+	{
+		enabledFeatures.setSampleRateShading(VK_TRUE);
+	}
+	if (availableFeatures.depthClamp)
+	{
+		enabledFeatures.setDepthClamp(VK_TRUE);
+	}
+	if (availableFeatures.geometryShader)
+	{
+		enabledFeatures.setGeometryShader(VK_TRUE);
+	}
+	if (availableFeatures.tessellationShader)
+	{
+		enabledFeatures.setTessellationShader(VK_TRUE);
+	}
+	if (availableFeatures.multiDrawIndirect)
+	{
+		enabledFeatures.setMultiDrawIndirect(VK_TRUE);
+	}
+	if (availableFeatures.drawIndirectFirstInstance)
+	{
+		enabledFeatures.setDrawIndirectFirstInstance(VK_TRUE);
+	}
+	if (availableFeatures.fillModeNonSolid)
+	{
+		enabledFeatures.setFillModeNonSolid(VK_TRUE);
+	}
+	if (availableFeatures.shaderFloat64)
+	{
+		enabledFeatures.setShaderFloat64(VK_TRUE);
+	}
+	if( availableFeatures.wideLines)
+	{
+		enabledFeatures.setWideLines(VK_TRUE);
+	}
+	
 
     // create device
     auto deviceInfo = vk::DeviceCreateInfo{}
@@ -415,17 +452,17 @@ vk::ImageView RendererCore::CreateImageView(
 
 
 vk::Sampler RendererCore::CreateSampler(
-    vk::Filter magFilter,
     vk::Filter minFilter,
-	vk::SamplerMipmapMode mipmapMode,
+    vk::Filter magFilter,
 	vk::SamplerAddressMode addressModeU,
 	vk::SamplerAddressMode addressModeV,
 	vk::SamplerAddressMode addressModeW,
 	bool enableAnisotropy,
+    float maxAnisotropy, 
+	vk::SamplerMipmapMode mipmapMode,
     float minLod,
     float maxLod,
     float mipLodBias,
-	bool unnormalized,
 	bool enableCompare,
 	vk::CompareOp compareOp,
 	vk::BorderColor borderColor ) const
@@ -438,11 +475,10 @@ vk::Sampler RendererCore::CreateSampler(
 		.setAddressModeV( addressModeV )
 		.setAddressModeW( addressModeW )
 		.setAnisotropyEnable( enableAnisotropy )
-		.setMaxAnisotropy( mGpuProperties.limits.maxSamplerAnisotropy )
+		.setMaxAnisotropy( maxAnisotropy )
 		.setMinLod( minLod )
 		.setMaxLod( maxLod )
 		.setMipLodBias( mipLodBias )
-		.setUnnormalizedCoordinates( unnormalized )
 		.setCompareEnable( enableCompare )
 		.setCompareOp( compareOp )
 		.setBorderColor( borderColor );

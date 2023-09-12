@@ -2,27 +2,35 @@
 #include "Renderer.h"
 #include "RendererCore.h"
 #include "ResourceManager.h"
+#include "SamplerSettings.h"
+#include "App.h"
 #include "Core/Util/Types.h"
 #include "Core/Config/ConfigManager.h"
-#include "App.h"
+#include "Core/DataStructures/Json.h"
 
 #include "GLFW/glfw3.h"
 
+#include "stb/stb_image.h"
+#include "tinyobjloader/tiny_obj_loader.h"
 
 
 namespace Atuin {
 
 
 CVar<U32>* Renderer::pFrameOverlap = ConfigManager::RegisterCVar("Renderer", "FRAME_OVERLAP", (U32)2);
+CVar<U32>* Renderer::pMaxAnisotropy = ConfigManager::RegisterCVar("Renderer", "MAX_ANISOTROPY", (U32)8);
+CVar<U32>* Renderer::pMsaaSamples = ConfigManager::RegisterCVar("Renderer", "MSAA_SAMPLES", (U32)1);
 
 
 Renderer::Renderer() : 
 	mLog(), 
 	mMemory(), 
 	mJobs(), 
+	mResourceDir {App::sResourceDir->Get()},
 	pWindow {nullptr}, 
 	pCore {nullptr},
 	pResources {nullptr},
+	pDescriptorSetAllocator {nullptr}, 
 	mFrameCount {0}
 {
 
@@ -39,6 +47,8 @@ void Renderer::StartUp(GLFWwindow *window) {
 	pWindow = window;
 	pCore = mMemory.New<RendererCore>(pWindow);
 	pResources = mMemory.New<ResourceManager>();
+	pDescriptorSetAllocator = mMemory.New<DescriptorSetAllocator>();
+	pDescriptorSetAllocator->Init( pCore->Device());
 
 	pCore->PrepareSwapchain(mSwapchain);
 	pCore->CreateSwapchain(mSwapchain);
@@ -64,7 +74,7 @@ void Renderer::StartUp(GLFWwindow *window) {
 	CreatePipeline();
 
 	// dummy model load
-	LoadModel( App::sResourceDir->Get() + "Meshes/Default/torus.obj");
+	LoadModel( mResourceDir + "Meshes/Default/torus.obj");
 	UploadBufferData(mVertices.Data(), mVertices.GetSize() * sizeof(mVertices[0]), mCombinedVertexBuffer.buffer);
 	UploadBufferData(mIndices.Data(), mIndices.GetSize() * sizeof(mIndices[0]), mCombinedIndexBuffer.buffer);
 }
@@ -265,6 +275,7 @@ U64 Renderer::RegisterMesh( std::string_view meshName) {
 	if ( mMeshes.Find( meshId) == mMeshes.End())
 	{
 		CreateMesh( meshName);
+		// TODO catch fail state if mesh file does not exist -> log warning and return default/error mesh ID
 	}
 
 	return meshId;
@@ -277,6 +288,7 @@ U64 Renderer::RegisterMaterial( std::string_view materialName) {
 	if ( mMeshes.Find( materialId) == mMeshes.End())
 	{
 		CreateMaterial( materialName);
+		// TODO catch fail state if material file does not exist -> log warning and return default/error material ID
 	}
 
 	return materialId;
@@ -286,38 +298,204 @@ U64 Renderer::RegisterMaterial( std::string_view materialName) {
 void Renderer::CreateMesh( std::string_view meshName) {
 
 	U64 meshId = SID( meshName.data());
-	Mesh &mesh = mMeshes[ meshId];
-	mesh.meshData = pResources->Get<MeshData>( meshName);
-	mesh.vertexCount = mesh.meshData->vertices.GetSize();
-	mesh.indexCount = mesh.meshData->indices.GetSize();
+	Mesh newMesh;
+
+	newMesh.meshData = pResources->GetMesh( meshName);
+	newMesh.vertexCount = (U32)newMesh.meshData->vertices.GetSize();
+	newMesh.indexCount = (U32)newMesh.meshData->indices.GetSize();
+
+	newMesh.meshName = meshName;
+	mMeshes[ meshId] = newMesh;
 }
 
 
 void Renderer::CreateMaterial( std::string_view materialName) {
 
 	U64 materialId = SID( materialName.data());
-	Material &material = mMaterials[ materialId];
-	material.materialName = materialName;
+	Material newMaterial;
 
 	// read material json
-	// get pipelines 
-	// get iamges and build descriptor sets
+	auto content = mFiles.Read( mResourceDir + materialName.data());
+	Json materialJson = Json::Load( std::string_view( content.Data(), content.GetSize()));
+
+	// get pipeline
+	std::string pipelineName = materialJson.At( "pipeline").ToString();
+	U64 pipelineId = SID( pipelineName.c_str());
+	if ( mPipelines.Find( pipelineId) == mPipelines.End())
+	{
+		CreatePipeline( pipelineName);
+	}
+
+	// get images and build descriptor sets
+	auto textures = materialJson.At( "textures").GetList();
+	DescriptorSetBuilder builder( pCore->Device(), pDescriptorSetAllocator);
+	U32 binding = 0;
+	for ( auto texture : textures) 
+	{
+		//texture format
+		vk::Format format;
+		if ( texture.At( "format").ToString() == "unorm")
+		{
+			format = vk::Format::eR8G8B8A8Unorm;
+		}
+		else
+		{
+			format = vk::Format::eR8G8B8A8Srgb;
+		}
+
+		// texture image
+		std::string imageName = texture.At( "image").ToString();
+		U64 imageId = SID( imageName.c_str());
+		if ( mTextures.Find( imageId) == mTextures.End())
+		{
+			CreateTexture( imageName, format);
+		}
+
+		// texture sampler
+		std::string samplerName = texture.At( "sampler").ToString();
+		U64 samplerId = SID( samplerName.c_str());
+		if ( mSamplers.Find( samplerId) == mSamplers.End())
+		{
+			CreateSampler( samplerName);
+		}
+
+		auto imageInfo = mTextures[ imageId].DescriptorInfo( mSamplers[ samplerId]);
+		builder.BindImage(binding, &imageInfo, vk::DescriptorType::eCombinedImageSampler);
+		++binding;
+	}
+	vk::DescriptorSet descriptorSet = builder.Build( mMaterialDataLayout); // TODO descriptorset layouts in pipeline json file ?
+
+	// set pass data
+	newMaterial.usedInPass.Clear( false);
+	if ( materialJson.At( "shadow").ToBool())
+	{
+		newMaterial.usedInPass[PassType::SHADOW] = true;
+		newMaterial.pipelineId[PassType::SHADOW] = SID( "Pipelines/default_shadow.pipeline.json");
+	}
+	if ( materialJson.At( "transparent").ToBool())
+	{
+		newMaterial.usedInPass[PassType::TRANSPARENT] = true;
+		newMaterial.pipelineId[PassType::TRANSPARENT] = pipelineId;
+		newMaterial.descriptorSet[PassType::TRANSPARENT] = descriptorSet;
+	}
+	else
+	{
+		newMaterial.usedInPass[PassType::OPAQUE] = true;
+		newMaterial.pipelineId[PassType::OPAQUE] = pipelineId;
+		newMaterial.descriptorSet[PassType::OPAQUE] = descriptorSet;
+	}
+
+	newMaterial.materialName = materialName;
+	mMaterials[ materialId] = newMaterial;
 }
 
 
-void Renderer::CreateTexture( std::string_view textureName) {
+void Renderer::CreateTexture( std::string_view textureName, vk::Format format) {
 
 	U64 imageId = SID( textureName.data());
-	Image &image = mTextures[ imageId];
+	Image image;
 
-	// get image data
-	// build image
+	// load image data
+	ImageData *imageData = pResources->GetImage( textureName);
+
+	// create staging buffer
+	Size imageSize = imageData->pixelData.GetSize();
+	Buffer stagingBuffer = CreateStagingBuffer( imageSize);
+
+	// transfer image data to staging buffer
+	void *data;
+	vk::Result result = pCore->Device().mapMemory( stagingBuffer.bufferMemory, 0, imageSize, vk::MemoryMapFlags(), &data);
+	if( result == vk::Result::eSuccess ) 
+	{
+		memcpy(data, imageData->pixelData.Data(), imageSize);
+		pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
+	}
+	else 
+	{
+		throw std::runtime_error("Failed to map image staging buffer memory " + vk::to_string(result));
+	}
+
+	// create image on device memory
+	image.width = imageData->width;
+	image.height = imageData->height;
+	image.format = format;
+	image.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
+	image.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
+	image.image = pCore->CreateImage( image.width, image.height, image.format, image.usage);
+	image.imageMemory = pCore->AllocateImageMemory( image.image, image.memoryType);
+	image.imageView = pCore->CreateImageView(image.image, image.format, vk::ImageAspectFlagBits::eColor);
+
+	// transfer image data from staging buffer
+	TransitionImageLayout( image.image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+	CopyBufferToImage( stagingBuffer.buffer, image.image, image.width, image.height);
+	TransitionImageLayout( image.image, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+
+	// add to cache
+	mTextures[ imageId] = image;
+
+	//cleanup
+	pCore->Device().destroyBuffer( stagingBuffer.buffer, nullptr);
+	pCore->Device().freeMemory( stagingBuffer.bufferMemory, nullptr);
+
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyImageView( image.imageView);
+		pCore->Device().destroyImage( image.image);
+		pCore->Device().freeMemory( image.imageMemory);
+	});
+}
+
+
+void Renderer::CreateSampler( std::string_view samplerName) {
+
+	U64 samplerId = SID( samplerName.data());
+
+	// read sampler json
+	auto content = mFiles.Read( mResourceDir + samplerName.data());
+	Json samplerJson = Json::Load( std::string_view( content.Data(), content.GetSize()));
+
+	vk::Sampler newSampler = pCore->CreateSampler(
+		Sampler::GetFilter( samplerJson.At( "minFilter").ToString()), 
+		Sampler::GetFilter( samplerJson.At( "magFilter").ToString()), 
+		Sampler::GetAddressMode( samplerJson.At( "addressModeU").ToString()), 
+		Sampler::GetAddressMode( samplerJson.At( "addressModeV").ToString()), 
+		Sampler::GetAddressMode( samplerJson.At( "addressModeW").ToString()),
+		samplerJson.At( "enableAnisotropy").ToBool(),
+		(float)pMaxAnisotropy->Get(),
+		Sampler::GetMipMapMode( samplerJson.At( "mipmapMode").ToString()), 
+		(float)samplerJson.At( "minLod").ToFloat(),
+		(float)samplerJson.At( "maxLod").ToFloat(),
+		(float)samplerJson.At( "minLodBias").ToFloat(),
+		samplerJson.At( "enableCompare").ToBool(),
+		Sampler::GetCompareOp( samplerJson.At( "compareOp").ToString()),
+		Sampler::GetBorder( samplerJson.At( "borderColor").ToString())
+	);
+
+	mSamplers[ samplerId] = newSampler;	
 }
 
 
 void Renderer::CreatePipeline( std::string_view pipelineName) {
 
-	
+	U64 pipelineId = SID( pipelineName.data());
+
+	Pipeline newPipeline;
+
+	mPipelines[ pipelineId] = newPipeline;
+}
+
+
+void Renderer::CreateShaderModule( std::string_view shaderName) {
+
+	U64 shaderId = SID( shaderName.data());
+
+	auto vertShaderCode = mFiles.Read( mResourceDir + shaderName.data() , std::ios::binary);
+	auto newShader = pCore->CreateShaderModule( vertShaderCode.GetSize(), vertShaderCode.Data() );
+
+	mShaders[ shaderId] = newShader;
+
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyShaderModule( newShader);
+	});
 }
 
 
@@ -923,9 +1101,9 @@ void Renderer::CreateSamplers() {
 
 	mSampler = pCore->CreateSampler(
 		vk::Filter::eLinear, vk::Filter::eLinear,
-		vk::SamplerMipmapMode::eNearest,
 		vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat,
-		false
+		false, 0.f, 
+		vk::SamplerMipmapMode::eNearest
 	);
 
 	mDeletionStack.Push( [&](){
@@ -958,11 +1136,11 @@ void Renderer::CreateDescriptorResources() {
 		pCore->Device().freeMemory( mSceneBuffer.bufferMemory);
 	});
 
-	CreateImage( mMaterialAlbedoImage, App::sResourceDir->Get() + "Materials/Rusted_Iron/rusted_iron_albedo.png", vk::Format::eR8G8B8A8Srgb);
-	CreateImage( mMaterialNormalImage, App::sResourceDir->Get() + "Materials/Default/default_normal.png");
-	CreateImage( mMaterialMetallicImage, App::sResourceDir->Get() + "Materials/Rusted_Iron/rusted_iron_metallic.png");
-	CreateImage( mMaterialRoughnessImage, App::sResourceDir->Get() + "Materials/Rusted_Iron/rusted_iron_roughness.png");
-	CreateImage( mMaterialAoImage, App::sResourceDir->Get() + "Materials/Default/default_white.png");
+	CreateImage( mMaterialAlbedoImage, mResourceDir + "Materials/Rusted_Iron/rusted_iron_albedo.png", vk::Format::eR8G8B8A8Srgb);
+	CreateImage( mMaterialNormalImage, mResourceDir + "Materials/Default/default_normal.png");
+	CreateImage( mMaterialMetallicImage, mResourceDir + "Materials/Rusted_Iron/rusted_iron_metallic.png");
+	CreateImage( mMaterialRoughnessImage, mResourceDir + "Materials/Rusted_Iron/rusted_iron_roughness.png");
+	CreateImage( mMaterialAoImage, mResourceDir + "Materials/Default/default_white.png");
 
 	mObjectBuffer.bufferSize = sizeof(ObjectData);
 	mObjectBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
@@ -1207,8 +1385,8 @@ void Renderer::CreateDescriptorSets() {
 
 void Renderer::CreateShaderModules() {
 
-	auto vertShaderCode = mFiles.Read( App::sResourceDir->Get() + "Shaders/single_mesh_vert.spv" , std::ios::binary);
-	auto fragShaderCode = mFiles.Read( App::sResourceDir->Get() + "Shaders/single_material_pbr_frag.spv" , std::ios::binary);
+	auto vertShaderCode = mFiles.Read( mResourceDir + "Shaders/single_mesh_vert.spv" , std::ios::binary);
+	auto fragShaderCode = mFiles.Read( mResourceDir + "Shaders/single_material_pbr_frag.spv" , std::ios::binary);
 
 	mMeshVertShader = pCore->CreateShaderModule( vertShaderCode.GetSize(), vertShaderCode.Data() );
 	mMaterialFragShader = pCore->CreateShaderModule( fragShaderCode.GetSize(), fragShaderCode.Data() );
@@ -1260,7 +1438,7 @@ void Renderer::CreatePipeline() {
 		.setPolygonMode( vk::PolygonMode::eFill )
 		.setLineWidth( 1.0 )
 		.setCullMode( vk::CullModeFlagBits::eBack )
-		.setFrontFace( vk::FrontFace::eCounterClockwise )
+		.setFrontFace( vk::FrontFace::eCounterClockwise)
 		.setDepthBiasEnable( VK_FALSE )
 		.setDepthBiasConstantFactor( 0.0f )
 		.setDepthBiasClamp( 0.0f )

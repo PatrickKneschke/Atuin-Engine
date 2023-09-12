@@ -6,6 +6,8 @@
 #include "Material.h"
 #include "Mesh.h"
 #include "MeshPass.h"
+#include "Descriptors.h"
+#include "Core/Util/Types.h"
 #include "Core/Config/CVar.h"
 #include "Core/Debug/Log.h"
 #include "Core/Memory/Memory.h"
@@ -106,14 +108,19 @@ private:
     void CreateFramebuffers();
     void DestroyFramebuffers();
     void RecreateSwapchain();
+    void CreateSubmitContexts();
+    void CreateFrameResources();
+    FrameResources& CurrentFrame() { return mFrames[mFrameCount % pFrameOverlap->Get()]; }
 
     void RegisterMeshObject( const MeshObject &object);
     U64 RegisterMesh( std::string_view meshName);
     U64 RegisterMaterial( std::string_view materialName);
     void CreateMesh( std::string_view meshName);
     void CreateMaterial( std::string_view materialName);
-    void CreateTexture( std::string_view textureName);
+    void CreateTexture( std::string_view textureName, vk::Format format = vk::Format::eR8G8B8A8Unorm);
+    void CreateSampler( std::string_view samplerName);
     void CreatePipeline( std::string_view pipelineName);
+    void CreateShaderModule( std::string_view shaderName);
 
     void MergeMeshes();
     void UpdateMeshPass( MeshPass *pass);
@@ -123,21 +130,16 @@ private:
     void UpdateObjectBuffer();
 
     void CreateBuffer( Buffer &buffer, Size size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags memoryType);
-
-    void CreateVertexBuffer();
-    void CreateIndexBuffer();
-
-
     Buffer CreateStagingBuffer(Size bufferSize);
     void UploadBufferData( void *bufferData, Size size, vk::Buffer targetBuffer, Size offset = 0);
     void TransitionImageLayout(vk::Image image, vk::ImageLayout initialLayout, vk::ImageLayout finalLayout, U32 mipLevels = 1);
     void CopyBufferToImage(vk::Buffer buffer, vk::Image image, U32 imageWidth, U32 imageHeight);
     void CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, Size offset, Size bufferSize);
 
-    FrameResources& CurrentFrame() { return mFrames[mFrameCount % pFrameOverlap->Get()]; }
+    void CreateVertexBuffer();
+    void CreateIndexBuffer();
 
-    void CreateSubmitContexts();
-    void CreateFrameResources();
+
     void CreateShaderModules();
     void CreateSamplers();
 
@@ -157,7 +159,9 @@ private:
     void UpdateObjectData();
 
 
-    static CVar<U32>* pFrameOverlap; 
+    static CVar<U32>* pFrameOverlap;
+    static CVar<U32>* pMaxAnisotropy;
+    static CVar<U32>* pMsaaSamples;
 
 
     Log mLog;
@@ -165,9 +169,12 @@ private:
     Jobs mJobs;
     Files mFiles;
 
+    std::string mResourceDir;
+
     GLFWwindow* pWindow;
     RendererCore* pCore;
     ResourceManager* pResources;
+    DescriptorSetAllocator* pDescriptorSetAllocator;
 
     DeletionStack mDeletionStack;
 
@@ -203,13 +210,8 @@ private:
     Map<U64, Material> mMaterials;
     Map<U64, Image> mTextures;
     Map<U64, Pipeline> mPipelines;
-
-    // // list of all meshes in use
-    // Array<Mesh*> mMeshes;
-    // Map<Mesh*, U32> mMeshIndices; 
-    // // list of all materials in use
-    // Array<Material*> mMaterials;
-    // Map<Material*, U32> mMaterialIndices;
+    Map<U64, vk::Sampler> mSamplers;
+    Map<U64, vk::ShaderModule> mShaders;
 
     // mesh passes
     MeshPass mShadowMeshPass;

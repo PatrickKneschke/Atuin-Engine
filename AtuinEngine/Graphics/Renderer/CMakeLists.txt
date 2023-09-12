@@ -14,4 +14,5 @@ add_library( Renderer
     Material.h 
     Descriptors.h
     ResourceManager.h 
+    SamplerSettings.h
 )

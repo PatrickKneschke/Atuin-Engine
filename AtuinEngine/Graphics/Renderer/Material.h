@@ -21,11 +21,8 @@ struct MaterialInfo {
 // used for binding the material descriptor and pipeline when changed
 struct Material {
 
-    PassData<bool> usedInPass;
-    
-    // PassData<vk::Pipeline> pipeline;
-    // PassData<vk::PipelineLayout> pipelineLayout;
     std::string materialName;
+    PassData<bool> usedInPass;    
     PassData<U64> pipelineId;
     PassData<vk::DescriptorSet> descriptorSet;
 };

@@ -81,6 +81,7 @@ struct MeshData{
 // mesh reference used to build indirect draw commmands
 struct Mesh {
 
+	std::string meshName;
 	// pointer to mesh data provided from ResourceManager
     MeshData *meshData;
 
