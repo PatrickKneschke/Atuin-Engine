@@ -42,22 +42,39 @@ private:
 };
 
 
+class DescriptorLayoutCache {
+
+public:
+
+    void Init( vk::Device device);
+    vk::DescriptorSetLayout CreateLayout( vk::DescriptorSetLayoutCreateInfo *layoutInfo);
+    void DestroyLayouts();
+
+private:
+
+    vk::Device mDevice;
+    Map<U64, vk::DescriptorSetLayout> mLayouts;
+};
+
+
 class DescriptorSetBuilder {
 
 public:
 
-    DescriptorSetBuilder( vk::Device device, DescriptorSetAllocator *allocator) : mDevice {device}, pAllocator {allocator} {}
+    DescriptorSetBuilder( vk::Device device, DescriptorSetAllocator *allocator, DescriptorLayoutCache *layoutCache) : mDevice {device}, pAllocator {allocator}, pLayoutCache {layoutCache} {}
 
-    DescriptorSetBuilder& BindBuffer( U32 binding, vk::DescriptorBufferInfo* bufferInfo, vk::DescriptorType type);
-	DescriptorSetBuilder& BindImage( U32 binding, vk::DescriptorImageInfo* imageInfo, vk::DescriptorType type);
+    DescriptorSetBuilder& BindBuffer( U32 binding, vk::DescriptorType type, vk::ShaderStageFlags stages, vk::DescriptorBufferInfo* bufferInfo);
+	DescriptorSetBuilder& BindImage( U32 binding, vk::DescriptorType type, vk::ShaderStageFlags stages, vk::DescriptorImageInfo* imageInfo);
 
-	vk::DescriptorSet Build( vk::DescriptorSetLayout layout);
+	vk::DescriptorSet Build();
 
 private:
 
     vk::Device mDevice;
     DescriptorSetAllocator* pAllocator;
+    DescriptorLayoutCache *pLayoutCache;
 
+    Array<vk::DescriptorSetLayoutBinding> mBindings;
     Array<vk::WriteDescriptorSet> mWrites;
 };
 

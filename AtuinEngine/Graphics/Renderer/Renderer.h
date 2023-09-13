@@ -175,6 +175,7 @@ private:
     RendererCore* pCore;
     ResourceManager* pResources;
     DescriptorSetAllocator* pDescriptorSetAllocator;
+    DescriptorLayoutCache* pDescriptorLayoutCache;
 
     DeletionStack mDeletionStack;
 

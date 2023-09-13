@@ -31,6 +31,7 @@ Renderer::Renderer() :
 	pCore {nullptr},
 	pResources {nullptr},
 	pDescriptorSetAllocator {nullptr}, 
+	pDescriptorLayoutCache {nullptr}, 
 	mFrameCount {0}
 {
 
@@ -49,6 +50,8 @@ void Renderer::StartUp(GLFWwindow *window) {
 	pResources = mMemory.New<ResourceManager>();
 	pDescriptorSetAllocator = mMemory.New<DescriptorSetAllocator>();
 	pDescriptorSetAllocator->Init( pCore->Device());
+	pDescriptorLayoutCache = mMemory.New<DescriptorLayoutCache>();
+	pDescriptorLayoutCache->Init( pCore->Device());
 
 	pCore->PrepareSwapchain(mSwapchain);
 	pCore->CreateSwapchain(mSwapchain);
@@ -104,6 +107,10 @@ void Renderer::ShutDown() {
 		pCore->Device().destroyImageView( imageView);
 	}
 	pCore->Device().destroySwapchainKHR( mSwapchain.swapchain, nullptr);
+
+	// descriptor 
+	mMemory.Delete(( pDescriptorLayoutCache));
+	mMemory.Delete( pDescriptorSetAllocator);
 
 	// core
 	mMemory.Delete(pCore);
@@ -166,6 +173,8 @@ void Renderer::CreateRenderPasses() {
 		.setStencilStoreOp( vk::AttachmentStoreOp::eDontCare )
 		.setInitialLayout( vk::ImageLayout::eUndefined )
 		.setFinalLayout( vk::ImageLayout::eDepthStencilAttachmentOptimal );
+
+	// TODO resolve attachment if MSAA is enabled ( MsaaSamples > 1)
 
 	// forward pass
 	Array<vk::AttachmentDescription> attachments = {
@@ -328,7 +337,7 @@ void Renderer::CreateMaterial( std::string_view materialName) {
 
 	// get images and build descriptor sets
 	auto textures = materialJson.At( "textures").GetList();
-	DescriptorSetBuilder builder( pCore->Device(), pDescriptorSetAllocator);
+	DescriptorSetBuilder builder( pCore->Device(), pDescriptorSetAllocator, pDescriptorLayoutCache);
 	U32 binding = 0;
 	for ( auto texture : textures) 
 	{
@@ -360,10 +369,10 @@ void Renderer::CreateMaterial( std::string_view materialName) {
 		}
 
 		auto imageInfo = mTextures[ imageId].DescriptorInfo( mSamplers[ samplerId]);
-		builder.BindImage(binding, &imageInfo, vk::DescriptorType::eCombinedImageSampler);
+		builder.BindImage(binding, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, &imageInfo);
 		++binding;
 	}
-	vk::DescriptorSet descriptorSet = builder.Build( mMaterialDataLayout); // TODO descriptorset layouts in pipeline json file ?
+	vk::DescriptorSet descriptorSet = builder.Build();
 
 	// set pass data
 	newMaterial.usedInPass.Clear( false);
@@ -478,7 +487,24 @@ void Renderer::CreatePipeline( std::string_view pipelineName) {
 
 	U64 pipelineId = SID( pipelineName.data());
 
+	// read pipeline json
+	auto content = mFiles.Read( mResourceDir + pipelineName.data());
+	Json pipelineJson = Json::Load( std::string_view( content.Data(), content.GetSize()));
+
 	Pipeline newPipeline;
+	std::string type = pipelineJson.At( "type").ToString();
+	if ( type == "graphics")
+	{
+		// CreateGraphicsPipeline( newPipeline, pipelineJson); 
+	}
+	else if ( type == "compute")
+	{
+		// CreateComputePipeline( newPipeline, pipelineJson);
+	}
+	else 
+	{
+		mLog.Warning( LogChannel::GRAPHICS, FormatStr("Unknown pipeline type \"%s\" in \"%s\".", type, pipelineName));
+	}
 
 	mPipelines[ pipelineId] = newPipeline;
 }
