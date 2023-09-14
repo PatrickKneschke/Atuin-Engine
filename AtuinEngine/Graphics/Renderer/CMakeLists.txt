@@ -6,13 +6,16 @@ add_library( Renderer
     Mesh.cpp 
     Material.cpp 
     Descriptors.cpp 
+    Pipeline.cpp 
     ResourceManager.cpp 
+    VulkanInclude.h 
     Renderer.h 
     RendererCore.h
     MeshPass.h  
     Mesh.h 
     Material.h 
-    Descriptors.h
+    Descriptors.h 
+    Pipeline.h 
     ResourceManager.h 
     SamplerSettings.h
 )

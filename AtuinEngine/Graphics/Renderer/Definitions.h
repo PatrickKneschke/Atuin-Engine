@@ -2,11 +2,9 @@
 #pragma once
 
 
+#include "VulkanInclude.h"
 #include "Core/Util/Types.h"
 #include "Core/DataStructures/Array.h"
-
-#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
-#include <vulkan/vulkan.hpp>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -49,25 +47,6 @@ struct Swapchain {
 	vk::Extent2D         extent;
 };
 
-
-// stores pipeline, pipeline layout and all data used to create it
-struct Pipeline {
-
-	vk::Pipeline							 pipeline;
-	vk::PipelineLayout						 pipelineLayout;
-	Array<vk::PipelineShaderStageCreateInfo> shaderInfos;
-	vk::PipelineVertexInputStateCreateInfo	 vertexInputInfo;
-	vk::PipelineInputAssemblyStateCreateInfo inputAssemblyInfo;
-	vk::PipelineViewportStateCreateInfo      viewportInfo;
-	vk::PipelineRasterizationStateCreateInfo rasterizerInfo;
-	vk::PipelineMultisampleStateCreateInfo 	 multisampleInfo;
-	vk::PipelineDepthStencilStateCreateInfo  depthStencilInfo;
-	vk::PipelineColorBlendAttachmentState	 colorBlendAttachment;
-	vk::PipelineColorBlendStateCreateInfo 	 colorBlendInfo;
-    vk::PipelineDynamicStateCreateInfo       dynamicStateInfo;
-    vk::RenderPass                           renderpass;
-    U32                                      subpass;
-};
 
 // stores an image, its device memory, image view and relevant data
 struct Image {

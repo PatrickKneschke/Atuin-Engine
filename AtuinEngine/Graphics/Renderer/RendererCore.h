@@ -6,7 +6,7 @@
 #include "Core/Util/Types.h"
 #include "Core/DataStructures/Array.h"
 
-#include <vulkan/vulkan.hpp>
+#include "VulkanInclude.h"
 
 #include <iostream>
 
@@ -131,14 +131,6 @@ public:
 
     vk::RenderPass CreateRenderPass( Array<vk::AttachmentDescription> &attachments,  I32 depthAttachmentIdx = -1);
     vk::Framebuffer CreateFramebuffer( vk::RenderPass renderpass, Array<vk::ImageView> &attachments, U32 imageWidth, U32 imageHeight, U32 layers = 1);
-
-    vk::PipelineLayout CreatePipelineLayout(
-        U32 setLayoutCount,
-        vk::DescriptorSetLayout* setLayouts,
-        U32 pushConstantCount = 0,
-        vk::PushConstantRange* pushConstants = nullptr
-    ) const;
-    void CreatePipeline( Pipeline &pipeline ) const;
 
     void PrepareSwapchain( Swapchain &swapchain ) const; 
     void CreateSwapchain( Swapchain &swapcahin ) const;

@@ -2,9 +2,8 @@
 #pragma once
 
 
+#include "VulkanInclude.h"
 #include "MeshPass.h"
-
-#include "vulkan/vulkan.hpp"
 
 
 namespace Atuin {

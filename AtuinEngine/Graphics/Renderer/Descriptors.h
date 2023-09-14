@@ -2,12 +2,11 @@
 #pragma once
 
 
+#include "VulkanInclude.h"
 #include "Definitions.h"
 #include "Core/Util/Types.h"
 #include "Core/DataStructures/Array.h"
 #include "Core/DataStructures/Map.h"
-
-#include "vulkan/vulkan.hpp"
 
 
 namespace Atuin {

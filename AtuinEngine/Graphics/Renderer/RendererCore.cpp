@@ -753,56 +753,6 @@ vk::Framebuffer RendererCore::CreateFramebuffer( vk::RenderPass renderpass, Arra
 }
 
 
-vk::PipelineLayout RendererCore::CreatePipelineLayout(
-    U32 setLayoutCount,
-    vk::DescriptorSetLayout* setLayouts,
-    U32 pushConstantCount,
-    vk::PushConstantRange* pushConstants ) const
-{
-	auto layoutInfo = vk::PipelineLayoutCreateInfo{}
-		.setSetLayoutCount( setLayoutCount )
-		.setPSetLayouts( setLayouts )
-		.setPushConstantRangeCount( pushConstantCount )
-		.setPPushConstantRanges( pushConstants );
-
-	vk::PipelineLayout pipelineLayout;
-	vk::Result result = mDevice.createPipelineLayout(&layoutInfo, nullptr, &pipelineLayout);
-	if(result != vk::Result::eSuccess)
-	{
-		throw std::runtime_error("Failed to create pipeline layout : " + vk::to_string(result));
-	}
-
-	return pipelineLayout;
-}
-
-
-void RendererCore::CreatePipeline( Pipeline &pipeline ) const {
-
-	auto pipelineInfo = vk::GraphicsPipelineCreateInfo{}
-		.setStageCount( (U32)pipeline.shaderInfos.GetSize() )
-		.setPStages( pipeline.shaderInfos.Data() )
-		.setPVertexInputState( &pipeline.vertexInputInfo )
-		.setPInputAssemblyState( &pipeline.inputAssemblyInfo )
-		.setPViewportState( &pipeline.viewportInfo )
-		.setPRasterizationState( &pipeline.rasterizerInfo )
-		.setPMultisampleState( &pipeline.multisampleInfo )
-		.setPDepthStencilState( &pipeline.depthStencilInfo )
-		.setPColorBlendState( &pipeline.colorBlendInfo )
-		.setPDynamicState( &pipeline.dynamicStateInfo )
-		.setLayout( pipeline.pipelineLayout )
-		.setRenderPass( pipeline.renderpass )
-		.setSubpass( pipeline.subpass )
-		.setBasePipelineHandle( VK_NULL_HANDLE )
-		.setBasePipelineIndex( -1 );
-	
-	vk::Result result = mDevice.createGraphicsPipelines(nullptr, 1, &pipelineInfo, nullptr, &pipeline.pipeline);
-	if(result != vk::Result::eSuccess)
-	{
-		throw std::runtime_error("Failed to create graphics pipeline : " + vk::to_string(result));
-	}
-}
-
-
 void RendererCore::PrepareSwapchain( Swapchain &swapchain ) const {
 
 	auto capabilities = mGpu.getSurfaceCapabilitiesKHR( mSurface );

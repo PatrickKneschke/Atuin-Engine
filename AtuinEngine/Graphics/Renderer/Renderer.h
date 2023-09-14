@@ -2,11 +2,13 @@
 #pragma once
 
 
+#include "VulkanInclude.h"
 #include "Definitions.h"
 #include "Material.h"
 #include "Mesh.h"
 #include "MeshPass.h"
 #include "Descriptors.h"
+#include "Pipeline.h"
 #include "Core/Util/Types.h"
 #include "Core/Config/CVar.h"
 #include "Core/Debug/Log.h"
@@ -111,6 +113,7 @@ private:
     void CreateSubmitContexts();
     void CreateFrameResources();
     FrameResources& CurrentFrame() { return mFrames[mFrameCount % pFrameOverlap->Get()]; }
+    void CreateDefaultPipelineBuilder();
 
     void RegisterMeshObject( const MeshObject &object);
     U64 RegisterMesh( std::string_view meshName);
@@ -181,6 +184,8 @@ private:
 
     ImmediateSubmitContext mGraphicsSubmit;
     ImmediateSubmitContext mTransferSubmit;
+
+    GraphicsPipelineBuilder mDefaultPipelineBuilder;
 
     Swapchain mSwapchain;
     Image mDepthImage;

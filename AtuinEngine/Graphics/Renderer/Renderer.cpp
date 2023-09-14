@@ -62,6 +62,8 @@ void Renderer::StartUp(GLFWwindow *window) {
 
 	CreateSubmitContexts();
 
+    CreateDefaultPipelineBuilder();
+
 	CreateVertexBuffer();
 	CreateIndexBuffer();
 
@@ -491,15 +493,113 @@ void Renderer::CreatePipeline( std::string_view pipelineName) {
 	auto content = mFiles.Read( mResourceDir + pipelineName.data());
 	Json pipelineJson = Json::Load( std::string_view( content.Data(), content.GetSize()));
 
+
+	// read descriptor set layouts
+	auto passBindings = pipelineJson.At("descriptorSetLayout")["pass"];
+	auto materialBindings = pipelineJson.At("descriptorSetLayout")["material"];
+	auto objectBindings = pipelineJson.At("descriptorSetLayout")["object"];
+
+	Array<vk::DescriptorSetLayout> layouts;
+	if ( !passBindings.IsNull())
+	{
+
+	}
+
+	// read shader stages
+	auto shaderStages = pipelineJson.At( "shaders").GetDict();
+	for ( auto &[stage, shaderName] : shaderStages)
+	{
+		U64 shaderId = SID( shaderName.ToString().c_str());
+		if ( mShaders.Find( shaderId) == mShaders.End())
+		{
+			CreateShaderModule( shaderName.ToString());
+		}
+	}
+
+	// build pipeline
 	Pipeline newPipeline;
 	std::string type = pipelineJson.At( "type").ToString();
 	if ( type == "graphics")
 	{
-		// CreateGraphicsPipeline( newPipeline, pipelineJson); 
+		GraphicsPipelineBuilder pipelineBuilder = mDefaultPipelineBuilder;
+		pipelineBuilder.descriptorLayouts = layouts;
+
+		// shader stage infos
+		// vertex shader mandatory
+		if ( !shaderStages[ "vertex"].IsNull())
+		{
+			pipelineBuilder.shaderInfos.PushBack( 
+				vk::PipelineShaderStageCreateInfo{}
+					.setStage( vk::ShaderStageFlagBits::eVertex )
+					.setModule( mShaders[ SID( shaderStages.At( "vertex").ToString().c_str())] )
+					.setPName( "main" )
+			);
+		}
+		else
+		{
+			mLog.Warning( LogChannel::GRAPHICS, FormatStr("No vertex shader provided for graphics pipeline \"%s\".", pipelineName));
+		} 
+		// fragment shader mandatory
+		if ( !shaderStages[ "fragment"].IsNull())
+		{
+			pipelineBuilder.shaderInfos.PushBack( 
+				vk::PipelineShaderStageCreateInfo{}
+					.setStage( vk::ShaderStageFlagBits::eFragment )
+					.setModule( mShaders[ SID( shaderStages.At( "fragment").ToString().c_str())] )
+					.setPName( "main" )
+			);
+		}
+		else
+		{
+			mLog.Warning( LogChannel::GRAPHICS, FormatStr("No fragment shader provided for graphics pipeline \"%s\".", pipelineName));
+		}
+		// geometry shader optional
+		if ( !shaderStages[ "geometry"].IsNull())
+		{
+			pipelineBuilder.shaderInfos.PushBack( 
+				vk::PipelineShaderStageCreateInfo{}
+					.setStage( vk::ShaderStageFlagBits::eGeometry )
+					.setModule( mShaders[ SID( shaderStages.At( "geometry").ToString().c_str())] )
+					.setPName( "main" )
+			);
+		}
+		// tesselation shaders optional but control requires eval shader
+		if ( !shaderStages[ "tesselation_eval"].IsNull())
+		{
+			pipelineBuilder.shaderInfos.PushBack( 
+				vk::PipelineShaderStageCreateInfo{}
+					.setStage( vk::ShaderStageFlagBits::eTessellationEvaluation )
+					.setModule( mShaders[ SID( shaderStages.At( "tesselation_eval").ToString().c_str())] )
+					.setPName( "main" )
+			);
+			if ( !shaderStages[ "tesselation_ctrl"].IsNull())
+			{
+				pipelineBuilder.shaderInfos.PushBack( 
+					vk::PipelineShaderStageCreateInfo{}
+						.setStage( vk::ShaderStageFlagBits::eTessellationControl )
+						.setModule( mShaders[ SID( shaderStages.At( "tesselation_ctrl").ToString().c_str())] )
+						.setPName( "main" )
+				);				
+			}
+		}
+		
+		// read fixed stage configuration from json
+		pipelineBuilder.FillFromJson( pipelineJson);
+
+		newPipeline = pipelineBuilder.Build( pCore->Device(), mForwardPass);
 	}
 	else if ( type == "compute")
 	{
-		// CreateComputePipeline( newPipeline, pipelineJson);
+		U64 shaderId = SID( shaderStages.At( "compute").ToString().c_str());
+
+		ComputePipelineBuilder pipelineBuilder;
+		pipelineBuilder.descriptorLayouts = layouts;
+		pipelineBuilder.shaderInfo
+			.setStage( vk::ShaderStageFlagBits::eCompute )
+			.setModule( mShaders[ shaderId] )
+			.setPName( "main" );
+
+		newPipeline = pipelineBuilder.Build( pCore->Device());
 	}
 	else 
 	{
@@ -507,6 +607,11 @@ void Renderer::CreatePipeline( std::string_view pipelineName) {
 	}
 
 	mPipelines[ pipelineId] = newPipeline;
+
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyPipeline( newPipeline.pipeline);
+		pCore->Device().destroyPipelineLayout( newPipeline.pipelineLayout);
+	});
 }
 
 
@@ -1123,6 +1228,115 @@ void Renderer::CreateSubmitContexts() {
 }
 
 
+void Renderer::CreateDefaultPipelineBuilder() {
+
+	mDefaultPipelineBuilder.descriptorLayouts = {};
+	mDefaultPipelineBuilder.shaderInfos = {};
+
+	// vertex input
+	mDefaultPipelineBuilder.vertexInputBinding = Vertex::getBindingDescription();
+	mDefaultPipelineBuilder.vertexAttributes = Vertex::getAttributeDescriptions();
+	mDefaultPipelineBuilder.vertexInputInfo
+		.setVertexBindingDescriptionCount( 1 )
+		.setPVertexBindingDescriptions( &mDefaultPipelineBuilder.vertexInputBinding )
+		.setVertexAttributeDescriptionCount( (U32)mDefaultPipelineBuilder.vertexAttributes.GetSize() )
+		.setPVertexAttributeDescriptions( mDefaultPipelineBuilder.vertexAttributes.Data() );			
+			
+	// input assembly
+	mDefaultPipelineBuilder.inputAssemblyInfo
+		.setTopology( vk::PrimitiveTopology::eTriangleList )
+		.setPrimitiveRestartEnable( VK_FALSE );
+
+	mDefaultPipelineBuilder.viewportInfo
+		.setViewportCount( 1 )
+		.setScissorCount( 1 );
+			
+	// rasterization
+	mDefaultPipelineBuilder.rasterizerInfo
+		.setDepthClampEnable( VK_FALSE )
+		.setRasterizerDiscardEnable( VK_FALSE )
+		.setPolygonMode( vk::PolygonMode::eFill )
+		.setLineWidth( 1.0 )
+		.setCullMode( vk::CullModeFlagBits::eBack )
+		.setFrontFace( vk::FrontFace::eCounterClockwise)
+		.setDepthBiasEnable( VK_FALSE )
+		.setDepthBiasConstantFactor( 0.0f )
+		.setDepthBiasClamp( 0.0f )
+		.setDepthBiasSlopeFactor( 0.0f );
+		
+	// multisampling
+	vk::SampleCountFlagBits sampleCount;
+	switch ( pMsaaSamples->Get())
+	{
+		case 64:
+			sampleCount = vk::SampleCountFlagBits::e64;
+			break;
+		case 32:
+			sampleCount = vk::SampleCountFlagBits::e32;
+			break;
+		case 16:
+			sampleCount = vk::SampleCountFlagBits::e16;
+			break;
+		case 8:
+			sampleCount = vk::SampleCountFlagBits::e8;
+			break;
+		case 4:
+			sampleCount = vk::SampleCountFlagBits::e4;
+			break;
+		case 2:
+			sampleCount = vk::SampleCountFlagBits::e2;
+			break;
+		
+		default:
+			sampleCount = vk::SampleCountFlagBits::e1;
+			break;
+	}
+	mDefaultPipelineBuilder.multisampleInfo
+		.setSampleShadingEnable( pMsaaSamples->Get() > 1 )
+		.setMinSampleShading( 1.0f )
+		.setRasterizationSamples( sampleCount )
+		.setPSampleMask( nullptr )
+		.setAlphaToCoverageEnable( VK_FALSE )
+		.setAlphaToOneEnable( VK_FALSE );
+		
+	// depth and stencil
+	mDefaultPipelineBuilder.depthStencilInfo
+		.setDepthTestEnable( VK_TRUE )
+		.setDepthWriteEnable( VK_TRUE )
+		.setDepthCompareOp( vk::CompareOp::eLessOrEqual )
+		.setDepthBoundsTestEnable( VK_FALSE ) 
+		.setMinDepthBounds( 0.0f )
+		.setMaxDepthBounds( 1.0f )
+		.setStencilTestEnable( VK_FALSE )
+		.setFront( {} )
+		.setBack( {} );	
+				
+	// color blending
+	mDefaultPipelineBuilder.colorBlendAttachment
+		.setColorWriteMask( vk::ColorComponentFlagBits::eR |
+							vk::ColorComponentFlagBits::eG |
+							vk::ColorComponentFlagBits::eB |
+							vk::ColorComponentFlagBits::eA )
+		.setBlendEnable( VK_TRUE )
+		.setSrcColorBlendFactor( vk::BlendFactor::eSrcAlpha )
+		.setDstColorBlendFactor( vk::BlendFactor::eOneMinusSrcAlpha )
+		.setColorBlendOp( vk::BlendOp::eAdd )
+		.setSrcAlphaBlendFactor( vk::BlendFactor::eOne )
+		.setDstAlphaBlendFactor( vk::BlendFactor::eZero )
+		.setAlphaBlendOp( vk::BlendOp::eAdd );
+		
+	mDefaultPipelineBuilder.colorBlendInfo
+		.setAttachmentCount( 1 )
+		.setPAttachments( &mDefaultPipelineBuilder.colorBlendAttachment );
+
+		// dynamic states
+	mDefaultPipelineBuilder.dynamicStates = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
+	mDefaultPipelineBuilder.dynamicStateInfo = vk::PipelineDynamicStateCreateInfo{}
+		.setDynamicStateCount( (U32)mDefaultPipelineBuilder.dynamicStates.GetSize() )
+		.setPDynamicStates( mDefaultPipelineBuilder.dynamicStates.Data() );
+}
+
+
 void Renderer::CreateSamplers() {
 
 	mSampler = pCore->CreateSampler(
@@ -1426,106 +1640,27 @@ void Renderer::CreateShaderModules() {
 
 void Renderer::CreatePipeline() {
 
+	GraphicsPipelineBuilder pipelineBuilder;
+	pipelineBuilder = mDefaultPipelineBuilder;
+
+	// pipeline layout
+	pipelineBuilder.descriptorLayouts = {
+		mPassDataLayout, mMaterialDataLayout, mObjectDataLayout
+	};
+
 	// shader stages
-	mSingleMaterialPipeline.shaderInfos = {
+	pipelineBuilder.shaderInfos = {
 		vk::PipelineShaderStageCreateInfo{}
 			.setStage( vk::ShaderStageFlagBits::eVertex )
 			.setModule( mMeshVertShader )
 			.setPName( "main" ),
-			
 		vk::PipelineShaderStageCreateInfo{}
 			.setStage( vk::ShaderStageFlagBits::eFragment )
 			.setModule( mMaterialFragShader )
 			.setPName( "main" )
 	};
-	
-	// vertex input
-	auto bindingDescription = Vertex::getBindingDescription();
-	auto attributeDescriptions = Vertex::getAttributeDescriptions();
-	mSingleMaterialPipeline.vertexInputInfo
-		.setVertexBindingDescriptionCount( 1 )
-		.setPVertexBindingDescriptions( &bindingDescription )
-		.setVertexAttributeDescriptionCount( (U32)attributeDescriptions.GetSize() )
-		.setPVertexAttributeDescriptions( attributeDescriptions.Data() );			
-			
-	// input assembly
-	mSingleMaterialPipeline.inputAssemblyInfo
-		.setTopology( vk::PrimitiveTopology::eTriangleList )
-		.setPrimitiveRestartEnable( VK_FALSE );
 
-	mSingleMaterialPipeline.viewportInfo
-		.setViewportCount( 1 )
-		.setScissorCount( 1 );
-			
-	// rasterization
-	mSingleMaterialPipeline.rasterizerInfo
-		.setDepthClampEnable( VK_FALSE )
-		.setRasterizerDiscardEnable( VK_FALSE )
-		.setPolygonMode( vk::PolygonMode::eFill )
-		.setLineWidth( 1.0 )
-		.setCullMode( vk::CullModeFlagBits::eBack )
-		.setFrontFace( vk::FrontFace::eCounterClockwise)
-		.setDepthBiasEnable( VK_FALSE )
-		.setDepthBiasConstantFactor( 0.0f )
-		.setDepthBiasClamp( 0.0f )
-		.setDepthBiasSlopeFactor( 0.0f );
-		
-	// multisampling
-	mSingleMaterialPipeline.multisampleInfo
-		.setSampleShadingEnable( VK_FALSE )
-		.setMinSampleShading( 1.0f )
-		.setRasterizationSamples( vk::SampleCountFlagBits::e1)
-		.setPSampleMask( nullptr )
-		.setAlphaToCoverageEnable( VK_FALSE )
-		.setAlphaToOneEnable( VK_FALSE );		
-		
-	// depth and stencil
-	mSingleMaterialPipeline.depthStencilInfo
-		.setDepthTestEnable( VK_TRUE )
-		.setDepthWriteEnable( VK_TRUE )
-		.setDepthCompareOp( vk::CompareOp::eLessOrEqual )
-		.setDepthBoundsTestEnable( VK_FALSE ) 
-		.setMinDepthBounds( 0.0f )
-		.setMaxDepthBounds( 1.0f )
-		.setStencilTestEnable( VK_FALSE )
-		.setFront( {} )
-		.setBack( {} );	
-				
-	// color blending
-	mSingleMaterialPipeline.colorBlendAttachment
-		.setColorWriteMask( vk::ColorComponentFlagBits::eR |
-							vk::ColorComponentFlagBits::eG |
-							vk::ColorComponentFlagBits::eB |
-							vk::ColorComponentFlagBits::eA )
-		.setBlendEnable( VK_TRUE )
-		.setSrcColorBlendFactor( vk::BlendFactor::eSrcAlpha )
-		.setDstColorBlendFactor( vk::BlendFactor::eOneMinusSrcAlpha )
-		.setColorBlendOp( vk::BlendOp::eAdd )
-		.setSrcAlphaBlendFactor( vk::BlendFactor::eOne )
-		.setDstAlphaBlendFactor( vk::BlendFactor::eZero )
-		.setAlphaBlendOp( vk::BlendOp::eAdd );
-		
-	mSingleMaterialPipeline.colorBlendInfo
-		.setAttachmentCount( 1 )
-		.setPAttachments( &mSingleMaterialPipeline.colorBlendAttachment );
-
-	// dynamic states
-	vk::DynamicState dynamicState[] = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
-	mSingleMaterialPipeline.dynamicStateInfo
-		.setDynamicStateCount( 2 )
-		.setPDynamicStates( dynamicState );
-
-	// pipeline layout
-	vk::DescriptorSetLayout descriptorSetLayouts[] = {
-		mPassDataLayout, mMaterialDataLayout, mObjectDataLayout
-	};
-	mSingleMaterialPipeline.pipelineLayout = pCore->CreatePipelineLayout( 3, descriptorSetLayouts );
-
-	// render pass
-	mSingleMaterialPipeline.renderpass = mForwardPass;
-	mSingleMaterialPipeline.subpass = 0;
-
-	pCore->CreatePipeline( mSingleMaterialPipeline );
+	mSingleMaterialPipeline = pipelineBuilder.Build( pCore->Device(), mForwardPass);
 
 	mDeletionStack.Push( [&](){
 		pCore->Device().destroyPipeline( mSingleMaterialPipeline.pipeline);

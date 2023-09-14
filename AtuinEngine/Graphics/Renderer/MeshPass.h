@@ -6,8 +6,6 @@
 #include "Core/Util/Types.h"
 #include "Core/DataStructures/Array.h"
 
-#include "vulkan/vulkan.hpp"
-
 
 namespace Atuin {
 
