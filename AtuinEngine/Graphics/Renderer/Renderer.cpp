@@ -63,11 +63,12 @@ void Renderer::StartUp(GLFWwindow *window) {
 	CreateSubmitContexts();
 
     CreateDefaultPipelineBuilder();
+	CreateFrameResources();
+
 
 	CreateVertexBuffer();
 	CreateIndexBuffer();
 
-	CreateFrameResources();
 	CreateShaderModules();
 	CreateSamplers();
 	CreateDescriptorResources();
@@ -505,6 +506,10 @@ void Renderer::CreatePipeline( std::string_view pipelineName) {
 
 	}
 
+
+
+
+
 	// read shader stages
 	auto shaderStages = pipelineJson.At( "shaders").GetDict();
 	for ( auto &[stage, shaderName] : shaderStages)
@@ -537,7 +542,7 @@ void Renderer::CreatePipeline( std::string_view pipelineName) {
 		}
 		else
 		{
-			mLog.Warning( LogChannel::GRAPHICS, FormatStr("No vertex shader provided for graphics pipeline \"%s\".", pipelineName));
+			mLog.Error( LogChannel::GRAPHICS, FormatStr("No vertex shader provided for graphics pipeline \"%s\".", pipelineName));
 		} 
 		// fragment shader mandatory
 		if ( !shaderStages[ "fragment"].IsNull())
@@ -551,7 +556,7 @@ void Renderer::CreatePipeline( std::string_view pipelineName) {
 		}
 		else
 		{
-			mLog.Warning( LogChannel::GRAPHICS, FormatStr("No fragment shader provided for graphics pipeline \"%s\".", pipelineName));
+			mLog.Error( LogChannel::GRAPHICS, FormatStr("No fragment shader provided for graphics pipeline \"%s\".", pipelineName));
 		}
 		// geometry shader optional
 		if ( !shaderStages[ "geometry"].IsNull())
@@ -603,7 +608,7 @@ void Renderer::CreatePipeline( std::string_view pipelineName) {
 	}
 	else 
 	{
-		mLog.Warning( LogChannel::GRAPHICS, FormatStr("Unknown pipeline type \"%s\" in \"%s\".", type, pipelineName));
+		mLog.Error( LogChannel::GRAPHICS, FormatStr("Unknown pipeline type \"%s\" in \"%s\".", type, pipelineName));
 	}
 
 	mPipelines[ pipelineId] = newPipeline;
@@ -1640,8 +1645,7 @@ void Renderer::CreateShaderModules() {
 
 void Renderer::CreatePipeline() {
 
-	GraphicsPipelineBuilder pipelineBuilder;
-	pipelineBuilder = mDefaultPipelineBuilder;
+	GraphicsPipelineBuilder pipelineBuilder = mDefaultPipelineBuilder;
 
 	// pipeline layout
 	pipelineBuilder.descriptorLayouts = {

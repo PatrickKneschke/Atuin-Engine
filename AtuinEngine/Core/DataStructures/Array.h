@@ -342,7 +342,7 @@ Array<T>::Array(const std::initializer_list<T> &list) : mSize {0}, mCapacity {li
 
 
 template<typename T>
-Array<T>::Array(const Array &other) : mSize {other.mSize}, mCapacity {other.mCapacity}, mLog(), mMemory() {
+Array<T>::Array(const Array &other) : mSize {other.mSize}, mCapacity {other.mCapacity}, pData {nullptr}, mLog(), mMemory() {
 
     Allocate(mCapacity);
     for (Size i = 0; i < mSize; i++)
