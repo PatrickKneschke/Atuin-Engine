@@ -2,7 +2,7 @@
 #include "Renderer.h"
 #include "RendererCore.h"
 #include "ResourceManager.h"
-#include "SamplerSettings.h"
+#include "JsonToVulkan.h"
 #include "App.h"
 #include "Core/Util/Types.h"
 #include "Core/Config/ConfigManager.h"
@@ -345,15 +345,7 @@ void Renderer::CreateMaterial( std::string_view materialName) {
 	for ( auto texture : textures) 
 	{
 		//texture format
-		vk::Format format;
-		if ( texture.At( "format").ToString() == "unorm")
-		{
-			format = vk::Format::eR8G8B8A8Unorm;
-		}
-		else
-		{
-			format = vk::Format::eR8G8B8A8Srgb;
-		}
+		vk::Format format = JsonVk::GetFormat( texture.At( "format").ToString());
 
 		// texture image
 		std::string imageName = texture.At( "image").ToString();
@@ -466,20 +458,20 @@ void Renderer::CreateSampler( std::string_view samplerName) {
 	Json samplerJson = Json::Load( std::string_view( content.Data(), content.GetSize()));
 
 	vk::Sampler newSampler = pCore->CreateSampler(
-		Sampler::GetFilter( samplerJson.At( "minFilter").ToString()), 
-		Sampler::GetFilter( samplerJson.At( "magFilter").ToString()), 
-		Sampler::GetAddressMode( samplerJson.At( "addressModeU").ToString()), 
-		Sampler::GetAddressMode( samplerJson.At( "addressModeV").ToString()), 
-		Sampler::GetAddressMode( samplerJson.At( "addressModeW").ToString()),
+		JsonVk::GetFilter( samplerJson.At( "minFilter").ToString()), 
+		JsonVk::GetFilter( samplerJson.At( "magFilter").ToString()), 
+		JsonVk::GetAddressMode( samplerJson.At( "addressModeU").ToString()), 
+		JsonVk::GetAddressMode( samplerJson.At( "addressModeV").ToString()), 
+		JsonVk::GetAddressMode( samplerJson.At( "addressModeW").ToString()),
 		samplerJson.At( "enableAnisotropy").ToBool(),
 		(float)pMaxAnisotropy->Get(),
-		Sampler::GetMipMapMode( samplerJson.At( "mipmapMode").ToString()), 
+		JsonVk::GetMipMapMode( samplerJson.At( "mipmapMode").ToString()), 
 		(float)samplerJson.At( "minLod").ToFloat(),
 		(float)samplerJson.At( "maxLod").ToFloat(),
 		(float)samplerJson.At( "minLodBias").ToFloat(),
 		samplerJson.At( "enableCompare").ToBool(),
-		Sampler::GetCompareOp( samplerJson.At( "compareOp").ToString()),
-		Sampler::GetBorder( samplerJson.At( "borderColor").ToString())
+		JsonVk::GetCompareOp( samplerJson.At( "compareOp").ToString()),
+		JsonVk::GetBorder( samplerJson.At( "borderColor").ToString())
 	);
 
 	mSamplers[ samplerId] = newSampler;	
@@ -494,20 +486,39 @@ void Renderer::CreatePipeline( std::string_view pipelineName) {
 	auto content = mFiles.Read( mResourceDir + pipelineName.data());
 	Json pipelineJson = Json::Load( std::string_view( content.Data(), content.GetSize()));
 
-
 	// read descriptor set layouts
-	auto passBindings = pipelineJson.At("descriptorSetLayout")["pass"];
-	auto materialBindings = pipelineJson.At("descriptorSetLayout")["material"];
-	auto objectBindings = pipelineJson.At("descriptorSetLayout")["object"];
-
 	Array<vk::DescriptorSetLayout> layouts;
-	if ( !passBindings.IsNull())
+	auto &descriptorSetLayoutsJson = pipelineJson.At( "descriptorSetLayouts");
+	for ( auto &[ _ , setBindingsJson] : descriptorSetLayoutsJson.GetDict())
 	{
+		Array<vk::DescriptorSetLayoutBinding> layoutBindings;
+		for( auto &bindingJson : setBindingsJson.GetList())
+		{
+			U32 binding = (U32)bindingJson.At( "binding").ToInt();
+			vk::DescriptorType type = JsonVk::GetDescriptorType( bindingJson.At( "type").ToString());
 
+			vk::ShaderStageFlags stages;
+			auto stageNames = bindingJson.At( "stages").GetList();
+			for ( auto stage : stageNames)
+			{
+				stages |= JsonVk::GetShaderStage( stage.ToString());
+			}
+
+			layoutBindings.PushBack(
+				vk::DescriptorSetLayoutBinding{}
+					.setBinding( binding )
+					.setDescriptorCount( 1 )
+					.setDescriptorType( type )
+					.setStageFlags( stages )
+			);
+		}
+
+		auto layoutInfo = vk::DescriptorSetLayoutCreateInfo{}
+			.setBindingCount( (U32)layoutBindings.GetSize() )
+			.setPBindings( layoutBindings.Data() );
+
+		layouts.PushBack( pDescriptorLayoutCache->CreateLayout( &layoutInfo));
 	}
-
-
-
 
 
 	// read shader stages
