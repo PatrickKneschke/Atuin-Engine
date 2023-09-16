@@ -286,12 +286,12 @@ private:
 template<typename T>
 void Array<T>::Allocate(Size capacity) {
 
-    if (mCapacity == 0)
+    if (capacity == 0)
     {
         return;
     }
 
-    pData = static_cast<T*>( mMemory.Allocate( mCapacity * sizeof(T), alignof(T)) );
+    pData = static_cast<T*>( mMemory.Allocate( capacity * sizeof(T), alignof(T)) );
     mCapacity = capacity;
 }
 
@@ -369,7 +369,7 @@ Array<T>& Array<T>::operator= (const Array &rhs) {
         Clear();
         Free();
         Allocate(rhs.mCapacity);
-        for(Size i = 0; i < mSize; i++)
+        for(Size i = 0; i < rhs.mSize; i++)
         {
             PushBack(rhs[i]);
         }

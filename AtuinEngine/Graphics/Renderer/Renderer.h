@@ -139,9 +139,9 @@ private:
     void CopyBufferToImage(vk::Buffer buffer, vk::Image image, U32 imageWidth, U32 imageHeight);
     void CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, Size offset, Size bufferSize);
 
+
     void CreateVertexBuffer();
     void CreateIndexBuffer();
-
 
     void CreateShaderModules();
     void CreateSamplers();
@@ -229,12 +229,11 @@ private:
     Buffer mSceneBuffer;
     Buffer mObjectBuffer;
     
-    vk::Sampler mSampler;
 
+    vk::Sampler mSampler;
 
     Array<Vertex> mVertices;
     Array<U32> mIndices;
-
 
     // TODO test pipeline to render single material and mesh at a time, change later 
     Pipeline mSingleMaterialPipeline;

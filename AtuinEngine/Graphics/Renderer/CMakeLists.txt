@@ -17,5 +17,5 @@ add_library( Renderer
     Descriptors.h 
     Pipeline.h 
     ResourceManager.h 
-    SamplerSettings.h
+    JsonToVulkan.h
 )

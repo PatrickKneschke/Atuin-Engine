@@ -69,7 +69,7 @@ void Renderer::StartUp(GLFWwindow *window) {
 	CreateVertexBuffer();
 	CreateIndexBuffer();
 
-	CreateShaderModules();
+	// CreateShaderModules();
 	CreateSamplers();
 	CreateDescriptorResources();
 
@@ -112,7 +112,9 @@ void Renderer::ShutDown() {
 	pCore->Device().destroySwapchainKHR( mSwapchain.swapchain, nullptr);
 
 	// descriptor 
+	pDescriptorLayoutCache->DestroyLayouts();
 	mMemory.Delete(( pDescriptorLayoutCache));
+	pDescriptorSetAllocator->DestroyPools();
 	mMemory.Delete( pDescriptorSetAllocator);
 
 	// core
@@ -441,10 +443,10 @@ void Renderer::CreateTexture( std::string_view textureName, vk::Format format) {
 	pCore->Device().destroyBuffer( stagingBuffer.buffer, nullptr);
 	pCore->Device().freeMemory( stagingBuffer.bufferMemory, nullptr);
 
-	mDeletionStack.Push( [&](){
-		pCore->Device().destroyImageView( image.imageView);
-		pCore->Device().destroyImage( image.image);
-		pCore->Device().freeMemory( image.imageMemory);
+	mDeletionStack.Push( [&, imageId](){
+		pCore->Device().destroyImageView( mTextures[ imageId].imageView);
+		pCore->Device().destroyImage( mTextures[ imageId].image);
+		pCore->Device().freeMemory( mTextures[ imageId].imageMemory);
 	});
 }
 
@@ -474,7 +476,11 @@ void Renderer::CreateSampler( std::string_view samplerName) {
 		JsonVk::GetBorder( samplerJson.At( "borderColor").ToString())
 	);
 
-	mSamplers[ samplerId] = newSampler;	
+	mSamplers[ samplerId] = newSampler;
+
+	mDeletionStack.Push( [&, samplerId](){
+		pCore->Device().destroySampler( mSamplers[ samplerId]);
+	});
 }
 
 
@@ -489,7 +495,7 @@ void Renderer::CreatePipeline( std::string_view pipelineName) {
 	// read descriptor set layouts
 	Array<vk::DescriptorSetLayout> layouts;
 	auto &descriptorSetLayoutsJson = pipelineJson.At( "descriptorSetLayouts");
-	for ( auto &[ _ , setBindingsJson] : descriptorSetLayoutsJson.GetDict())
+	for ( auto &setBindingsJson : descriptorSetLayoutsJson.GetList())
 	{
 		Array<vk::DescriptorSetLayoutBinding> layoutBindings;
 		for( auto &bindingJson : setBindingsJson.GetList())
@@ -624,9 +630,9 @@ void Renderer::CreatePipeline( std::string_view pipelineName) {
 
 	mPipelines[ pipelineId] = newPipeline;
 
-	mDeletionStack.Push( [&](){
-		pCore->Device().destroyPipeline( newPipeline.pipeline);
-		pCore->Device().destroyPipelineLayout( newPipeline.pipelineLayout);
+	mDeletionStack.Push( [&, pipelineId](){
+		pCore->Device().destroyPipeline( mPipelines[ pipelineId].pipeline);
+		pCore->Device().destroyPipelineLayout( mPipelines[ pipelineId].pipelineLayout);
 	});
 }
 
@@ -640,8 +646,8 @@ void Renderer::CreateShaderModule( std::string_view shaderName) {
 
 	mShaders[ shaderId] = newShader;
 
-	mDeletionStack.Push( [&](){
-		pCore->Device().destroyShaderModule( newShader);
+	mDeletionStack.Push( [&, shaderId](){
+		pCore->Device().destroyShaderModule( mShaders[ shaderId]);
 	});
 }
 
@@ -1656,31 +1662,36 @@ void Renderer::CreateShaderModules() {
 
 void Renderer::CreatePipeline() {
 
-	GraphicsPipelineBuilder pipelineBuilder = mDefaultPipelineBuilder;
+	CreatePipeline( "Pipelines/pbr_material.pipeline.json");
 
-	// pipeline layout
-	pipelineBuilder.descriptorLayouts = {
-		mPassDataLayout, mMaterialDataLayout, mObjectDataLayout
-	};
+	U64 id =  SID( "Pipelines/pbr_material.pipeline.json");	
+	mSingleMaterialPipeline = mPipelines[ id];
 
-	// shader stages
-	pipelineBuilder.shaderInfos = {
-		vk::PipelineShaderStageCreateInfo{}
-			.setStage( vk::ShaderStageFlagBits::eVertex )
-			.setModule( mMeshVertShader )
-			.setPName( "main" ),
-		vk::PipelineShaderStageCreateInfo{}
-			.setStage( vk::ShaderStageFlagBits::eFragment )
-			.setModule( mMaterialFragShader )
-			.setPName( "main" )
-	};
+	// GraphicsPipelineBuilder pipelineBuilder = mDefaultPipelineBuilder;
 
-	mSingleMaterialPipeline = pipelineBuilder.Build( pCore->Device(), mForwardPass);
+	// // pipeline layout
+	// pipelineBuilder.descriptorLayouts = {
+	// 	mPassDataLayout, mMaterialDataLayout, mObjectDataLayout
+	// };
 
-	mDeletionStack.Push( [&](){
-		pCore->Device().destroyPipeline( mSingleMaterialPipeline.pipeline);
-		pCore->Device().destroyPipelineLayout( mSingleMaterialPipeline.pipelineLayout);
-	});
+	// // shader stages
+	// pipelineBuilder.shaderInfos = {
+	// 	vk::PipelineShaderStageCreateInfo{}
+	// 		.setStage( vk::ShaderStageFlagBits::eVertex )
+	// 		.setModule( mMeshVertShader )
+	// 		.setPName( "main" ),
+	// 	vk::PipelineShaderStageCreateInfo{}
+	// 		.setStage( vk::ShaderStageFlagBits::eFragment )
+	// 		.setModule( mMaterialFragShader )
+	// 		.setPName( "main" )
+	// };
+
+	// mSingleMaterialPipeline = pipelineBuilder.Build( pCore->Device(), mForwardPass);
+
+	// mDeletionStack.Push( [&](){
+	// 	pCore->Device().destroyPipeline( mSingleMaterialPipeline.pipeline);
+	// 	pCore->Device().destroyPipelineLayout( mSingleMaterialPipeline.pipelineLayout);
+	// });
 }
 
 
