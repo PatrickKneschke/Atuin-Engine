@@ -217,7 +217,7 @@ vk::DescriptorSet DescriptorSetBuilder::Build() {
     vk::DescriptorSetLayout layout = pLayoutCache->CreateLayout( &layoutCreateInfo);
 
     vk::DescriptorSet descriptorSet = pAllocator->Allocate(layout);
-    for ( auto write : mWrites) 
+    for ( auto &write : mWrites) 
     {
         write.setDstSet( descriptorSet );
     }

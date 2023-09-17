@@ -28,7 +28,7 @@ ImageData* ResourceManager::GetImage( std::string_view imagePath) {
     U64 imageId = SID( imagePath.data());
     if ( mImageResources.Find( imageId) == mImageResources.End())
     {
-        LoadMesh( imagePath);
+        LoadImage( imagePath);
     }
 
     return &mImageResources.At( imageId).resource;
@@ -125,7 +125,7 @@ void ResourceManager::LoadImage( std::string_view imagePath) {
     Size imageSize = width * height * 4;
 
     U64 imageId = SID( imagePath.data());
-    Resource<ImageData> image = mImageResources[ imageId];
+    Resource<ImageData> &image = mImageResources[ imageId];
     image.resourcePath = imagePath;
     image.resource.width = (U32)width;
     image.resource.height = (U32)height;

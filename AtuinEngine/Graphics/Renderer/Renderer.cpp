@@ -70,14 +70,19 @@ void Renderer::StartUp(GLFWwindow *window) {
 	CreateIndexBuffer();
 
 	// CreateShaderModules();
-	CreateSamplers();
+	// CreateSamplers();
 	CreateDescriptorResources();
 
 	CreateDescriptorSetLayouts();
 	CreateDescriptorPool();
 	CreateDescriptorSets();
 
-	CreatePipeline();
+	// CreatePipeline();
+	CreateMaterial( "Materials//Rusted_Iron/rusted_iron.material.json");
+	U64 materialId = SID( "Materials//Rusted_Iron/rusted_iron.material.json");
+	auto &material = mMaterials.At( materialId);
+	mMaterialDataSet = material.descriptorSet[ PassType::OPAQUE];
+	mSingleMaterialPipeline = mPipelines.At( material.pipelineId[ PassType::OPAQUE]);
 
 	// dummy model load
 	LoadModel( mResourceDir + "Meshes/Default/torus.obj");
@@ -341,10 +346,12 @@ void Renderer::CreateMaterial( std::string_view materialName) {
 	}
 
 	// get images and build descriptor sets
-	auto textures = materialJson.At( "textures").GetList();
+	auto &textures = materialJson.At( "textures").GetList();
 	DescriptorSetBuilder builder( pCore->Device(), pDescriptorSetAllocator, pDescriptorLayoutCache);
 	U32 binding = 0;
-	for ( auto texture : textures) 
+	Array<vk::DescriptorImageInfo> imageInfos;
+	imageInfos.Reserve( textures.GetSize());
+	for ( auto &texture : textures) 
 	{
 		//texture format
 		vk::Format format = JsonVk::GetFormat( texture.At( "format").ToString());
@@ -365,8 +372,8 @@ void Renderer::CreateMaterial( std::string_view materialName) {
 			CreateSampler( samplerName);
 		}
 
-		auto imageInfo = mTextures[ imageId].DescriptorInfo( mSamplers[ samplerId]);
-		builder.BindImage(binding, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, &imageInfo);
+		imageInfos.PushBack( mTextures[ imageId].DescriptorInfo( mSamplers[ samplerId]));
+		builder.BindImage(binding, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, &imageInfos.Back());
 		++binding;
 	}
 	vk::DescriptorSet descriptorSet = builder.Build();
@@ -402,7 +409,7 @@ void Renderer::CreateTexture( std::string_view textureName, vk::Format format) {
 	Image image;
 
 	// load image data
-	ImageData *imageData = pResources->GetImage( textureName);
+	ImageData *imageData = pResources->GetImage( mResourceDir + textureName.data());
 
 	// create staging buffer
 	Size imageSize = imageData->pixelData.GetSize();
@@ -470,7 +477,7 @@ void Renderer::CreateSampler( std::string_view samplerName) {
 		JsonVk::GetMipMapMode( samplerJson.At( "mipmapMode").ToString()), 
 		(float)samplerJson.At( "minLod").ToFloat(),
 		(float)samplerJson.At( "maxLod").ToFloat(),
-		(float)samplerJson.At( "minLodBias").ToFloat(),
+		(float)samplerJson.At( "mipLodBias").ToFloat(),
 		samplerJson.At( "enableCompare").ToBool(),
 		JsonVk::GetCompareOp( samplerJson.At( "compareOp").ToString()),
 		JsonVk::GetBorder( samplerJson.At( "borderColor").ToString())
@@ -1490,36 +1497,36 @@ void Renderer::CreateDescriptorSetLayouts() {
 	};
 	mPassDataLayout = pCore->CreateDescriptorSetLayout(2, passBindings);	
 			
-	auto albedoSamplerBinding = vk::DescriptorSetLayoutBinding{}
-		.setBinding( 0 )
-		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
-		.setDescriptorCount( 1 )
-		.setStageFlags( vk::ShaderStageFlagBits::eFragment );
-	auto normalSamplerBinding = vk::DescriptorSetLayoutBinding{}
-		.setBinding( 1 )
-		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
-		.setDescriptorCount( 1 )
-		.setStageFlags( vk::ShaderStageFlagBits::eFragment );		
-	auto metallicSamplerBinding = vk::DescriptorSetLayoutBinding{}
-		.setBinding( 2 )
-		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
-		.setDescriptorCount( 1 )
-		.setStageFlags( vk::ShaderStageFlagBits::eFragment );	
-	auto roughnessSamplerBinding = vk::DescriptorSetLayoutBinding{}
-		.setBinding( 3 )
-		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
-		.setDescriptorCount( 1 )
-		.setStageFlags( vk::ShaderStageFlagBits::eFragment );	
-	auto aoSamplerBinding = vk::DescriptorSetLayoutBinding{}
-		.setBinding( 4 )
-		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
-		.setDescriptorCount( 1 )
-		.setStageFlags( vk::ShaderStageFlagBits::eFragment );
+	// auto albedoSamplerBinding = vk::DescriptorSetLayoutBinding{}
+	// 	.setBinding( 0 )
+	// 	.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
+	// 	.setDescriptorCount( 1 )
+	// 	.setStageFlags( vk::ShaderStageFlagBits::eFragment );
+	// auto normalSamplerBinding = vk::DescriptorSetLayoutBinding{}
+	// 	.setBinding( 1 )
+	// 	.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
+	// 	.setDescriptorCount( 1 )
+	// 	.setStageFlags( vk::ShaderStageFlagBits::eFragment );		
+	// auto metallicSamplerBinding = vk::DescriptorSetLayoutBinding{}
+	// 	.setBinding( 2 )
+	// 	.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
+	// 	.setDescriptorCount( 1 )
+	// 	.setStageFlags( vk::ShaderStageFlagBits::eFragment );	
+	// auto roughnessSamplerBinding = vk::DescriptorSetLayoutBinding{}
+	// 	.setBinding( 3 )
+	// 	.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
+	// 	.setDescriptorCount( 1 )
+	// 	.setStageFlags( vk::ShaderStageFlagBits::eFragment );	
+	// auto aoSamplerBinding = vk::DescriptorSetLayoutBinding{}
+	// 	.setBinding( 4 )
+	// 	.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
+	// 	.setDescriptorCount( 1 )
+	// 	.setStageFlags( vk::ShaderStageFlagBits::eFragment );
 
-	vk::DescriptorSetLayoutBinding materialBindings[] = {
-		albedoSamplerBinding, normalSamplerBinding, metallicSamplerBinding, roughnessSamplerBinding, aoSamplerBinding
-	};
-	mMaterialDataLayout = pCore->CreateDescriptorSetLayout(5, materialBindings);
+	// vk::DescriptorSetLayoutBinding materialBindings[] = {
+	// 	albedoSamplerBinding, normalSamplerBinding, metallicSamplerBinding, roughnessSamplerBinding, aoSamplerBinding
+	// };
+	// mMaterialDataLayout = pCore->CreateDescriptorSetLayout(5, materialBindings);
 
 
 	auto objectDataBinding = vk::DescriptorSetLayoutBinding{}
@@ -1533,7 +1540,7 @@ void Renderer::CreateDescriptorSetLayouts() {
 	mDeletionStack.Push( [&](){
 		pCore->Device().destroyDescriptorSetLayout( mPassDataLayout);
 		pCore->Device().destroyDescriptorSetLayout( mObjectDataLayout);
-		pCore->Device().destroyDescriptorSetLayout( mMaterialDataLayout); 
+		// pCore->Device().destroyDescriptorSetLayout( mMaterialDataLayout); 
 	});
 }
 
@@ -1557,13 +1564,15 @@ void Renderer::CreateDescriptorPool() {
 void Renderer::CreateDescriptorSets() {
 
 	vk::DescriptorSetLayout descriptorSetLayouts[] = {
-		mPassDataLayout, mMaterialDataLayout, mObjectDataLayout
+		mPassDataLayout, 
+		// mMaterialDataLayout, 
+		mObjectDataLayout
 	};
-	auto descriptorSets = pCore->AllocateDescriptorSets(mDescriptorPool, 3, descriptorSetLayouts);
+	auto descriptorSets = pCore->AllocateDescriptorSets(mDescriptorPool, 2, descriptorSetLayouts);
 
 	mPassDataSet = descriptorSets[0];
-	mMaterialDataSet = descriptorSets[1];
-	mObjectDataSet = descriptorSets[2];
+	// mMaterialDataSet = descriptorSets[1];
+	mObjectDataSet = descriptorSets[1];
 
 
 	auto cameraInfo = mCameraBuffer.DescriptorInfo();
@@ -1584,50 +1593,50 @@ void Renderer::CreateDescriptorSets() {
 		.setDescriptorType( vk::DescriptorType::eUniformBuffer )
 		.setPBufferInfo( &sceneInfo );
 
-	auto materialAlbedoInfo = mMaterialAlbedoImage.DescriptorInfo( mSampler);
-	auto materialAlbedoWrite = vk::WriteDescriptorSet{}
-		.setDstSet( mMaterialDataSet )
-		.setDstBinding( 0 )
-		.setDstArrayElement( 0 )
-		.setDescriptorCount( 1 )
-		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
-		.setPImageInfo( &materialAlbedoInfo );
+	// auto materialAlbedoInfo = mMaterialAlbedoImage.DescriptorInfo( mSampler);
+	// auto materialAlbedoWrite = vk::WriteDescriptorSet{}
+	// 	.setDstSet( mMaterialDataSet )
+	// 	.setDstBinding( 0 )
+	// 	.setDstArrayElement( 0 )
+	// 	.setDescriptorCount( 1 )
+	// 	.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
+	// 	.setPImageInfo( &materialAlbedoInfo );
 
-	auto materialNormalInfo = mMaterialNormalImage.DescriptorInfo( mSampler);
-	auto materialNormalWrite = vk::WriteDescriptorSet{}
-		.setDstSet( mMaterialDataSet )
-		.setDstBinding( 1 )
-		.setDstArrayElement( 0 )
-		.setDescriptorCount( 1 )
-		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
-		.setPImageInfo( &materialNormalInfo );
+	// auto materialNormalInfo = mMaterialNormalImage.DescriptorInfo( mSampler);
+	// auto materialNormalWrite = vk::WriteDescriptorSet{}
+	// 	.setDstSet( mMaterialDataSet )
+	// 	.setDstBinding( 1 )
+	// 	.setDstArrayElement( 0 )
+	// 	.setDescriptorCount( 1 )
+	// 	.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
+	// 	.setPImageInfo( &materialNormalInfo );
 
-	auto materialMetallicInfo = mMaterialMetallicImage.DescriptorInfo( mSampler);
-	auto materialMetallicWrite = vk::WriteDescriptorSet{}
-		.setDstSet( mMaterialDataSet )
-		.setDstBinding( 2 )
-		.setDstArrayElement( 0 )
-		.setDescriptorCount( 1 )
-		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
-		.setPImageInfo( &materialMetallicInfo );
+	// auto materialMetallicInfo = mMaterialMetallicImage.DescriptorInfo( mSampler);
+	// auto materialMetallicWrite = vk::WriteDescriptorSet{}
+	// 	.setDstSet( mMaterialDataSet )
+	// 	.setDstBinding( 2 )
+	// 	.setDstArrayElement( 0 )
+	// 	.setDescriptorCount( 1 )
+	// 	.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
+	// 	.setPImageInfo( &materialMetallicInfo );
 
-	auto materialRoughnessInfo = mMaterialRoughnessImage.DescriptorInfo( mSampler);
-	auto materialRoughnessWrite = vk::WriteDescriptorSet{}
-		.setDstSet( mMaterialDataSet )
-		.setDstBinding( 3 )
-		.setDstArrayElement( 0 )
-		.setDescriptorCount( 1 )
-		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
-		.setPImageInfo( &materialRoughnessInfo );
+	// auto materialRoughnessInfo = mMaterialRoughnessImage.DescriptorInfo( mSampler);
+	// auto materialRoughnessWrite = vk::WriteDescriptorSet{}
+	// 	.setDstSet( mMaterialDataSet )
+	// 	.setDstBinding( 3 )
+	// 	.setDstArrayElement( 0 )
+	// 	.setDescriptorCount( 1 )
+	// 	.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
+	// 	.setPImageInfo( &materialRoughnessInfo );
 		
-	auto materialAoInfo = mMaterialAoImage.DescriptorInfo( mSampler);
-	auto materialAoWrite = vk::WriteDescriptorSet{}
-		.setDstSet( mMaterialDataSet )
-		.setDstBinding( 4 )
-		.setDstArrayElement( 0 )
-		.setDescriptorCount( 1 )
-		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
-		.setPImageInfo( &materialAoInfo );
+	// auto materialAoInfo = mMaterialAoImage.DescriptorInfo( mSampler);
+	// auto materialAoWrite = vk::WriteDescriptorSet{}
+	// 	.setDstSet( mMaterialDataSet )
+	// 	.setDstBinding( 4 )
+	// 	.setDstArrayElement( 0 )
+	// 	.setDescriptorCount( 1 )
+	// 	.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
+	// 	.setPImageInfo( &materialAoInfo );
 
 	auto objectInfo = mObjectBuffer.DescriptorInfo();
 	auto objectWrite = vk::WriteDescriptorSet{}
@@ -1639,9 +1648,11 @@ void Renderer::CreateDescriptorSets() {
 		.setPBufferInfo( &objectInfo );	
 
 	vk::WriteDescriptorSet descriptorWrites[] = {
-		cameraWrite, sceneWrite, materialAlbedoWrite, materialNormalWrite, materialMetallicWrite, materialRoughnessWrite, materialAoWrite, objectWrite
+		cameraWrite, sceneWrite, 
+		//materialAlbedoWrite, materialNormalWrite, materialMetallicWrite, materialRoughnessWrite, materialAoWrite, 
+		objectWrite
 	};
-	pCore->Device().updateDescriptorSets(8, descriptorWrites, 0, nullptr);
+	pCore->Device().updateDescriptorSets(3, descriptorWrites, 0, nullptr);
 }
 
 
@@ -1662,7 +1673,7 @@ void Renderer::CreateShaderModules() {
 
 void Renderer::CreatePipeline() {
 
-	CreatePipeline( "Pipelines/pbr_material.pipeline.json");
+	CreatePipeline( "Pipelines/default_pbr_material.pipeline.json");
 
 	U64 id =  SID( "Pipelines/pbr_material.pipeline.json");	
 	mSingleMaterialPipeline = mPipelines[ id];
@@ -1947,7 +1958,9 @@ void Renderer::DrawFrame() {
 
 		
 	vk::DescriptorSet descriptorSets[] = {
-		mPassDataSet, mMaterialDataSet, mObjectDataSet
+		mPassDataSet, 
+		mMaterialDataSet, 
+		mObjectDataSet
 	};
 	cmd.bindDescriptorSets( 
 		vk::PipelineBindPoint::eGraphics, mSingleMaterialPipeline.pipelineLayout, 0, 3, descriptorSets, 0, nullptr		
