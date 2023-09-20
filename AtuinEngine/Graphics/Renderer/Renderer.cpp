@@ -32,7 +32,8 @@ Renderer::Renderer() :
 	pResources {nullptr},
 	pDescriptorSetAllocator {nullptr}, 
 	pDescriptorLayoutCache {nullptr}, 
-	mFrameCount {0}
+	mFrameCount {0},
+	mMeshesDirty {false}
 {
 
 }
@@ -65,29 +66,18 @@ void Renderer::StartUp(GLFWwindow *window) {
     CreateDefaultPipelineBuilder();
 	CreateFrameResources();
 
+	CreateMeshPass( &mShadowMeshPass, PassType::SHADOW);
+	CreateMeshPass( &mOpaqueMeshPass, PassType::OPAQUE);
+	CreateMeshPass( &mTransparentMeshPass, PassType::TRANSPARENT);
 
-	CreateVertexBuffer();
-	CreateIndexBuffer();
-
-	// CreateShaderModules();
-	// CreateSamplers();
 	CreateDescriptorResources();
-
 	CreateDescriptorSetLayouts();
 	CreateDescriptorPool();
 	CreateDescriptorSets();
 
-	// CreatePipeline();
-	CreateMaterial( "Materials//Rusted_Iron/rusted_iron.material.json");
-	U64 materialId = SID( "Materials//Rusted_Iron/rusted_iron.material.json");
-	auto &material = mMaterials.At( materialId);
-	mMaterialDataSet = material.descriptorSet[ PassType::OPAQUE];
-	mSingleMaterialPipeline = mPipelines.At( material.pipelineId[ PassType::OPAQUE]);
 
-	// dummy model load
-	LoadModel( mResourceDir + "Meshes/Default/torus.obj");
-	UploadBufferData(mVertices.Data(), mVertices.GetSize() * sizeof(mVertices[0]), mCombinedVertexBuffer.buffer);
-	UploadBufferData(mIndices.Data(), mIndices.GetSize() * sizeof(mIndices[0]), mCombinedIndexBuffer.buffer);
+	CreateVertexBuffer();
+	CreateIndexBuffer();
 }
 
 
@@ -97,11 +87,35 @@ void Renderer::ShutDown() {
 
 	mDeletionStack.Flush();
 
-	// vertex and index buffers
+	// deletion of sporadically recreated buffers
 	pCore->Device().destroyBuffer( mCombinedVertexBuffer.buffer);
-	pCore->Device().freeMemory( mCombinedVertexBuffer.bufferMemory);
+	pCore->Device().freeMemory(    mCombinedVertexBuffer.bufferMemory);
 	pCore->Device().destroyBuffer( mCombinedIndexBuffer.buffer);
-	pCore->Device().freeMemory( mCombinedIndexBuffer.bufferMemory);
+	pCore->Device().freeMemory(    mCombinedIndexBuffer.bufferMemory);
+	pCore->Device().destroyBuffer( mObjectBuffer.buffer);
+	pCore->Device().freeMemory(    mObjectBuffer.bufferMemory);
+
+	pCore->Device().destroyBuffer( mShadowMeshPass.drawIndirectBuffer.buffer);
+	pCore->Device().freeMemory(    mShadowMeshPass.drawIndirectBuffer.bufferMemory);
+	pCore->Device().destroyBuffer( mShadowMeshPass.instanceDataBuffer.buffer);
+	pCore->Device().freeMemory(    mShadowMeshPass.instanceDataBuffer.bufferMemory);
+	pCore->Device().destroyBuffer( mShadowMeshPass.instanceIdxBuffer.buffer);
+	pCore->Device().freeMemory(    mShadowMeshPass.instanceIdxBuffer.bufferMemory);
+
+	pCore->Device().destroyBuffer( mOpaqueMeshPass.drawIndirectBuffer.buffer);
+	pCore->Device().freeMemory(    mOpaqueMeshPass.drawIndirectBuffer.bufferMemory);
+	pCore->Device().destroyBuffer( mOpaqueMeshPass.instanceDataBuffer.buffer);
+	pCore->Device().freeMemory(    mOpaqueMeshPass.instanceDataBuffer.bufferMemory);
+	pCore->Device().destroyBuffer( mOpaqueMeshPass.instanceIdxBuffer.buffer);
+	pCore->Device().freeMemory(    mOpaqueMeshPass.instanceIdxBuffer.bufferMemory);
+
+	pCore->Device().destroyBuffer( mTransparentMeshPass.drawIndirectBuffer.buffer);
+	pCore->Device().freeMemory(    mTransparentMeshPass.drawIndirectBuffer.bufferMemory);
+	pCore->Device().destroyBuffer( mTransparentMeshPass.instanceDataBuffer.buffer);
+	pCore->Device().freeMemory(    mTransparentMeshPass.instanceDataBuffer.bufferMemory);
+	pCore->Device().destroyBuffer( mTransparentMeshPass.instanceIdxBuffer.buffer);
+	pCore->Device().freeMemory(    mTransparentMeshPass.instanceIdxBuffer.bufferMemory);
+
 
 	// presentation related
 	DestroyFramebuffers();	
@@ -131,6 +145,10 @@ void Renderer::Update() {
 
 	// TODO make async calls
 
+	if ( mMeshesDirty)
+	{
+		MergeMeshes();
+	}	
 	UpdateObjectBuffer();
 	UpdateMeshPass( &mShadowMeshPass);
 	UpdateMeshPass( &mOpaqueMeshPass);
@@ -256,11 +274,11 @@ void Renderer::RecreateSwapchain() {
 }
 
 
-void Renderer::RegisterMeshObject( const MeshObject &object) {
+U32 Renderer::RegisterMeshObject( const MeshObject &object) {
 
 	RenderObject newObject;
-	newObject.transform = object.transform;
-	newObject.sphereBounds = object.sphereBounds;
+	newObject.transform = &object.transform;
+	newObject.sphereBounds = &object.sphereBounds;
 	newObject.meshId = RegisterMesh( object.meshName);
 	newObject.materialId = RegisterMaterial( object.materialName);
 	// newObject.passIndex created after batch processing
@@ -285,6 +303,8 @@ void Renderer::RegisterMeshObject( const MeshObject &object) {
 	{
 		mTransparentMeshPass.unbatchedIndices.PushBack( objIdx);
 	}
+
+	return objIdx;
 }
 
 
@@ -294,6 +314,7 @@ U64 Renderer::RegisterMesh( std::string_view meshName) {
 	if ( mMeshes.Find( meshId) == mMeshes.End())
 	{
 		CreateMesh( meshName);
+		mMeshesDirty = true;
 		// TODO catch fail state if mesh file does not exist -> log warning and return default/error mesh ID
 	}
 
@@ -319,7 +340,7 @@ void Renderer::CreateMesh( std::string_view meshName) {
 	U64 meshId = SID( meshName.data());
 	Mesh newMesh;
 
-	newMesh.meshData = pResources->GetMesh( meshName);
+	newMesh.meshData = pResources->GetMesh( mResourceDir + meshName.data());
 	newMesh.vertexCount = (U32)newMesh.meshData->vertices.GetSize();
 	newMesh.indexCount = (U32)newMesh.meshData->indices.GetSize();
 
@@ -511,8 +532,8 @@ void Renderer::CreatePipeline( std::string_view pipelineName) {
 			vk::DescriptorType type = JsonVk::GetDescriptorType( bindingJson.At( "type").ToString());
 
 			vk::ShaderStageFlags stages;
-			auto stageNames = bindingJson.At( "stages").GetList();
-			for ( auto stage : stageNames)
+			auto &stageNames = bindingJson.At( "stages").GetList();
+			for ( auto &stage : stageNames)
 			{
 				stages |= JsonVk::GetShaderStage( stage.ToString());
 			}
@@ -732,6 +753,7 @@ void Renderer::MergeMeshes() {
 
 
 void Renderer::UpdateMeshPass( MeshPass *pass) {
+
 	// TODO use better sortKey including the materials pipeline
 
 	// handle deleted render objects
@@ -829,6 +851,7 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 	// rebuild indirect batches
 	BuildMeshPassBatches(pass);
 
+	// TODO update descriptors after creating new buffer
 	// resize Gpu side buffers if necessary
 	if ( pass->drawIndirectBuffer.bufferSize < pass->indirectBatches.GetSize() * sizeof(IndirectData))
 	{
@@ -964,9 +987,9 @@ void Renderer::UpdateMeshPassBatchBuffer( MeshPass *pass) {
 			.setFirstIndex( mesh.firstIndex )
 			.setIndexCount( mesh.indexCount )
 			.setFirstInstance( batch.first )
-			.setInstanceCount( 0 );
+			.setInstanceCount( batch.count );
+			// .setInstanceCount( 0 ); // TODO set to 0 when culling is implemented
 	}
-
 	pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
 
 	// upload buffer data to Gpu memory
@@ -1010,11 +1033,20 @@ void Renderer::UpdateMeshPassInstanceBuffer( MeshPass *pass) {
 	pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
 
 	// upload buffer data to Gpu memory
-	CopyBuffer( stagingBuffer.buffer, pass->drawIndirectBuffer.buffer, 0, stagingBuffer.bufferSize);
+	CopyBuffer( stagingBuffer.buffer, pass->instanceDataBuffer.buffer, 0, stagingBuffer.bufferSize);
 
 	// cleanup
 	pCore->Device().destroyBuffer( stagingBuffer.buffer);
 	pCore->Device().freeMemory( stagingBuffer.bufferMemory);
+}
+
+
+void Renderer::UpdateMeshObject( U32 objectIdx) {
+
+	if ( !mRenderObjects[ objectIdx].updated)
+	{
+		mDirtyObjectIndices.PushBack( objectIdx);
+	}	
 }
 
 
@@ -1027,6 +1059,7 @@ void Renderer::UpdateObjectBuffer() {
 	}
 
 	Size copySize = mRenderObjects.GetSize() * sizeof(ObjectData);
+
 	// recreate object buffer if necessary
 	if ( mObjectBuffer.bufferSize < copySize)
 	{
@@ -1036,6 +1069,17 @@ void Renderer::UpdateObjectBuffer() {
 			vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
 			vk::MemoryPropertyFlagBits::eDeviceLocal	
 		);
+
+		auto objectInfo = mObjectBuffer.DescriptorInfo();
+		auto objectWrite = vk::WriteDescriptorSet{}
+			.setDstSet( mObjectDataSet )
+			.setDstBinding( 0 )
+			.setDstArrayElement( 0 )
+			.setDescriptorCount( 1 )
+			.setDescriptorType( vk::DescriptorType::eStorageBuffer )
+			.setPBufferInfo( &objectInfo );	
+
+		pCore->Device().updateDescriptorSets(1, &objectWrite, 0, nullptr);
 	}
 
 	// TODO allow for partial update if not too many objects changed
@@ -1052,13 +1096,16 @@ void Renderer::UpdateObjectBuffer() {
 	ObjectData *objData = (ObjectData*)data;
 	for ( Size i = 0; i < mRenderObjects.GetSize(); i++)
 	{
-		objData[i].transform = mRenderObjects[i].transform;
+		objData[i].transform = *mRenderObjects[i].transform;
+		objData[i].sphereBounds = *mRenderObjects[i].sphereBounds;
+		mRenderObjects[i].updated = false;
 	}
-
 	pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
 
 	// upload buffer data to Gpu memory
 	CopyBuffer( stagingBuffer.buffer, mObjectBuffer.buffer, 0, stagingBuffer.bufferSize);
+
+	mDirtyObjectIndices.Clear();
 
 	// cleanup
 	pCore->Device().destroyBuffer( stagingBuffer.buffer);
@@ -1214,6 +1261,26 @@ Buffer Renderer::CreateStagingBuffer(Size bufferSize) {
 }
 
 
+void Renderer::CreateSubmitContexts() {
+
+	mGraphicsSubmit.fence = pCore->CreateFence();
+	mGraphicsSubmit.commandPool = pCore->CreateCommandPool( pCore->QueueFamilies().graphicsFamily);
+	mGraphicsSubmit.commandBuffer = pCore->AllocateCommandBuffer( mGraphicsSubmit.commandPool);
+
+	mTransferSubmit.fence = pCore->CreateFence();
+	mTransferSubmit.commandPool = pCore->CreateCommandPool( pCore->QueueFamilies().transferFamily);
+	mTransferSubmit.commandBuffer = pCore->AllocateCommandBuffer( mTransferSubmit.commandPool);
+
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyFence( mGraphicsSubmit.fence);
+		pCore->Device().destroyCommandPool( mGraphicsSubmit.commandPool);
+
+		pCore->Device().destroyFence( mTransferSubmit.fence);
+		pCore->Device().destroyCommandPool( mTransferSubmit.commandPool);
+	});
+}
+
+
 void Renderer::CreateFrameResources() {
 
 	mFrames.Resize( pFrameOverlap->Get());
@@ -1234,26 +1301,6 @@ void Renderer::CreateFrameResources() {
 			pCore->Device().destroyCommandPool( frame.commandPool);
 		});
 	}	
-}
-
-
-void Renderer::CreateSubmitContexts() {
-
-	mGraphicsSubmit.fence = pCore->CreateFence();
-	mGraphicsSubmit.commandPool = pCore->CreateCommandPool( pCore->QueueFamilies().graphicsFamily);
-	mGraphicsSubmit.commandBuffer = pCore->AllocateCommandBuffer( mGraphicsSubmit.commandPool);
-
-	mTransferSubmit.fence = pCore->CreateFence();
-	mTransferSubmit.commandPool = pCore->CreateCommandPool( pCore->QueueFamilies().transferFamily);
-	mTransferSubmit.commandBuffer = pCore->AllocateCommandBuffer( mTransferSubmit.commandPool);
-
-	mDeletionStack.Push( [&](){
-		pCore->Device().destroyFence( mGraphicsSubmit.fence);
-		pCore->Device().destroyCommandPool( mGraphicsSubmit.commandPool);
-
-		pCore->Device().destroyFence( mTransferSubmit.fence);
-		pCore->Device().destroyCommandPool( mTransferSubmit.commandPool);
-	});
 }
 
 
@@ -1366,6 +1413,33 @@ void Renderer::CreateDefaultPipelineBuilder() {
 }
 
 
+void Renderer::CreateMeshPass( MeshPass *pass, PassType type) {
+
+	pass->passType = type;
+
+	CreateBuffer(
+		pass->drawIndirectBuffer,
+		sizeof(IndirectData),
+		vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eIndirectBuffer | vk::BufferUsageFlagBits::eTransferDst,
+		vk::MemoryPropertyFlagBits::eDeviceLocal
+	);
+	
+	CreateBuffer(
+		pass->instanceDataBuffer,
+		sizeof(InstanceData),
+		vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+		vk::MemoryPropertyFlagBits::eDeviceLocal
+	);
+	
+	CreateBuffer(
+		pass->instanceIdxBuffer,
+		sizeof(U32),
+		vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+		vk::MemoryPropertyFlagBits::eDeviceLocal
+	);
+}
+
+
 void Renderer::CreateSamplers() {
 
 	mSampler = pCore->CreateSampler(
@@ -1404,23 +1478,18 @@ void Renderer::CreateDescriptorResources() {
 		pCore->Device().destroyBuffer( mSceneBuffer.buffer);
 		pCore->Device().freeMemory( mSceneBuffer.bufferMemory);
 	});
+	
 
-	CreateImage( mMaterialAlbedoImage, mResourceDir + "Materials/Rusted_Iron/rusted_iron_albedo.png", vk::Format::eR8G8B8A8Srgb);
-	CreateImage( mMaterialNormalImage, mResourceDir + "Materials/Default/default_normal.png");
-	CreateImage( mMaterialMetallicImage, mResourceDir + "Materials/Rusted_Iron/rusted_iron_metallic.png");
-	CreateImage( mMaterialRoughnessImage, mResourceDir + "Materials/Rusted_Iron/rusted_iron_roughness.png");
-	CreateImage( mMaterialAoImage, mResourceDir + "Materials/Default/default_white.png");
+	// mObjectBuffer.bufferSize = sizeof(ObjectData);
+	// mObjectBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
+	// mObjectBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
+	// mObjectBuffer.buffer = pCore->CreateBuffer( mObjectBuffer.bufferSize, mObjectBuffer.usage);
+	// mObjectBuffer.bufferMemory = pCore->AllocateBufferMemory( mObjectBuffer.buffer, mObjectBuffer.memoryType);
 
-	mObjectBuffer.bufferSize = sizeof(ObjectData);
-	mObjectBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
-	mObjectBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
-	mObjectBuffer.buffer = pCore->CreateBuffer( mObjectBuffer.bufferSize, mObjectBuffer.usage);
-	mObjectBuffer.bufferMemory = pCore->AllocateBufferMemory( mObjectBuffer.buffer, mObjectBuffer.memoryType);
-
-	mDeletionStack.Push( [&](){
-		pCore->Device().destroyBuffer( mObjectBuffer.buffer);
-		pCore->Device().freeMemory( mObjectBuffer.bufferMemory);
-	});
+	// mDeletionStack.Push( [&](){
+	// 	pCore->Device().destroyBuffer( mObjectBuffer.buffer);
+	// 	pCore->Device().freeMemory( mObjectBuffer.bufferMemory);
+	// });
 }
 
 
@@ -1496,51 +1565,20 @@ void Renderer::CreateDescriptorSetLayouts() {
 		cameraDataBinding, sceneDataBinding
 	};
 	mPassDataLayout = pCore->CreateDescriptorSetLayout(2, passBindings);	
-			
-	// auto albedoSamplerBinding = vk::DescriptorSetLayoutBinding{}
-	// 	.setBinding( 0 )
-	// 	.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
-	// 	.setDescriptorCount( 1 )
-	// 	.setStageFlags( vk::ShaderStageFlagBits::eFragment );
-	// auto normalSamplerBinding = vk::DescriptorSetLayoutBinding{}
-	// 	.setBinding( 1 )
-	// 	.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
-	// 	.setDescriptorCount( 1 )
-	// 	.setStageFlags( vk::ShaderStageFlagBits::eFragment );		
-	// auto metallicSamplerBinding = vk::DescriptorSetLayoutBinding{}
-	// 	.setBinding( 2 )
-	// 	.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
-	// 	.setDescriptorCount( 1 )
-	// 	.setStageFlags( vk::ShaderStageFlagBits::eFragment );	
-	// auto roughnessSamplerBinding = vk::DescriptorSetLayoutBinding{}
-	// 	.setBinding( 3 )
-	// 	.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
-	// 	.setDescriptorCount( 1 )
-	// 	.setStageFlags( vk::ShaderStageFlagBits::eFragment );	
-	// auto aoSamplerBinding = vk::DescriptorSetLayoutBinding{}
-	// 	.setBinding( 4 )
-	// 	.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
-	// 	.setDescriptorCount( 1 )
-	// 	.setStageFlags( vk::ShaderStageFlagBits::eFragment );
-
-	// vk::DescriptorSetLayoutBinding materialBindings[] = {
-	// 	albedoSamplerBinding, normalSamplerBinding, metallicSamplerBinding, roughnessSamplerBinding, aoSamplerBinding
-	// };
-	// mMaterialDataLayout = pCore->CreateDescriptorSetLayout(5, materialBindings);
-
 
 	auto objectDataBinding = vk::DescriptorSetLayoutBinding{}
 		.setBinding( 0 )
-		.setDescriptorType( vk::DescriptorType::eUniformBuffer )
+		.setDescriptorType( vk::DescriptorType::eStorageBuffer )
 		.setDescriptorCount( 1 )
 		.setStageFlags( vk::ShaderStageFlagBits::eVertex );
+
+	// TODO add descriptor for instance index buffer
 	
 	mObjectDataLayout = pCore->CreateDescriptorSetLayout(1, &objectDataBinding);
 
 	mDeletionStack.Push( [&](){
 		pCore->Device().destroyDescriptorSetLayout( mPassDataLayout);
 		pCore->Device().destroyDescriptorSetLayout( mObjectDataLayout);
-		// pCore->Device().destroyDescriptorSetLayout( mMaterialDataLayout); 
 	});
 }
 
@@ -1550,10 +1588,11 @@ void Renderer::CreateDescriptorPool() {
 	vk::DescriptorPoolSize poolSizes[] = {
 
 		{vk::DescriptorType::eUniformBuffer,  10 * pFrameOverlap->Get()},
+		{vk::DescriptorType::eStorageBuffer,  10 * pFrameOverlap->Get()},
 		{vk::DescriptorType::eCombinedImageSampler,  10 * pFrameOverlap->Get()}
 	};
 
-	mDescriptorPool = pCore->CreateDescriptorPool(10*pFrameOverlap->Get(), 2, poolSizes);
+	mDescriptorPool = pCore->CreateDescriptorPool(10*pFrameOverlap->Get(), 3, poolSizes);
 
 	mDeletionStack.Push( [&](){
 		pCore->Device().destroyDescriptorPool( mDescriptorPool);
@@ -1565,13 +1604,11 @@ void Renderer::CreateDescriptorSets() {
 
 	vk::DescriptorSetLayout descriptorSetLayouts[] = {
 		mPassDataLayout, 
-		// mMaterialDataLayout, 
 		mObjectDataLayout
 	};
 	auto descriptorSets = pCore->AllocateDescriptorSets(mDescriptorPool, 2, descriptorSetLayouts);
 
 	mPassDataSet = descriptorSets[0];
-	// mMaterialDataSet = descriptorSets[1];
 	mObjectDataSet = descriptorSets[1];
 
 
@@ -1593,66 +1630,20 @@ void Renderer::CreateDescriptorSets() {
 		.setDescriptorType( vk::DescriptorType::eUniformBuffer )
 		.setPBufferInfo( &sceneInfo );
 
-	// auto materialAlbedoInfo = mMaterialAlbedoImage.DescriptorInfo( mSampler);
-	// auto materialAlbedoWrite = vk::WriteDescriptorSet{}
-	// 	.setDstSet( mMaterialDataSet )
+	// auto objectInfo = mObjectBuffer.DescriptorInfo();
+	// auto objectWrite = vk::WriteDescriptorSet{}
+	// 	.setDstSet( mObjectDataSet )
 	// 	.setDstBinding( 0 )
 	// 	.setDstArrayElement( 0 )
 	// 	.setDescriptorCount( 1 )
-	// 	.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
-	// 	.setPImageInfo( &materialAlbedoInfo );
-
-	// auto materialNormalInfo = mMaterialNormalImage.DescriptorInfo( mSampler);
-	// auto materialNormalWrite = vk::WriteDescriptorSet{}
-	// 	.setDstSet( mMaterialDataSet )
-	// 	.setDstBinding( 1 )
-	// 	.setDstArrayElement( 0 )
-	// 	.setDescriptorCount( 1 )
-	// 	.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
-	// 	.setPImageInfo( &materialNormalInfo );
-
-	// auto materialMetallicInfo = mMaterialMetallicImage.DescriptorInfo( mSampler);
-	// auto materialMetallicWrite = vk::WriteDescriptorSet{}
-	// 	.setDstSet( mMaterialDataSet )
-	// 	.setDstBinding( 2 )
-	// 	.setDstArrayElement( 0 )
-	// 	.setDescriptorCount( 1 )
-	// 	.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
-	// 	.setPImageInfo( &materialMetallicInfo );
-
-	// auto materialRoughnessInfo = mMaterialRoughnessImage.DescriptorInfo( mSampler);
-	// auto materialRoughnessWrite = vk::WriteDescriptorSet{}
-	// 	.setDstSet( mMaterialDataSet )
-	// 	.setDstBinding( 3 )
-	// 	.setDstArrayElement( 0 )
-	// 	.setDescriptorCount( 1 )
-	// 	.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
-	// 	.setPImageInfo( &materialRoughnessInfo );
-		
-	// auto materialAoInfo = mMaterialAoImage.DescriptorInfo( mSampler);
-	// auto materialAoWrite = vk::WriteDescriptorSet{}
-	// 	.setDstSet( mMaterialDataSet )
-	// 	.setDstBinding( 4 )
-	// 	.setDstArrayElement( 0 )
-	// 	.setDescriptorCount( 1 )
-	// 	.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
-	// 	.setPImageInfo( &materialAoInfo );
-
-	auto objectInfo = mObjectBuffer.DescriptorInfo();
-	auto objectWrite = vk::WriteDescriptorSet{}
-		.setDstSet( mObjectDataSet )
-		.setDstBinding( 0 )
-		.setDstArrayElement( 0 )
-		.setDescriptorCount( 1 )
-		.setDescriptorType( vk::DescriptorType::eUniformBuffer )
-		.setPBufferInfo( &objectInfo );	
+	// 	.setDescriptorType( vk::DescriptorType::eStorageBuffer )
+	// 	.setPBufferInfo( &objectInfo );	
 
 	vk::WriteDescriptorSet descriptorWrites[] = {
-		cameraWrite, sceneWrite, 
-		//materialAlbedoWrite, materialNormalWrite, materialMetallicWrite, materialRoughnessWrite, materialAoWrite, 
-		objectWrite
+		cameraWrite, sceneWrite
+		//, objectWrite
 	};
-	pCore->Device().updateDescriptorSets(3, descriptorWrites, 0, nullptr);
+	pCore->Device().updateDescriptorSets(2, descriptorWrites, 0, nullptr);
 }
 
 
@@ -1677,32 +1668,6 @@ void Renderer::CreatePipeline() {
 
 	U64 id =  SID( "Pipelines/pbr_material.pipeline.json");	
 	mSingleMaterialPipeline = mPipelines[ id];
-
-	// GraphicsPipelineBuilder pipelineBuilder = mDefaultPipelineBuilder;
-
-	// // pipeline layout
-	// pipelineBuilder.descriptorLayouts = {
-	// 	mPassDataLayout, mMaterialDataLayout, mObjectDataLayout
-	// };
-
-	// // shader stages
-	// pipelineBuilder.shaderInfos = {
-	// 	vk::PipelineShaderStageCreateInfo{}
-	// 		.setStage( vk::ShaderStageFlagBits::eVertex )
-	// 		.setModule( mMeshVertShader )
-	// 		.setPName( "main" ),
-	// 	vk::PipelineShaderStageCreateInfo{}
-	// 		.setStage( vk::ShaderStageFlagBits::eFragment )
-	// 		.setModule( mMaterialFragShader )
-	// 		.setPName( "main" )
-	// };
-
-	// mSingleMaterialPipeline = pipelineBuilder.Build( pCore->Device(), mForwardPass);
-
-	// mDeletionStack.Push( [&](){
-	// 	pCore->Device().destroyPipeline( mSingleMaterialPipeline.pipeline);
-	// 	pCore->Device().destroyPipelineLayout( mSingleMaterialPipeline.pipelineLayout);
-	// });
 }
 
 
@@ -1867,7 +1832,7 @@ void Renderer::DrawFrame() {
 	
 	UpdateCameraData();
 	UpdateScenedata();
-	UpdateObjectData();
+	// UpdateObjectData();
 
 
 	vk::Result result;
@@ -1947,26 +1912,55 @@ void Renderer::DrawFrame() {
 	cmd.setScissor( 0, 1, &scissor);
 
 
-	cmd.bindPipeline(
-		vk::PipelineBindPoint::eGraphics, mSingleMaterialPipeline.pipeline
-	);
-
-	vk::Buffer vertexBuffers[] = {mCombinedVertexBuffer.buffer};
-	Size offsets[] = {0};
-	cmd.bindVertexBuffers( 0, 1, vertexBuffers, offsets);
+	Size offset = 0;
+	cmd.bindVertexBuffers( 0, 1, &mCombinedVertexBuffer.buffer, &offset);
 	cmd.bindIndexBuffer( mCombinedIndexBuffer.buffer, 0, vk::IndexType::eUint32);
 
-		
-	vk::DescriptorSet descriptorSets[] = {
-		mPassDataSet, 
-		mMaterialDataSet, 
-		mObjectDataSet
-	};
-	cmd.bindDescriptorSets( 
-		vk::PipelineBindPoint::eGraphics, mSingleMaterialPipeline.pipelineLayout, 0, 3, descriptorSets, 0, nullptr		
-	);
 
-	cmd.drawIndexed( (U32)mIndices.GetSize(), 1, 0, 0, 0);
+	// mesh pass
+
+	MeshPass &pass = mOpaqueMeshPass;
+	U64 lastPipelineId = 0;
+	U64 lastMaterialId = 0;
+	for (auto &multibatch : pass.multiBatches)
+	{
+		IndirectBatch batch = pass.indirectBatches[ multibatch.first];
+
+		RenderObject &object = mRenderObjects[ batch.objectIdx];
+		Material &material = mMaterials[ object.materialId];
+		Pipeline &pipeline = mPipelines[ material.pipelineId[ PassType::OPAQUE]];
+
+		if ( material.pipelineId[ PassType::OPAQUE] != lastPipelineId)
+		{
+			cmd.bindPipeline(
+				vk::PipelineBindPoint::eGraphics, pipeline.pipeline
+			);
+
+			cmd.bindDescriptorSets( 
+				vk::PipelineBindPoint::eGraphics, pipeline.pipelineLayout, 0, 1, &mPassDataSet, 0, nullptr
+			);
+			cmd.bindDescriptorSets( 
+				vk::PipelineBindPoint::eGraphics,pipeline.pipelineLayout, 2, 1, &mObjectDataSet, 0, nullptr		
+			);
+
+			lastPipelineId = material.pipelineId[ PassType::OPAQUE];
+		}
+
+		if ( object.materialId != lastMaterialId)
+		{
+			cmd.bindDescriptorSets( 
+				vk::PipelineBindPoint::eGraphics, pipeline.pipelineLayout, 1, 1, &material.descriptorSet[ PassType::OPAQUE], 0, nullptr		
+			);
+
+			lastMaterialId = object.materialId;
+		}
+		
+		cmd.drawIndexedIndirect( pass.drawIndirectBuffer.buffer, multibatch.first * sizeof(IndirectData), multibatch.count, sizeof(IndirectData));
+	}
+
+
+	// cmd.drawIndexed( (U32)mIndices.GetSize(), 1, 0, 0, 0);
+
 
 	cmd.endRenderPass();
 	

@@ -21,7 +21,6 @@
 #include <functional>
 
 
-
 class GLFWwindow;
 
 namespace Atuin {
@@ -69,22 +68,23 @@ struct MeshObject {
     glm::mat4 transform;
     glm::vec4 sphereBounds;
 
-    // Mesh* mesh;
-    // Material* material;
     std::string meshName;
     std::string materialName;
+
+    U32 objectIdx;
 };
 
 // representation of a MeshObject inside the Renderer
 struct RenderObject {
 
-    glm::mat4 transform;
-    glm::vec4 sphereBounds;
+    const glm::mat4 *transform;
+    const glm::vec4 *sphereBounds;
 
     U64 meshId;
     U64 materialId;
 
     PassData<I64> passIndex;
+    bool updated = false;
 };
 
 
@@ -92,6 +92,8 @@ class RendererCore;
 class ResourceManager;
 
 class Renderer {
+
+    friend class RenderModule;
 
 public:
 
@@ -102,8 +104,12 @@ public:
     void ShutDown();
     void Update();
 
+    U64 FrameCount() { return mFrameCount; }
+
 
 private:
+    
+    FrameResources& CurrentFrame() { return mFrames[mFrameCount % pFrameOverlap->Get()]; }
 
 	void CreateDepthResources();
     void CreateRenderPasses();
@@ -112,10 +118,10 @@ private:
     void RecreateSwapchain();
     void CreateSubmitContexts();
     void CreateFrameResources();
-    FrameResources& CurrentFrame() { return mFrames[mFrameCount % pFrameOverlap->Get()]; }
     void CreateDefaultPipelineBuilder();
+    void CreateMeshPass( MeshPass *pass, PassType type);
 
-    void RegisterMeshObject( const MeshObject &object);
+    U32 RegisterMeshObject( const MeshObject &object);
     U64 RegisterMesh( std::string_view meshName);
     U64 RegisterMaterial( std::string_view materialName);
     void CreateMesh( std::string_view meshName);
@@ -130,6 +136,7 @@ private:
     void BuildMeshPassBatches( MeshPass *pass);
     void UpdateMeshPassBatchBuffer( MeshPass *pass);
     void UpdateMeshPassInstanceBuffer( MeshPass *pass);
+    void UpdateMeshObject( U32 objectIdx);
     void UpdateObjectBuffer();
 
     void CreateBuffer( Buffer &buffer, Size size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags memoryType);
@@ -210,6 +217,8 @@ private:
     Array<RenderObject> mRenderObjects;
     // indices of objects that have been updated since last frame
     Array<U32> mDirtyObjectIndices;
+    // flag to indicate changes in meshes
+    bool mMeshesDirty;
 
     // render resource caches
     Map<U64, Mesh> mMeshes;

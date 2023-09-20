@@ -26,9 +26,10 @@ public:
 private:
 
     GLFWwindow* pWindow;
-
     Renderer mRenderer;
 
+
+    MeshObject mTestObject;
 };
 
     

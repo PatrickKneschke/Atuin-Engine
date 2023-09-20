@@ -108,7 +108,7 @@ struct MeshPass {
     Buffer drawIndirectBuffer;
     // GPU buffer containing objectId for each instance after culling
     Buffer instanceIdxBuffer;
-    // GPU buffer to hold indirect batch ID and object ID for each instance
+    // GPU buffer to hold indirect batch index and object index for each instance
     Buffer instanceDataBuffer;
 
     // dirty flags
