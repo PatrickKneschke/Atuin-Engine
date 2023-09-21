@@ -76,8 +76,8 @@ void Renderer::StartUp(GLFWwindow *window) {
 	CreateDescriptorSets();
 
 
-	CreateVertexBuffer();
-	CreateIndexBuffer();
+	// CreateVertexBuffer();
+	// CreateIndexBuffer();
 }
 
 
@@ -148,6 +148,7 @@ void Renderer::Update() {
 	if ( mMeshesDirty)
 	{
 		MergeMeshes();
+		mMeshesDirty = false;
 	}	
 	UpdateObjectBuffer();
 	UpdateMeshPass( &mShadowMeshPass);
@@ -274,7 +275,7 @@ void Renderer::RecreateSwapchain() {
 }
 
 
-U32 Renderer::RegisterMeshObject( const MeshObject &object) {
+void Renderer::RegisterMeshObject( MeshObject &object) {
 
 	RenderObject newObject;
 	newObject.transform = &object.transform;
@@ -284,6 +285,8 @@ U32 Renderer::RegisterMeshObject( const MeshObject &object) {
 	// newObject.passIndex created after batch processing
 
 	U32 objIdx = (U32)mRenderObjects.GetSize();
+	object.objectIdx = objIdx;
+
 	mRenderObjects.PushBack( newObject);
 	mDirtyObjectIndices.PushBack( objIdx);
 	
@@ -303,8 +306,6 @@ U32 Renderer::RegisterMeshObject( const MeshObject &object) {
 	{
 		mTransparentMeshPass.unbatchedIndices.PushBack( objIdx);
 	}
-
-	return objIdx;
 }
 
 
@@ -325,7 +326,7 @@ U64 Renderer::RegisterMesh( std::string_view meshName) {
 U64 Renderer::RegisterMaterial( std::string_view materialName) {
 
 	U64 materialId = SID( materialName.data());
-	if ( mMeshes.Find( materialId) == mMeshes.End())
+	if ( mMaterials.Find( materialId) == mMaterials.End())
 	{
 		CreateMaterial( materialName);
 		// TODO catch fail state if material file does not exist -> log warning and return default/error material ID
@@ -694,8 +695,9 @@ void Renderer::MergeMeshes() {
 		totalIndices += mesh.indexCount;
 	}
 
+
 	// recreate vertex and index buffers if they are too small
-	if( totalVertices > mCombinedVertexBuffer.bufferSize)
+	if( mCombinedVertexBuffer.bufferSize < totalVertices * sizeof( Vertex))
 	{
 		CreateBuffer( 
 			mCombinedVertexBuffer,
@@ -704,7 +706,7 @@ void Renderer::MergeMeshes() {
 			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
 	}
-	if( totalIndices > mCombinedIndexBuffer.bufferSize)
+	if( mCombinedIndexBuffer.bufferSize < totalIndices * sizeof( U32))
 	{
 		CreateBuffer( 
 			mCombinedIndexBuffer,
@@ -755,11 +757,12 @@ void Renderer::MergeMeshes() {
 void Renderer::UpdateMeshPass( MeshPass *pass) {
 
 	// TODO use better sortKey including the materials pipeline
+	// TODO use pass objects after all -> lookup into mRenderobjects after deletion incorrect
 
 	// handle deleted render objects
 	if ( !pass->deleteObjectIndices.IsEmpty())
 	{
-		mLog.Info( LogChannel::GRAPHICS, FormatStr( "Deleting %d objects from mesh pass %d.", pass->deleteObjectIndices.GetSize(), (U8)pass->passType));
+		// mLog.Info( LogChannel::GRAPHICS, FormatStr( "Deleting %d objects from mesh pass %d.", pass->deleteObjectIndices.GetSize(), (U8)pass->passType));
 
 		// render batches of deleted objects
 		Array<RenderBatch> deleteBatches;
@@ -792,11 +795,11 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 	// handle unbatched objects
 	if ( !pass->unbatchedIndices.IsEmpty())
 	{
-		mLog.Info( LogChannel::GRAPHICS, FormatStr( "Adding %d objects to mesh pass %d.", pass->unbatchedIndices.GetSize(), (U8)pass->passType));
+		// mLog.Info( LogChannel::GRAPHICS, FormatStr( "Adding %d objects to mesh pass %d.", pass->unbatchedIndices.GetSize(), (U8)pass->passType));
 
 		Array<RenderBatch> newBatches;
 		newBatches.Reserve( pass->unbatchedIndices.GetSize());
-		for ( U32 idx : pass->unbatchedIndices)
+		for ( U32 objIdx : pass->unbatchedIndices)
 		{
 			// insert new render object and create renderbatch for it
 			U32 newIndex;
@@ -804,19 +807,19 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 			{
 				newIndex = pass->reuseObjectIndices.Back();
 				pass->reuseObjectIndices.PopBack();
-				pass->objectIndices[ newIndex] = idx;
+				pass->objectIndices[ newIndex] = objIdx;
 			}
 			else
 			{
 				newIndex = (U32)pass->objectIndices.GetSize();
-				pass->objectIndices.PushBack( idx);
+				pass->objectIndices.PushBack( objIdx);
 			}
 
-			RenderObject &obj = mRenderObjects[ pass->objectIndices[idx]];
+			RenderObject &obj = mRenderObjects[ objIdx];
 			obj.passIndex[ pass->passType] = newIndex;
 			
 			RenderBatch newBatch;
-			newBatch.objectIdx = newIndex;
+			newBatch.objectIdx = objIdx;
 			newBatch.sortKey = (U64)obj.materialId << 32 | obj.meshId;
 			newBatches.PushBack( newBatch);
 		}
@@ -905,7 +908,7 @@ void Renderer::BuildMeshPassBatches( MeshPass *pass) {
 	IndirectBatch newBatch;
 	newBatch.first = 0;
 	newBatch.count = 0;
-	newBatch.objectIdx = 0;
+	newBatch.objectIdx = pass->renderBatches[0].objectIdx;
 	
 	MultiBatch newMultiBatch;
 	newMultiBatch.first = 0;
@@ -914,8 +917,8 @@ void Renderer::BuildMeshPassBatches( MeshPass *pass) {
 	pass->indirectBatches.PushBack( newBatch);
 	pass->multiBatches.PushBack( newMultiBatch);
 
-	U64 lastMaterial = mRenderObjects[ pass->renderBatches[0].objectIdx].materialId;
-	U64 lastMesh = mRenderObjects[ pass->renderBatches[0].objectIdx].meshId;
+	U64 lastMaterial = mRenderObjects[ newBatch.objectIdx].materialId;
+	U64 lastMesh = mRenderObjects[ newBatch.objectIdx].meshId;
 
 	U32 numBatches = (U32)pass->renderBatches.GetSize();
 	for ( U32 idx = 0; idx < numBatches; idx++)
@@ -981,14 +984,14 @@ void Renderer::UpdateMeshPassBatchBuffer( MeshPass *pass) {
 		Mesh &mesh = mMeshes[ mRenderObjects[batch.objectIdx].meshId ];
 
 		indirectData[i].batchIdx = i;
-		indirectData[i].objectIdx = 0;
+		indirectData[i].objectIdx = batch.objectIdx;
 		indirectData[i].drawIndirectCmd
 			.setVertexOffset( mesh.firstVertex )
 			.setFirstIndex( mesh.firstIndex )
 			.setIndexCount( mesh.indexCount )
 			.setFirstInstance( batch.first )
 			.setInstanceCount( batch.count );
-			// .setInstanceCount( 0 ); // TODO set to 0 when culling is implemented
+			// .setInstanceCount( 0 ); // TODO set to 0 when culling is implemented		
 	}
 	pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
 
@@ -2016,7 +2019,8 @@ void Renderer::DrawFrame() {
 void Renderer::UpdateCameraData() {
 
 	CameraData camera;
-	camera.position = {2.f, 3.f, 4.f};
+	float unit = 25;
+	camera.position = {2.f * unit, 5.f * unit, 3.f * unit};
 	// float angle = (float)mFrameCount / 120.f * glm::radians(30.f);
 	// camera.position = {4.f*cos(angle), 0.f, 4.f*sin(angle)};
 	camera.view = glm::lookAt(
@@ -2027,7 +2031,7 @@ void Renderer::UpdateCameraData() {
 	camera.proj = glm::perspective(
 		glm::radians(60.f),
 		(float)mSwapchain.extent.width / (float)mSwapchain.extent.height,
-		0.1f, 100.0f
+		0.1f, 1000.0f
 	);
 	camera.proj[1][1] *= -1; // flip y scaling factor -> correction of OpenGL inverse y-axis
 	camera.viewProj = camera.proj * camera.view;
@@ -2038,7 +2042,7 @@ void Renderer::UpdateCameraData() {
 
 void Renderer::UpdateScenedata() {
 
-	float angle = (float)mFrameCount / 120.f * glm::radians(30.f);
+	float angle = (float)mFrameCount / 60.f * glm::radians(30.f);
 	glm::vec3 direction = {cos(angle), 0.f, sin(angle)};
 	SceneData scene;
 	scene.ambient = {

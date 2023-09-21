@@ -88,12 +88,22 @@ void EngineLoop::Run() {
 
     StartUp();
 
-    int frame = 0;
+    U64 frame = 0;
+    double prevTime = 0, currTime = 0;
     while (mRunning)
     {
         Update();
 
         ++frame;
+
+        mGameClock.Update();
+        currTime = mGameClock.ElapsedUnscaledTime();
+        if ( currTime - prevTime >= 1.0)
+        {
+            std::cout << frame / (currTime - prevTime) << '\n';
+            prevTime = currTime;
+            frame = 0;
+        }
     }
 
     ShutDown();

@@ -121,7 +121,7 @@ private:
     void CreateDefaultPipelineBuilder();
     void CreateMeshPass( MeshPass *pass, PassType type);
 
-    U32 RegisterMeshObject( const MeshObject &object);
+    void RegisterMeshObject( MeshObject &object);
     U64 RegisterMesh( std::string_view meshName);
     U64 RegisterMaterial( std::string_view materialName);
     void CreateMesh( std::string_view meshName);

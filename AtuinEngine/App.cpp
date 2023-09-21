@@ -57,6 +57,8 @@ App::~App() {
 
 void App::StartUp() {
 
+    std::srand( std::time(nullptr));
+
     pLog->StartUp();
     pJobs->StartUp();
 
