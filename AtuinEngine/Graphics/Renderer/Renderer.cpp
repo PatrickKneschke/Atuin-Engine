@@ -882,6 +882,17 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 			vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
 			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
+
+		auto instanceInfo = pass->instanceIdxBuffer.DescriptorInfo();
+		auto instanceWrite = vk::WriteDescriptorSet{}
+			.setDstSet( mObjectDataSet )
+			.setDstBinding( 1 )
+			.setDstArrayElement( 0 )
+			.setDescriptorCount( 1 )
+			.setDescriptorType( vk::DescriptorType::eStorageBuffer )
+			.setPBufferInfo( &instanceInfo );	
+
+		pCore->Device().updateDescriptorSets(1, &instanceWrite, 0, nullptr);
 	}
 
 	// update gpu side buffers
@@ -1011,7 +1022,7 @@ void Renderer::UpdateMeshPassInstanceBuffer( MeshPass *pass) {
 		return;
 	}
 
-	Size copySize = pass->indirectBatches.GetSize() * sizeof(InstanceData);
+	Size copySize = pass->renderBatches.GetSize() * sizeof(InstanceData);
 
 	// fill staging buffer
 	Buffer stagingBuffer = CreateStagingBuffer( copySize);
@@ -1032,7 +1043,6 @@ void Renderer::UpdateMeshPassInstanceBuffer( MeshPass *pass) {
 			instanceData[ batch.first + i].objectIdx = pass->renderBatches[ batch.first + i].objectIdx;
 		}
 	}
-
 	pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
 
 	// upload buffer data to Gpu memory
@@ -1041,6 +1051,38 @@ void Renderer::UpdateMeshPassInstanceBuffer( MeshPass *pass) {
 	// cleanup
 	pCore->Device().destroyBuffer( stagingBuffer.buffer);
 	pCore->Device().freeMemory( stagingBuffer.bufferMemory);
+
+
+
+
+	// TODO fill isntance buffer later in culling pass
+	copySize = pass->renderBatches.GetSize() * sizeof(U32);
+
+	// fill staging buffer
+	Buffer stagingBuffer2 = CreateStagingBuffer( copySize);
+	result = pCore->Device().mapMemory( stagingBuffer2.bufferMemory, 0, copySize, vk::MemoryMapFlags(), &data);
+	if( result != vk::Result::eSuccess )
+	{
+		throw std::runtime_error("Failed to map staging buffer memory " + vk::to_string(result));
+	}
+
+	U32 *instanceIdx = (U32*)data;
+	for ( U32 batchIdx = 0; batchIdx < pass->indirectBatches.GetSize(); batchIdx++)
+	{
+		IndirectBatch batch = pass->indirectBatches[ batchIdx];
+		for ( U32 i = 0; i < batch.count; i++)
+		{
+			instanceIdx[ batch.first + i] = pass->renderBatches[ batch.first + i].objectIdx;
+		}
+	}
+	pCore->Device().unmapMemory( stagingBuffer2.bufferMemory);
+
+	// upload buffer data to Gpu memory
+	CopyBuffer( stagingBuffer2.buffer, pass->instanceIdxBuffer.buffer, 0, stagingBuffer2.bufferSize);
+
+	// cleanup
+	pCore->Device().destroyBuffer( stagingBuffer2.buffer);
+	pCore->Device().freeMemory( stagingBuffer2.bufferMemory);
 }
 
 
@@ -1481,18 +1523,6 @@ void Renderer::CreateDescriptorResources() {
 		pCore->Device().destroyBuffer( mSceneBuffer.buffer);
 		pCore->Device().freeMemory( mSceneBuffer.bufferMemory);
 	});
-	
-
-	// mObjectBuffer.bufferSize = sizeof(ObjectData);
-	// mObjectBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
-	// mObjectBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
-	// mObjectBuffer.buffer = pCore->CreateBuffer( mObjectBuffer.bufferSize, mObjectBuffer.usage);
-	// mObjectBuffer.bufferMemory = pCore->AllocateBufferMemory( mObjectBuffer.buffer, mObjectBuffer.memoryType);
-
-	// mDeletionStack.Push( [&](){
-	// 	pCore->Device().destroyBuffer( mObjectBuffer.buffer);
-	// 	pCore->Device().freeMemory( mObjectBuffer.bufferMemory);
-	// });
 }
 
 
@@ -1574,10 +1604,17 @@ void Renderer::CreateDescriptorSetLayouts() {
 		.setDescriptorType( vk::DescriptorType::eStorageBuffer )
 		.setDescriptorCount( 1 )
 		.setStageFlags( vk::ShaderStageFlagBits::eVertex );
-
-	// TODO add descriptor for instance index buffer
+	auto instanceDataBinding = vk::DescriptorSetLayoutBinding{}
+		.setBinding( 1 )
+		.setDescriptorType( vk::DescriptorType::eStorageBuffer )
+		.setDescriptorCount( 1 )
+		.setStageFlags( vk::ShaderStageFlagBits::eVertex );
 	
-	mObjectDataLayout = pCore->CreateDescriptorSetLayout(1, &objectDataBinding);
+
+	vk::DescriptorSetLayoutBinding objectBindings[] = {
+		objectDataBinding, instanceDataBinding
+	};
+	mObjectDataLayout = pCore->CreateDescriptorSetLayout(2, objectBindings);
 
 	mDeletionStack.Push( [&](){
 		pCore->Device().destroyDescriptorSetLayout( mPassDataLayout);
@@ -1633,18 +1670,9 @@ void Renderer::CreateDescriptorSets() {
 		.setDescriptorType( vk::DescriptorType::eUniformBuffer )
 		.setPBufferInfo( &sceneInfo );
 
-	// auto objectInfo = mObjectBuffer.DescriptorInfo();
-	// auto objectWrite = vk::WriteDescriptorSet{}
-	// 	.setDstSet( mObjectDataSet )
-	// 	.setDstBinding( 0 )
-	// 	.setDstArrayElement( 0 )
-	// 	.setDescriptorCount( 1 )
-	// 	.setDescriptorType( vk::DescriptorType::eStorageBuffer )
-	// 	.setPBufferInfo( &objectInfo );	
 
 	vk::WriteDescriptorSet descriptorWrites[] = {
 		cameraWrite, sceneWrite
-		//, objectWrite
 	};
 	pCore->Device().updateDescriptorSets(2, descriptorWrites, 0, nullptr);
 }
