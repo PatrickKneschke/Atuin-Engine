@@ -139,6 +139,14 @@ private:
     void UpdateMeshObject( U32 objectIdx);
     void UpdateObjectBuffer();
 
+    void UpdateCameraData();
+    void UpdateScenedata();
+    void DrawFrame();
+    void CullPassObjects( vk::CommandBuffer cmd, MeshPass *pass);
+    void DrawShadowPass( vk::CommandBuffer cmd, U32 imageIndex);
+    void DrawForwardPass( vk::CommandBuffer cmd, U32 imageIndex);
+    void RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass);
+
     void CreateBuffer( Buffer &buffer, Size size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags memoryType);
     Buffer CreateStagingBuffer(Size bufferSize);
     void UploadBufferData( void *bufferData, Size size, vk::Buffer targetBuffer, Size offset = 0);
@@ -146,27 +154,18 @@ private:
     void CopyBufferToImage(vk::Buffer buffer, vk::Image image, U32 imageWidth, U32 imageHeight);
     void CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, Size offset, Size bufferSize);
 
-
-    void CreateVertexBuffer();
-    void CreateIndexBuffer();
-
-    void CreateShaderModules();
-    void CreateSamplers();
-
     void CreateDescriptorResources();
     void CreateImage(Image &image, std::string_view path, vk::Format format = vk::Format::eR8G8B8A8Unorm);
-    void LoadModel(std::string_view path);
 
     void CreateDescriptorSetLayouts();
     void CreateDescriptorPool();
     void CreateDescriptorSets();    
 
-    void CreatePipeline();
+    void CreateSamplers();
+    void CreateShaderModules();
+    void CreatePipelines();
 
-    void DrawFrame();
-    void UpdateCameraData();
-    void UpdateScenedata();
-    void UpdateObjectData();
+
 
 
     static CVar<U32>* pFrameOverlap;
@@ -197,6 +196,8 @@ private:
     Swapchain mSwapchain;
     Image mDepthImage;
 
+    // TODO depth pyramid
+    
     // render passes and framebuffers
 
     vk::RenderPass mForwardPass;
@@ -238,17 +239,6 @@ private:
     Buffer mSceneBuffer;
     Buffer mObjectBuffer;
     
-
-    vk::Sampler mSampler;
-
-    Array<Vertex> mVertices;
-    Array<U32> mIndices;
-
-    // TODO test pipeline to render single material and mesh at a time, change later 
-    Pipeline mSingleMaterialPipeline;
-    vk::ShaderModule mMeshVertShader;
-    vk::ShaderModule mMaterialFragShader;
-
     vk::DescriptorSetLayout mPassDataLayout;
     vk::DescriptorSetLayout mMaterialDataLayout;
     vk::DescriptorSetLayout mObjectDataLayout;
@@ -256,15 +246,7 @@ private:
     vk::DescriptorPool mDescriptorPool;
     vk::DescriptorSet mPassDataSet;
     vk::DescriptorSet mMaterialDataSet;
-    vk::DescriptorSet mObjectDataSet;
-
-    Image mMaterialAlbedoImage;
-    Image mMaterialNormalImage;
-    Image mMaterialMetallicImage;
-    Image mMaterialRoughnessImage;
-    Image mMaterialAoImage;
-
-    
+    vk::DescriptorSet mObjectDataSet;   
 
 };
 

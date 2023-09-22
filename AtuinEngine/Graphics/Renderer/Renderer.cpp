@@ -1178,97 +1178,6 @@ void Renderer::CreateBuffer( Buffer &buffer, Size size, vk::BufferUsageFlags usa
 }
 
 
-void Renderer::CreateVertexBuffer() {
-
-	mCombinedVertexBuffer.bufferSize = 10000 * sizeof(Vertex);
-	mCombinedVertexBuffer.usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst;
-	mCombinedVertexBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
-	mCombinedVertexBuffer.buffer = pCore->CreateBuffer( mCombinedVertexBuffer.bufferSize, mCombinedVertexBuffer.usage);
-	mCombinedVertexBuffer.bufferMemory = pCore->AllocateBufferMemory( mCombinedVertexBuffer.buffer, mCombinedVertexBuffer.memoryType);
-}
-
-
-void Renderer::CreateIndexBuffer() {
-
-	mCombinedIndexBuffer.bufferSize = 30000 * 4;
-	mCombinedIndexBuffer.usage = vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst;
-	mCombinedIndexBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
-	mCombinedIndexBuffer.buffer = pCore->CreateBuffer( mCombinedIndexBuffer.bufferSize, mCombinedIndexBuffer.usage);
-	mCombinedIndexBuffer.bufferMemory = pCore->AllocateBufferMemory( mCombinedIndexBuffer.buffer, mCombinedIndexBuffer.memoryType);
-}
-
-
-void Renderer::LoadModel(std::string_view path) {
-
-	tinyobj::attrib_t attrib;
-	std::vector<tinyobj::shape_t> shapes;
-	std::vector<tinyobj::material_t> materials;
-	std::string warning, error;
-		
-	if( !tinyobj::LoadObj(&attrib, &shapes, &materials, &warning, &error, path.data()) ) 
-	{
-		throw std::runtime_error(warning + error);
-	}
-		
-	std::unordered_map<Vertex, uint32_t> uniqueVertices;
-		
-	for(const auto &shape : shapes) 
-	{
-		for(const auto &index : shape.mesh.indices) 
-		{
-			Vertex vertex{};				
-			vertex.position = {
-				attrib.vertices[3*index.vertex_index + 0],
-				attrib.vertices[3*index.vertex_index + 1],
-				attrib.vertices[3*index.vertex_index + 2]
-			};
-			vertex.texCoord = {
-				attrib.texcoords[2*index.texcoord_index + 0],
-				1.0f - attrib.texcoords[2*index.texcoord_index + 1]
-			};
-			vertex.normal = {
-				attrib.normals[3*index.normal_index + 0],
-				attrib.normals[3*index.normal_index + 1],
-				attrib.normals[3*index.normal_index + 2]
-			};
-			vertex.color = {1.0f, 1.0f, 1.0f, 1.0f};			
-				
-			if(uniqueVertices.find(vertex) == uniqueVertices.end()) 
-			{
-				uniqueVertices[vertex] = static_cast<uint32_t>(mVertices.GetSize());
-				mVertices.PushBack(vertex);
-			}
-				
-			mIndices.PushBack( uniqueVertices[vertex]);
-		}
-	}
-
-
-	// calculate tangents
-	for (Size i = 0 ; i < mIndices.GetSize(); i += 3) 
-	{
-		Vertex& v0 = mVertices[ mIndices[i]];
-		Vertex& v1 = mVertices[ mIndices[i+1]];
-		Vertex& v2 = mVertices[ mIndices[i+2]];
-
-		glm::vec3 edge1 = v1.position - v0.position;
-		glm::vec3 edge2 = v2.position - v0.position;
-
-		float deltaU1 = v1.texCoord.x - v0.texCoord.x;
-		float deltaV1 = v1.texCoord.y - v0.texCoord.y;
-		float deltaU2 = v2.texCoord.x - v0.texCoord.x;
-		float deltaV2 = v2.texCoord.y - v0.texCoord.y;
-
-		float f = 1.0f / (deltaU1 * deltaV2 - deltaU2 * deltaV1);
-		glm::vec3 tangent = f * (deltaV2 * edge1 - deltaV1 * edge2);
-		
-		v0.tangent += tangent;
-		v1.tangent += tangent;
-		v2.tangent += tangent;
-	}
-}
-
-
 void Renderer::UploadBufferData( void *bufferData, Size size, vk::Buffer targetBuffer, Size offset) {
 
 	Buffer stagingBuffer = CreateStagingBuffer( size);
@@ -1485,21 +1394,6 @@ void Renderer::CreateMeshPass( MeshPass *pass, PassType type) {
 }
 
 
-void Renderer::CreateSamplers() {
-
-	mSampler = pCore->CreateSampler(
-		vk::Filter::eLinear, vk::Filter::eLinear,
-		vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat,
-		false, 0.f, 
-		vk::SamplerMipmapMode::eNearest
-	);
-
-	mDeletionStack.Push( [&](){
-		pCore->Device().destroySampler( mSampler);
-	});
-}
-
-
 void Renderer::CreateDescriptorResources() {
 
 	mCameraBuffer.bufferSize = sizeof(CameraData);
@@ -1678,27 +1572,21 @@ void Renderer::CreateDescriptorSets() {
 }
 
 
-void Renderer::CreateShaderModules() {
+void Renderer::CreateSamplers() {
 
-	auto vertShaderCode = mFiles.Read( mResourceDir + "Shaders/single_mesh_vert.spv" , std::ios::binary);
-	auto fragShaderCode = mFiles.Read( mResourceDir + "Shaders/single_material_pbr_frag.spv" , std::ios::binary);
 
-	mMeshVertShader = pCore->CreateShaderModule( vertShaderCode.GetSize(), vertShaderCode.Data() );
-	mMaterialFragShader = pCore->CreateShaderModule( fragShaderCode.GetSize(), fragShaderCode.Data() );
-
-	mDeletionStack.Push( [&](){
-		pCore->Device().destroyShaderModule( mMeshVertShader);
-		pCore->Device().destroyShaderModule( mMaterialFragShader);
-	});
 }
 
 
-void Renderer::CreatePipeline() {
+void Renderer::CreateShaderModules() {
 
-	CreatePipeline( "Pipelines/default_pbr_material.pipeline.json");
+	
+}
 
-	U64 id =  SID( "Pipelines/pbr_material.pipeline.json");	
-	mSingleMaterialPipeline = mPipelines[ id];
+
+void Renderer::CreatePipelines() {
+
+
 }
 
 
@@ -1857,13 +1745,55 @@ void Renderer::CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, Size offse
 }
 
 
+void Renderer::UpdateCameraData() {
+
+	CameraData camera;
+	float unit = 30;
+	camera.position = {3.f * unit, 5.f * unit, 4.f * unit};
+	// float angle = (float)mFrameCount / 120.f * glm::radians(30.f);
+	// camera.position = {4.f*cos(angle), 0.f, 4.f*sin(angle)};
+	camera.view = glm::lookAt(
+		camera.position,
+		glm::vec3(0.f, 0.f, 0.f),
+		glm::vec3(0.f, 1.f, 0.f)
+	);
+	camera.proj = glm::perspective(
+		glm::radians(60.f),
+		(float)mSwapchain.extent.width / (float)mSwapchain.extent.height,
+		0.1f, 1000.0f
+	);
+	camera.proj[1][1] *= -1; // flip y scaling factor -> correction of OpenGL inverse y-axis
+	camera.viewProj = camera.proj * camera.view;
+	
+	UploadBufferData( &camera, sizeof(CameraData), mCameraBuffer.buffer);
+}
+
+
+void Renderer::UpdateScenedata() {
+
+	float angle = (float)mFrameCount / 60.f * glm::radians(30.f);
+	glm::vec3 direction = {cos(angle), 0.f, sin(angle)};
+	SceneData scene;
+	scene.ambient = {
+		glm::vec3(1.f, 1.f, 1.f),
+		0.03f
+	};
+	scene.light = {
+		glm::vec3(1.f, 1.f, 1.f),
+		2.5f,
+		direction
+	};
+
+	UploadBufferData( &scene, sizeof(SceneData), mSceneBuffer.buffer);
+}
+
+
 void Renderer::DrawFrame() {
 
 	auto frame = CurrentFrame();
 	
 	UpdateCameraData();
 	UpdateScenedata();
-	// UpdateObjectData();
 
 
 	vk::Result result;
@@ -1909,93 +1839,24 @@ void Renderer::DrawFrame() {
 	cmd.reset( vk::CommandBufferResetFlagBits::eReleaseResources);	
 
 
-	// record render commands
+	// record commands
 	auto cmdBeginInfo = vk::CommandBufferBeginInfo{}
 		.setFlags( vk::CommandBufferUsageFlagBits::eOneTimeSubmit );		
-	cmd.begin(cmdBeginInfo);	
-
-	//start renderpass
-	vk::ClearValue clearValues[2];
-	clearValues[0].setColor( vk::ClearColorValue().setFloat32({0.1f, 0.1f, 0.1f, 1.0f}) );
-	clearValues[1].setDepthStencil( {1.0f, 0} ); 
-
-	auto renderInfo = vk::RenderPassBeginInfo{}
-		.setRenderPass( mForwardPass )
-		.setRenderArea( {{0, 0}, mSwapchain.extent} )
-		.setFramebuffer( mForwardFramebuffers[imageIndex] )
-		.setClearValueCount( 2 )
-		.setPClearValues( clearValues );		
-	cmd.beginRenderPass(renderInfo, vk::SubpassContents::eInline);
-	
-	// set viewport
-	auto viewport = vk::Viewport{}
-		.setX( 0.f )
-		.setY( 0.f )
-		.setWidth( (float)mSwapchain.extent.width )
-		.setHeight( (float)mSwapchain.extent.height )
-		.setMinDepth( 0.f )
-		.setMaxDepth( 1.f );
-	auto scissor = vk::Rect2D{}
-		.setOffset( {0, 0} )
-		.setExtent( mSwapchain.extent );
-
-	cmd.setViewport( 0, 1, &viewport);
-	cmd.setScissor( 0, 1, &scissor);
+	cmd.begin(cmdBeginInfo);
 
 
-	Size offset = 0;
-	cmd.bindVertexBuffers( 0, 1, &mCombinedVertexBuffer.buffer, &offset);
-	cmd.bindIndexBuffer( mCombinedIndexBuffer.buffer, 0, vk::IndexType::eUint32);
+	// compute culling
+	CullPassObjects( cmd, &mShadowMeshPass);
+	CullPassObjects( cmd, &mOpaqueMeshPass);
+	CullPassObjects( cmd, &mTransparentMeshPass);
 
+	// render passes
+	DrawShadowPass( cmd, imageIndex);
+	DrawForwardPass( cmd, imageIndex);
 
-	// mesh pass
-
-	MeshPass &pass = mOpaqueMeshPass;
-	U64 lastPipelineId = 0;
-	U64 lastMaterialId = 0;
-	for (auto &multibatch : pass.multiBatches)
-	{
-		IndirectBatch batch = pass.indirectBatches[ multibatch.first];
-
-		RenderObject &object = mRenderObjects[ batch.objectIdx];
-		Material &material = mMaterials[ object.materialId];
-		Pipeline &pipeline = mPipelines[ material.pipelineId[ PassType::OPAQUE]];
-
-		if ( material.pipelineId[ PassType::OPAQUE] != lastPipelineId)
-		{
-			cmd.bindPipeline(
-				vk::PipelineBindPoint::eGraphics, pipeline.pipeline
-			);
-
-			cmd.bindDescriptorSets( 
-				vk::PipelineBindPoint::eGraphics, pipeline.pipelineLayout, 0, 1, &mPassDataSet, 0, nullptr
-			);
-			cmd.bindDescriptorSets( 
-				vk::PipelineBindPoint::eGraphics,pipeline.pipelineLayout, 2, 1, &mObjectDataSet, 0, nullptr		
-			);
-
-			lastPipelineId = material.pipelineId[ PassType::OPAQUE];
-		}
-
-		if ( object.materialId != lastMaterialId)
-		{
-			cmd.bindDescriptorSets( 
-				vk::PipelineBindPoint::eGraphics, pipeline.pipelineLayout, 1, 1, &material.descriptorSet[ PassType::OPAQUE], 0, nullptr		
-			);
-
-			lastMaterialId = object.materialId;
-		}
-		
-		cmd.drawIndexedIndirect( pass.drawIndirectBuffer.buffer, multibatch.first * sizeof(IndirectData), multibatch.count, sizeof(IndirectData));
-	}
-
-
-	// cmd.drawIndexed( (U32)mIndices.GetSize(), 1, 0, 0, 0);
-
-
-	cmd.endRenderPass();
 	
 	cmd.end();
+
 
 	// submit render commands
 	vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -2044,68 +1905,101 @@ void Renderer::DrawFrame() {
 }
 
 
-void Renderer::UpdateCameraData() {
+void Renderer::CullPassObjects( vk::CommandBuffer cmd, MeshPass *pass) {
 
-	CameraData camera;
-	float unit = 25;
-	camera.position = {2.f * unit, 5.f * unit, 3.f * unit};
-	// float angle = (float)mFrameCount / 120.f * glm::radians(30.f);
-	// camera.position = {4.f*cos(angle), 0.f, 4.f*sin(angle)};
-	camera.view = glm::lookAt(
-		camera.position,
-		glm::vec3(0.f, 0.f, 0.f),
-		glm::vec3(0.f, 1.f, 0.f)
-	);
-	camera.proj = glm::perspective(
-		glm::radians(60.f),
-		(float)mSwapchain.extent.width / (float)mSwapchain.extent.height,
-		0.1f, 1000.0f
-	);
-	camera.proj[1][1] *= -1; // flip y scaling factor -> correction of OpenGL inverse y-axis
-	camera.viewProj = camera.proj * camera.view;
-	
-	UploadBufferData( &camera, sizeof(CameraData), mCameraBuffer.buffer);
+
 }
 
 
-void Renderer::UpdateScenedata() {
+void Renderer::DrawShadowPass( vk::CommandBuffer cmd, U32 imageIndex) {
 
-	float angle = (float)mFrameCount / 60.f * glm::radians(30.f);
-	glm::vec3 direction = {cos(angle), 0.f, sin(angle)};
-	SceneData scene;
-	scene.ambient = {
-		glm::vec3(1.f, 1.f, 1.f),
-		0.03f
-	};
-	scene.light = {
-		glm::vec3(1.f, 1.f, 1.f),
-		2.5f,
-		direction
-	};
 
-	UploadBufferData( &scene, sizeof(SceneData), mSceneBuffer.buffer);
 }
 
 
-void Renderer::UpdateObjectData() {
+void Renderer::DrawForwardPass( vk::CommandBuffer cmd, U32 imageIndex) {
 
-	glm::mat4 rotation = glm::rotate(
-		glm::mat4(1.f), 
-		(float)mFrameCount / 60.f * glm::radians(30.f), 
-		glm::vec3(0.5f, 1.f, 0.75f)
-	);
-	glm::mat4 translate = glm::translate(
-		glm::mat4(1.f),
-		glm::vec3(0.f, 0.f, 0.f)
-	);
-	glm::mat4 scale = glm::scale(
-		glm::mat4(1.f),
-		glm::vec3(1.f, 1.f, 1.f)
-	);
-	ObjectData obj;
-	obj.transform = translate * rotation * scale;
+	//start renderpass
+	vk::ClearValue clearValues[2];
+	clearValues[0].setColor( vk::ClearColorValue().setFloat32({0.1f, 0.1f, 0.1f, 1.0f}) );
+	clearValues[1].setDepthStencil( {1.0f, 0} ); 
+
+	auto renderInfo = vk::RenderPassBeginInfo{}
+		.setRenderPass( mForwardPass )
+		.setRenderArea( {{0, 0}, mSwapchain.extent} )
+		.setFramebuffer( mForwardFramebuffers[imageIndex] )
+		.setClearValueCount( 2 )
+		.setPClearValues( clearValues );		
+	cmd.beginRenderPass(renderInfo, vk::SubpassContents::eInline);
 	
-	UploadBufferData( &obj, sizeof(ObjectData), mObjectBuffer.buffer);
+	// set viewport
+	auto viewport = vk::Viewport{}
+		.setX( 0.f )
+		.setY( 0.f )
+		.setWidth( (float)mSwapchain.extent.width )
+		.setHeight( (float)mSwapchain.extent.height )
+		.setMinDepth( 0.f )
+		.setMaxDepth( 1.f );
+	auto scissor = vk::Rect2D{}
+		.setOffset( {0, 0} )
+		.setExtent( mSwapchain.extent );
+
+	cmd.setViewport( 0, 1, &viewport);
+	cmd.setScissor( 0, 1, &scissor);
+
+
+	Size offset = 0;
+	cmd.bindVertexBuffers( 0, 1, &mCombinedVertexBuffer.buffer, &offset);
+	cmd.bindIndexBuffer( mCombinedIndexBuffer.buffer, 0, vk::IndexType::eUint32);
+
+
+	RenderMeshPass( cmd, &mOpaqueMeshPass);
+	RenderMeshPass( cmd, &mTransparentMeshPass);
+
+
+	cmd.endRenderPass();
+}
+
+
+void Renderer::RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass) {
+
+	U64 lastPipelineId = 0;
+	U64 lastMaterialId = 0;
+	for (auto &multibatch : pass->multiBatches)
+	{
+		IndirectBatch batch = pass->indirectBatches[ multibatch.first];
+
+		RenderObject &object = mRenderObjects[ batch.objectIdx];
+		Material &material = mMaterials[ object.materialId];
+		Pipeline &pipeline = mPipelines[ material.pipelineId[ PassType::OPAQUE]];
+
+		if ( material.pipelineId[ PassType::OPAQUE] != lastPipelineId)
+		{
+			cmd.bindPipeline(
+				vk::PipelineBindPoint::eGraphics, pipeline.pipeline
+			);
+
+			cmd.bindDescriptorSets( 
+				vk::PipelineBindPoint::eGraphics, pipeline.pipelineLayout, 0, 1, &mPassDataSet, 0, nullptr
+			);
+			cmd.bindDescriptorSets( 
+				vk::PipelineBindPoint::eGraphics,pipeline.pipelineLayout, 2, 1, &mObjectDataSet, 0, nullptr		
+			);
+
+			lastPipelineId = material.pipelineId[ PassType::OPAQUE];
+		}
+
+		if ( object.materialId != lastMaterialId)
+		{
+			cmd.bindDescriptorSets( 
+				vk::PipelineBindPoint::eGraphics, pipeline.pipelineLayout, 1, 1, &material.descriptorSet[ PassType::OPAQUE], 0, nullptr		
+			);
+
+			lastMaterialId = object.materialId;
+		}
+		
+		cmd.drawIndexedIndirect( pass->drawIndirectBuffer.buffer, multibatch.first * sizeof(IndirectData), multibatch.count, sizeof(IndirectData));
+	}
 }
 
     
