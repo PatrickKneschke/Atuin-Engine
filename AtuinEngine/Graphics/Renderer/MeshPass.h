@@ -107,9 +107,12 @@ struct MeshPass {
     // GPU buffer containing final draw indirects after culling
     Buffer drawIndirectBuffer;
     // GPU buffer containing objectId for each instance after culling
-    Buffer instanceIdxBuffer;
+    Buffer instanceIndexBuffer;
     // GPU buffer to hold indirect batch index and object index for each instance
     Buffer instanceDataBuffer;
+
+    // pass descriptor set -> points to object and instance data
+    vk::DescriptorSet passDataSet;
 
     // dirty flags
     bool rebuildBatches = false;

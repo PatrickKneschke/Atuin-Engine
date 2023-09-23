@@ -158,14 +158,11 @@ private:
     void CreateImage(Image &image, std::string_view path, vk::Format format = vk::Format::eR8G8B8A8Unorm);
 
     void CreateDescriptorSetLayouts();
-    void CreateDescriptorPool();
     void CreateDescriptorSets();    
 
     void CreateSamplers();
     void CreateShaderModules();
     void CreatePipelines();
-
-
 
 
     static CVar<U32>* pFrameOverlap;
@@ -200,11 +197,11 @@ private:
     
     // render passes and framebuffers
 
-    vk::RenderPass mForwardPass;
     vk::RenderPass mShadowpass;
+    vk::RenderPass mForwardPass;
 
-    Array<vk::Framebuffer> mForwardFramebuffers;
     Array<vk::Framebuffer> mShadowFramebuffers;
+    Array<vk::Framebuffer> mForwardFramebuffers;
 
     Array<FrameResources> mFrames;
     U64 mFrameCount;
@@ -239,15 +236,12 @@ private:
     Buffer mSceneBuffer;
     Buffer mObjectBuffer;
     
-    vk::DescriptorSetLayout mPassDataLayout;
+    vk::DescriptorSetLayout mGlobalDataLayout;
     vk::DescriptorSetLayout mMaterialDataLayout;
-    vk::DescriptorSetLayout mObjectDataLayout;
+    vk::DescriptorSetLayout mPassDataLayout;
 
-    vk::DescriptorPool mDescriptorPool;
-    vk::DescriptorSet mPassDataSet;
+    vk::DescriptorSet mGlobalDataSet;
     vk::DescriptorSet mMaterialDataSet;
-    vk::DescriptorSet mObjectDataSet;   
-
 };
 
 

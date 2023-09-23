@@ -72,12 +72,7 @@ void Renderer::StartUp(GLFWwindow *window) {
 
 	CreateDescriptorResources();
 	CreateDescriptorSetLayouts();
-	CreateDescriptorPool();
 	CreateDescriptorSets();
-
-
-	// CreateVertexBuffer();
-	// CreateIndexBuffer();
 }
 
 
@@ -99,22 +94,22 @@ void Renderer::ShutDown() {
 	pCore->Device().freeMemory(    mShadowMeshPass.drawIndirectBuffer.bufferMemory);
 	pCore->Device().destroyBuffer( mShadowMeshPass.instanceDataBuffer.buffer);
 	pCore->Device().freeMemory(    mShadowMeshPass.instanceDataBuffer.bufferMemory);
-	pCore->Device().destroyBuffer( mShadowMeshPass.instanceIdxBuffer.buffer);
-	pCore->Device().freeMemory(    mShadowMeshPass.instanceIdxBuffer.bufferMemory);
+	pCore->Device().destroyBuffer( mShadowMeshPass.instanceIndexBuffer.buffer);
+	pCore->Device().freeMemory(    mShadowMeshPass.instanceIndexBuffer.bufferMemory);
 
 	pCore->Device().destroyBuffer( mOpaqueMeshPass.drawIndirectBuffer.buffer);
 	pCore->Device().freeMemory(    mOpaqueMeshPass.drawIndirectBuffer.bufferMemory);
 	pCore->Device().destroyBuffer( mOpaqueMeshPass.instanceDataBuffer.buffer);
 	pCore->Device().freeMemory(    mOpaqueMeshPass.instanceDataBuffer.bufferMemory);
-	pCore->Device().destroyBuffer( mOpaqueMeshPass.instanceIdxBuffer.buffer);
-	pCore->Device().freeMemory(    mOpaqueMeshPass.instanceIdxBuffer.bufferMemory);
+	pCore->Device().destroyBuffer( mOpaqueMeshPass.instanceIndexBuffer.buffer);
+	pCore->Device().freeMemory(    mOpaqueMeshPass.instanceIndexBuffer.bufferMemory);
 
 	pCore->Device().destroyBuffer( mTransparentMeshPass.drawIndirectBuffer.buffer);
 	pCore->Device().freeMemory(    mTransparentMeshPass.drawIndirectBuffer.bufferMemory);
 	pCore->Device().destroyBuffer( mTransparentMeshPass.instanceDataBuffer.buffer);
 	pCore->Device().freeMemory(    mTransparentMeshPass.instanceDataBuffer.bufferMemory);
-	pCore->Device().destroyBuffer( mTransparentMeshPass.instanceIdxBuffer.buffer);
-	pCore->Device().freeMemory(    mTransparentMeshPass.instanceIdxBuffer.bufferMemory);
+	pCore->Device().destroyBuffer( mTransparentMeshPass.instanceIndexBuffer.buffer);
+	pCore->Device().freeMemory(    mTransparentMeshPass.instanceIndexBuffer.bufferMemory);
 
 
 	// presentation related
@@ -874,18 +869,18 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
 	}
-	if ( pass->instanceIdxBuffer.bufferSize < pass->renderBatches.GetSize() * sizeof(U32))
+	if ( pass->instanceIndexBuffer.bufferSize < pass->renderBatches.GetSize() * sizeof(U32))
 	{
 		CreateBuffer(
-			pass->instanceIdxBuffer,
+			pass->instanceIndexBuffer,
 			pass->renderBatches.GetSize() * sizeof(U32),
 			vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
 			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
 
-		auto instanceInfo = pass->instanceIdxBuffer.DescriptorInfo();
+		auto instanceInfo = pass->instanceIndexBuffer.DescriptorInfo();
 		auto instanceWrite = vk::WriteDescriptorSet{}
-			.setDstSet( mObjectDataSet )
+			.setDstSet( pass->passDataSet )
 			.setDstBinding( 1 )
 			.setDstArrayElement( 0 )
 			.setDescriptorCount( 1 )
@@ -1078,7 +1073,7 @@ void Renderer::UpdateMeshPassInstanceBuffer( MeshPass *pass) {
 	pCore->Device().unmapMemory( stagingBuffer2.bufferMemory);
 
 	// upload buffer data to Gpu memory
-	CopyBuffer( stagingBuffer2.buffer, pass->instanceIdxBuffer.buffer, 0, stagingBuffer2.bufferSize);
+	CopyBuffer( stagingBuffer2.buffer, pass->instanceIndexBuffer.buffer, 0, stagingBuffer2.bufferSize);
 
 	// cleanup
 	pCore->Device().destroyBuffer( stagingBuffer2.buffer);
@@ -1117,13 +1112,17 @@ void Renderer::UpdateObjectBuffer() {
 
 		auto objectInfo = mObjectBuffer.DescriptorInfo();
 		auto objectWrite = vk::WriteDescriptorSet{}
-			.setDstSet( mObjectDataSet )
 			.setDstBinding( 0 )
 			.setDstArrayElement( 0 )
 			.setDescriptorCount( 1 )
 			.setDescriptorType( vk::DescriptorType::eStorageBuffer )
 			.setPBufferInfo( &objectInfo );	
 
+		objectWrite.setDstSet( mShadowMeshPass.passDataSet );
+		pCore->Device().updateDescriptorSets(1, &objectWrite, 0, nullptr);
+		objectWrite.setDstSet( mOpaqueMeshPass.passDataSet );
+		pCore->Device().updateDescriptorSets(1, &objectWrite, 0, nullptr);
+		objectWrite.setDstSet( mTransparentMeshPass.passDataSet );
 		pCore->Device().updateDescriptorSets(1, &objectWrite, 0, nullptr);
 	}
 
@@ -1386,7 +1385,7 @@ void Renderer::CreateMeshPass( MeshPass *pass, PassType type) {
 	);
 	
 	CreateBuffer(
-		pass->instanceIdxBuffer,
+		pass->instanceIndexBuffer,
 		sizeof(U32),
 		vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
 		vk::MemoryPropertyFlagBits::eDeviceLocal
@@ -1417,6 +1416,12 @@ void Renderer::CreateDescriptorResources() {
 		pCore->Device().destroyBuffer( mSceneBuffer.buffer);
 		pCore->Device().freeMemory( mSceneBuffer.bufferMemory);
 	});
+
+	mObjectBuffer.bufferSize = sizeof(ObjectData);
+	mObjectBuffer.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst;
+	mObjectBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
+	mObjectBuffer.buffer = pCore->CreateBuffer( mObjectBuffer.bufferSize, mObjectBuffer.usage);
+	mObjectBuffer.bufferMemory = pCore->AllocateBufferMemory( mObjectBuffer.buffer, mObjectBuffer.memoryType);
 }
 
 
@@ -1488,10 +1493,11 @@ void Renderer::CreateDescriptorSetLayouts() {
 		.setDescriptorCount( 1 )
 		.setStageFlags( vk::ShaderStageFlagBits::eFragment );
 	
-	vk::DescriptorSetLayoutBinding passBindings[] = {
+	vk::DescriptorSetLayoutBinding globalBindings[] = {
 		cameraDataBinding, sceneDataBinding
 	};
-	mPassDataLayout = pCore->CreateDescriptorSetLayout(2, passBindings);	
+	mGlobalDataLayout = pCore->CreateDescriptorSetLayout(2, globalBindings);	
+
 
 	auto objectDataBinding = vk::DescriptorSetLayoutBinding{}
 		.setBinding( 0 )
@@ -1503,72 +1509,46 @@ void Renderer::CreateDescriptorSetLayouts() {
 		.setDescriptorType( vk::DescriptorType::eStorageBuffer )
 		.setDescriptorCount( 1 )
 		.setStageFlags( vk::ShaderStageFlagBits::eVertex );
-	
 
-	vk::DescriptorSetLayoutBinding objectBindings[] = {
+	vk::DescriptorSetLayoutBinding passBindings[] = {
 		objectDataBinding, instanceDataBinding
 	};
-	mObjectDataLayout = pCore->CreateDescriptorSetLayout(2, objectBindings);
+	mPassDataLayout = pCore->CreateDescriptorSetLayout(2, passBindings);
 
 	mDeletionStack.Push( [&](){
+		pCore->Device().destroyDescriptorSetLayout( mGlobalDataLayout);
 		pCore->Device().destroyDescriptorSetLayout( mPassDataLayout);
-		pCore->Device().destroyDescriptorSetLayout( mObjectDataLayout);
-	});
-}
-
-
-void Renderer::CreateDescriptorPool() {
-
-	vk::DescriptorPoolSize poolSizes[] = {
-
-		{vk::DescriptorType::eUniformBuffer,  10 * pFrameOverlap->Get()},
-		{vk::DescriptorType::eStorageBuffer,  10 * pFrameOverlap->Get()},
-		{vk::DescriptorType::eCombinedImageSampler,  10 * pFrameOverlap->Get()}
-	};
-
-	mDescriptorPool = pCore->CreateDescriptorPool(10*pFrameOverlap->Get(), 3, poolSizes);
-
-	mDeletionStack.Push( [&](){
-		pCore->Device().destroyDescriptorPool( mDescriptorPool);
 	});
 }
 
 
 void Renderer::CreateDescriptorSets() {
 
-	vk::DescriptorSetLayout descriptorSetLayouts[] = {
-		mPassDataLayout, 
-		mObjectDataLayout
-	};
-	auto descriptorSets = pCore->AllocateDescriptorSets(mDescriptorPool, 2, descriptorSetLayouts);
-
-	mPassDataSet = descriptorSets[0];
-	mObjectDataSet = descriptorSets[1];
-
-
 	auto cameraInfo = mCameraBuffer.DescriptorInfo();
-	auto cameraWrite = vk::WriteDescriptorSet{}
-		.setDstSet( mPassDataSet )
-		.setDstBinding( 0 )
-		.setDstArrayElement( 0 )
-		.setDescriptorCount( 1 )
-		.setDescriptorType( vk::DescriptorType::eUniformBuffer )
-		.setPBufferInfo( &cameraInfo );
-
 	auto sceneInfo = mSceneBuffer.DescriptorInfo();
-	auto sceneWrite = vk::WriteDescriptorSet{}
-		.setDstSet( mPassDataSet )
-		.setDstBinding( 1 )
-		.setDstArrayElement( 0 )
-		.setDescriptorCount( 1 )
-		.setDescriptorType( vk::DescriptorType::eUniformBuffer )
-		.setPBufferInfo( &sceneInfo );
+	mGlobalDataSet = DescriptorSetBuilder( pCore->Device(), pDescriptorSetAllocator, pDescriptorLayoutCache)
+		.BindBuffer( 0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, &cameraInfo)
+		.BindBuffer( 1, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment, &sceneInfo)
+		.Build();
 
 
-	vk::WriteDescriptorSet descriptorWrites[] = {
-		cameraWrite, sceneWrite
-	};
-	pCore->Device().updateDescriptorSets(2, descriptorWrites, 0, nullptr);
+	auto objectInfo = mObjectBuffer.DescriptorInfo();
+	auto shadowInstanceInfo = mShadowMeshPass.instanceIndexBuffer.DescriptorInfo();
+	auto opaqueInstanceInfo = mOpaqueMeshPass.instanceIndexBuffer.DescriptorInfo();
+	auto transparentInstanceInfo = mTransparentMeshPass.instanceIndexBuffer.DescriptorInfo();
+
+	mShadowMeshPass.passDataSet = DescriptorSetBuilder( pCore->Device(), pDescriptorSetAllocator, pDescriptorLayoutCache)
+		.BindBuffer( 0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex, &objectInfo)
+		.BindBuffer( 1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex, &shadowInstanceInfo)
+		.Build();
+	mOpaqueMeshPass.passDataSet = DescriptorSetBuilder( pCore->Device(), pDescriptorSetAllocator, pDescriptorLayoutCache)
+		.BindBuffer( 0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex, &objectInfo)
+		.BindBuffer( 1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex, &opaqueInstanceInfo)
+		.Build();
+	mTransparentMeshPass.passDataSet = DescriptorSetBuilder( pCore->Device(), pDescriptorSetAllocator, pDescriptorLayoutCache)
+		.BindBuffer( 0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex, &objectInfo)
+		.BindBuffer( 1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex, &transparentInstanceInfo)
+		.Build();
 }
 
 
@@ -1979,11 +1959,12 @@ void Renderer::RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass) {
 				vk::PipelineBindPoint::eGraphics, pipeline.pipeline
 			);
 
+			// TODO rebind should not be necessary, because same set layout ???
 			cmd.bindDescriptorSets( 
-				vk::PipelineBindPoint::eGraphics, pipeline.pipelineLayout, 0, 1, &mPassDataSet, 0, nullptr
+				vk::PipelineBindPoint::eGraphics, pipeline.pipelineLayout, 0, 1, &mGlobalDataSet, 0, nullptr
 			);
 			cmd.bindDescriptorSets( 
-				vk::PipelineBindPoint::eGraphics,pipeline.pipelineLayout, 2, 1, &mObjectDataSet, 0, nullptr		
+				vk::PipelineBindPoint::eGraphics,pipeline.pipelineLayout, 2, 1, &pass->passDataSet, 0, nullptr		
 			);
 
 			lastPipelineId = material.pipelineId[ PassType::OPAQUE];
