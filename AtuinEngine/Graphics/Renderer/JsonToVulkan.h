@@ -184,6 +184,10 @@ inline vk::DescriptorType GetDescriptorType( std::string_view descriptorType) {
 	{
 		res = vk::DescriptorType::eCombinedImageSampler;
 	}
+	else if ( descriptorType == "storage_image")
+	{
+		res = vk::DescriptorType::eStorageImage;
+	}
 	else
 	{
 		throw std::runtime_error( FormatStr( "Unsupported or unknown descriptor type \"%s\"", descriptorType));

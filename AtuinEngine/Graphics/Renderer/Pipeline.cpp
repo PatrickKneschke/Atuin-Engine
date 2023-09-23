@@ -6,11 +6,13 @@
 namespace Atuin {
 
 
-void CreatePipelineLayout( vk::Device device, const Array<vk::DescriptorSetLayout> &descriptorLayouts, vk::PipelineLayout *pipelineLayout) {
+void CreatePipelineLayout( vk::Device device, const Array<vk::DescriptorSetLayout> &descriptorLayouts, const Array<vk::PushConstantRange> &pushConstants, vk::PipelineLayout *pipelineLayout) {
 
 	auto layoutInfo = vk::PipelineLayoutCreateInfo{}
 		.setSetLayoutCount( (U32)descriptorLayouts.GetSize() )
-		.setPSetLayouts( descriptorLayouts.Data() );
+		.setPSetLayouts( descriptorLayouts.Data() )
+		.setPushConstantRangeCount( (U32)pushConstants.GetSize() )
+		.setPPushConstantRanges( pushConstants.Data() );
 
 	vk::Result result = device.createPipelineLayout(&layoutInfo, nullptr, pipelineLayout);
 	if ( result != vk::Result::eSuccess)
@@ -25,7 +27,7 @@ Pipeline GraphicsPipelineBuilder::Build( vk::Device device, vk::RenderPass rende
     Pipeline pipeline;
 	pipeline.type = Pipeline::Type::GRAPHICS;
 
-	CreatePipelineLayout(device, descriptorLayouts, &pipeline.pipelineLayout);
+	CreatePipelineLayout(device, descriptorLayouts, pushConstants, &pipeline.pipelineLayout);
 
     auto pipelineInfo = vk::GraphicsPipelineCreateInfo{}
 		.setStageCount( (U32)shaderInfos.GetSize() )
@@ -130,7 +132,7 @@ Pipeline ComputePipelineBuilder::Build( vk::Device device) {
     Pipeline pipeline;
 	pipeline.type = Pipeline::Type::COMPUTE;
 
-	CreatePipelineLayout( device, descriptorLayouts, &pipeline.pipelineLayout);
+	CreatePipelineLayout( device, descriptorLayouts, pushConstants, &pipeline.pipelineLayout);
 
     auto pipelineInfo = vk::ComputePipelineCreateInfo{}
         .setStage( shaderInfo)

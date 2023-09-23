@@ -12,7 +12,7 @@
 namespace Atuin {
 
 
-void CreatePipelineLayout( vk::Device device, const Array<vk::DescriptorSetLayout> &descriptorLayouts, vk::PipelineLayout *pipelineLayout);
+void CreatePipelineLayout( vk::Device device, const Array<vk::DescriptorSetLayout> &descriptorLayouts, const Array<vk::PushConstantRange> &pushContants, vk::PipelineLayout *pipelineLayout);
 
 
 struct Pipeline {
@@ -32,6 +32,7 @@ struct Pipeline {
 struct GraphicsPipelineBuilder {
 
 	Array<vk::DescriptorSetLayout>             descriptorLayouts;
+	Array<vk::PushConstantRange>               pushConstants;
 	Array<vk::PipelineShaderStageCreateInfo>   shaderInfos;
 	vk::VertexInputBindingDescription          vertexInputBinding;
 	Array<vk::VertexInputAttributeDescription> vertexAttributes;
@@ -57,6 +58,7 @@ struct GraphicsPipelineBuilder {
 struct ComputePipelineBuilder {
 	
 	Array<vk::DescriptorSetLayout>    descriptorLayouts;
+	Array<vk::PushConstantRange>      pushConstants;
 	vk::PipelineShaderStageCreateInfo shaderInfo;
 
 	ComputePipelineBuilder() : descriptorLayouts {} {}

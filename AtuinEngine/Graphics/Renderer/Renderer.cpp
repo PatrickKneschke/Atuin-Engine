@@ -550,6 +550,30 @@ void Renderer::CreatePipeline( std::string_view pipelineName) {
 		layouts.PushBack( pDescriptorLayoutCache->CreateLayout( &layoutInfo));
 	}
 
+	// read push constant ranges (optional)
+	Array<vk::PushConstantRange> pushConstants;
+	auto pushConstantsJson = pipelineJson[ "pushConstants"];
+	if ( !pushConstantsJson.IsNull())
+	{
+		for ( auto &pcJson : pushConstantsJson.GetList())
+		{
+			U32 size = (U32)pcJson.At( "size").ToInt();
+			U32 offset = (U32)pcJson.At( "offset").ToInt();
+			vk::ShaderStageFlags stages;
+			auto &stageNames = pcJson.At( "stages").GetList();
+			for ( auto &stage : stageNames)
+			{
+				stages |= JsonVk::GetShaderStage( stage.ToString());
+			}
+
+			auto pushConstantRange = vk::PushConstantRange{}
+				.setSize( size )
+				.setOffset( offset )
+				.setStageFlags( stages );
+
+			pushConstants.PushBack( pushConstantRange);
+		}
+	}	
 
 	// read shader stages
 	auto shaderStages = pipelineJson.At( "shaders").GetDict();
@@ -569,6 +593,7 @@ void Renderer::CreatePipeline( std::string_view pipelineName) {
 	{
 		GraphicsPipelineBuilder pipelineBuilder = mDefaultPipelineBuilder;
 		pipelineBuilder.descriptorLayouts = layouts;
+		pipelineBuilder.pushConstants = pushConstants;
 
 		// shader stage infos
 		// vertex shader mandatory
@@ -640,6 +665,7 @@ void Renderer::CreatePipeline( std::string_view pipelineName) {
 
 		ComputePipelineBuilder pipelineBuilder;
 		pipelineBuilder.descriptorLayouts = layouts;
+		pipelineBuilder.pushConstants = pushConstants;
 		pipelineBuilder.shaderInfo
 			.setStage( vk::ShaderStageFlagBits::eCompute )
 			.setModule( mShaders[ shaderId] )

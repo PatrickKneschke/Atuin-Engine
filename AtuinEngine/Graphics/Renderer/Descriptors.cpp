@@ -16,7 +16,7 @@ void DescriptorSetAllocator::Init( vk::Device device) {
         // vk::DescriptorPoolSize{ vk::DescriptorType::eSampler,              (U32)( (float)mMaxSetsPerPool * 0.5f) },
 		// vk::DescriptorPoolSize{ vk::DescriptorType::eSampledImage,         mMaxSetsPerPool * 4 },
         vk::DescriptorPoolSize{ vk::DescriptorType::eCombinedImageSampler, mMaxSetsPerPool * 4 },
-		// vk::DescriptorPoolSize{ vk::DescriptorType::eStorageImage,         mMaxSetsPerPool * 1 },
+		vk::DescriptorPoolSize{ vk::DescriptorType::eStorageImage,         mMaxSetsPerPool * 1 },
 		// vk::DescriptorPoolSize{ vk::DescriptorType::eUniformTexelBuffer,   mMaxSetsPerPool * 1 },
 		// vk::DescriptorPoolSize{ vk::DescriptorType::eStorageTexelBuffer,   mMaxSetsPerPool * 1 },
 		vk::DescriptorPoolSize{ vk::DescriptorType::eUniformBuffer,        mMaxSetsPerPool * 2 },
