@@ -82,6 +82,7 @@ public:
 	vk::ImageView CreateImageView(
 		vk::Image image, vk::Format format,
 		vk::ImageAspectFlags aspectFlags,
+        U32 baseMipLevel = 0,
 		U32 mipLevels = 1
 	) const;
     vk::Sampler CreateSampler(

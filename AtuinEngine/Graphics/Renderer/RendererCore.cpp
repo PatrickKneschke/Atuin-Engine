@@ -432,13 +432,14 @@ vk::DeviceMemory RendererCore::AllocateImageMemory(
 vk::ImageView RendererCore::CreateImageView(
 	vk::Image image, vk::Format format,
 	vk::ImageAspectFlags aspectFlags,
+	U32 baseMipLevel,
 	U32 mipLevels ) const
 {
 	auto imageViewInfo = vk::ImageViewCreateInfo{}
 		.setImage( image )
 		.setViewType( vk::ImageViewType::e2D )
 		.setFormat( format )
-		.setSubresourceRange( vk::ImageSubresourceRange{aspectFlags, 0, mipLevels, 0, 1} );
+		.setSubresourceRange( vk::ImageSubresourceRange{aspectFlags, baseMipLevel, mipLevels, 0, 1} );
 			
 	vk::ImageView imageView;
 	vk::Result result = mDevice.createImageView(&imageViewInfo, nullptr, &imageView);

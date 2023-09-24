@@ -60,6 +60,7 @@ struct FrameResources {
 	vk::CommandBuffer commandBuffer;
 
     // DeletionStack deletionStack;
+    DescriptorSetAllocator descriptorAllocator;
 };
 
 // mesh + material combination as stored in the ModelComponent of Entities
@@ -146,6 +147,7 @@ private:
     void DrawShadowPass( vk::CommandBuffer cmd, U32 imageIndex);
     void DrawForwardPass( vk::CommandBuffer cmd, U32 imageIndex);
     void RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass);
+    void UpdateDepthPyramid( vk::CommandBuffer cmd);
 
     void CreateBuffer( Buffer &buffer, Size size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags memoryType);
     Buffer CreateStagingBuffer(Size bufferSize);
@@ -155,13 +157,10 @@ private:
     void CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, Size offset, Size bufferSize);
 
     void CreateDescriptorResources();
-    void CreateImage(Image &image, std::string_view path, vk::Format format = vk::Format::eR8G8B8A8Unorm);
-
     void CreateDescriptorSetLayouts();
     void CreateDescriptorSets();    
 
     void CreateSamplers();
-    void CreateShaderModules();
     void CreatePipelines();
 
 
@@ -192,8 +191,12 @@ private:
 
     Swapchain mSwapchain;
     Image mDepthImage;
+    //depth pyramid image views
+    Image mDepthPyramid;
+    Array<vk::ImageView> mDepthPyramidViews;
 
-    // TODO depth pyramid
+    Pipeline mDepthReducePipeline;
+    vk::Sampler mDepthSampler;
     
     // render passes and framebuffers
 
@@ -237,11 +240,9 @@ private:
     Buffer mObjectBuffer;
     
     vk::DescriptorSetLayout mGlobalDataLayout;
-    vk::DescriptorSetLayout mMaterialDataLayout;
     vk::DescriptorSetLayout mPassDataLayout;
 
     vk::DescriptorSet mGlobalDataSet;
-    vk::DescriptorSet mMaterialDataSet;
 };
 
 

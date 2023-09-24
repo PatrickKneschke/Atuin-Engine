@@ -48,7 +48,7 @@ private:
                 for ( int k = 0; k < N; k++)
                 {
                     int modelIdx = std::rand() % 3;
-                    glm::vec3 position = glm::vec3( i * 4.f, j * 4.f, k * 4.f);
+                    glm::vec3 position = glm::vec3( (float)i * 4.f,  (float)j * 4.f, (float)k * 4.f);
 
                     MeshObject obj;
                     obj.materialName = "Materials//Rusted_Iron/rusted_iron.material.json";
@@ -66,9 +66,9 @@ private:
 
     void UpdateObjects() {
 
-        int numObjects = mTestObjects.GetSize();
-        int numUpdates = ceil( numObjects * 0.2f);
-        for (int i = 0; i < numUpdates; i++)
+        U32 numObjects = (U32)mTestObjects.GetSize();
+        U32 numUpdates = (U32)ceil( 0.2 * numObjects);
+        for (U32 i = 0; i < numUpdates; i++)
         {
             int idx = rand() % numObjects;
 

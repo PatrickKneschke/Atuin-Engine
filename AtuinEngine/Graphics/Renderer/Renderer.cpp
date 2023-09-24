@@ -62,9 +62,11 @@ void Renderer::StartUp(GLFWwindow *window) {
 	CreateFramebuffers();
 
 	CreateSubmitContexts();
+	CreateFrameResources();
 
     CreateDefaultPipelineBuilder();
-	CreateFrameResources();
+	CreateSamplers();
+    CreatePipelines();
 
 	CreateMeshPass( &mShadowMeshPass, PassType::SHADOW);
 	CreateMeshPass( &mOpaqueMeshPass, PassType::OPAQUE);
@@ -156,22 +158,61 @@ void Renderer::Update() {
 
 void Renderer::CreateDepthResources() {
 
+	// depth image
 	mDepthImage.format     = vk::Format::eD32Sfloat;
-	mDepthImage.usage      = vk::ImageUsageFlagBits::eDepthStencilAttachment;
+	mDepthImage.usage      = vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled;
 	mDepthImage.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
-	
+	mDepthImage.width      = mSwapchain.extent.width;
+	mDepthImage.height     = mSwapchain.extent.height; 
+
 	mDepthImage.image = pCore->CreateImage(
-		mSwapchain.extent.width, mSwapchain.extent.height, 
+		mDepthImage.width, mDepthImage.height, 
 		mDepthImage.format, mDepthImage.usage
-	);
-	
+	);	
 	mDepthImage.imageMemory = pCore->AllocateImageMemory(
 		mDepthImage.image, mDepthImage.memoryType
-	);
-	
+	);	
 	mDepthImage.imageView = pCore->CreateImageView(
 		mDepthImage.image, mDepthImage.format, vk::ImageAspectFlagBits::eDepth
 	);
+
+	// depth pyramid
+	U32 pyramidWidth = Math::PrevPowerOfTwo( (U64)mDepthImage.width);
+	U32 pyramidHeight = Math::PrevPowerOfTwo( (U64)mDepthImage.height);
+	U32 pyramidLevels = static_cast<uint32_t>(std::floor( std::log2( std::max( pyramidWidth, pyramidHeight)))) + 1;
+
+	mDepthPyramid.format = vk::Format::eR32Sfloat;
+	mDepthPyramid.usage  = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc;
+	mDepthPyramid.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
+
+	mDepthPyramid.image = pCore->CreateImage(
+		pyramidWidth, pyramidHeight, 
+		mDepthPyramid.format, mDepthPyramid.usage, pyramidLevels
+	);	
+	mDepthPyramid.imageMemory = pCore->AllocateImageMemory(
+		mDepthPyramid.image, mDepthPyramid.memoryType
+	);	
+	mDepthPyramid.imageView = pCore->CreateImageView(
+		mDepthPyramid.image, mDepthPyramid.format, vk::ImageAspectFlagBits::eColor, 0, pyramidLevels
+	);
+
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyImageView( mDepthPyramid.imageView );
+		pCore->Device().destroyImage( mDepthPyramid.image );
+		pCore->Device().freeMemory( mDepthPyramid.imageMemory );
+	});
+
+	mDepthPyramidViews.Resize( pyramidLevels);
+	for ( U32 i = 0; i < pyramidLevels; i++)
+	{
+		mDepthPyramidViews[i] = pCore->CreateImageView(
+			mDepthPyramid.image, mDepthPyramid.format, vk::ImageAspectFlagBits::eColor, i, 1
+		);
+
+		mDeletionStack.Push( [&](){
+			pCore->Device().destroyImageView( mDepthPyramidViews[i] );
+		});
+	}
 }
 
 
@@ -253,6 +294,8 @@ void Renderer::RecreateSwapchain() {
 	pCore->Device().destroyImageView(mDepthImage.imageView, nullptr);
 	pCore->Device().destroyImage(mDepthImage.image, nullptr);
 	pCore->Device().freeMemory(mDepthImage.imageMemory, nullptr);	
+
+	// TODO  destroy depth pyramid here
 
 	// swapchain
 	for(auto &imageView : mSwapchain.imageViews) 
@@ -1272,12 +1315,16 @@ void Renderer::CreateFrameResources() {
 		frame.commandPool = pCore->CreateCommandPool( pCore->QueueFamilies().graphicsFamily);
 		frame.commandBuffer = pCore->AllocateCommandBuffer( frame.commandPool);
 
+		frame.descriptorAllocator.Init( pCore->Device());
+
 		mDeletionStack.Push( [&](){
 			pCore->Device().destroyFence( frame.renderFence, nullptr);
 			pCore->Device().destroySemaphore( frame.renderSemaphore, nullptr);
 			pCore->Device().destroySemaphore( frame.presentSemaphore, nullptr);
 			
 			pCore->Device().destroyCommandPool( frame.commandPool);
+
+			frame.descriptorAllocator.DestroyPools();
 		});
 	}	
 }
@@ -1451,61 +1498,6 @@ void Renderer::CreateDescriptorResources() {
 }
 
 
-void Renderer::CreateImage(Image &image, std::string_view path, vk::Format format) {
-
-	// load image data from file
-	int width, height, channels;
-	stbi_uc *pixels = stbi_load(path.data(), &width, &height, &channels, STBI_rgb_alpha);
-	if (!pixels)
-	{
-		throw std::runtime_error("Failed to load texture image!");
-	}
-
-	// create staging buffer
-	Size imageSize = width * height * 4;
-	Buffer stagingBuffer = CreateStagingBuffer( imageSize);
-
-	// transfer image data to staging buffer
-	void *data;
-	vk::Result result = pCore->Device().mapMemory( stagingBuffer.bufferMemory, 0, imageSize, vk::MemoryMapFlags(), &data);
-	if( result == vk::Result::eSuccess ) 
-	{
-		memcpy(data, pixels, imageSize);
-		pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
-	}
-	else 
-	{
-		throw std::runtime_error("Failed to map image staging buffer memory " + vk::to_string(result));
-	}
-
-	// create image on device memory
-	image.width = width;
-	image.height = height;
-	image.format = format;
-	image.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
-	image.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
-	image.image = pCore->CreateImage( image.width, image.height, image.format, image.usage);
-	image.imageMemory = pCore->AllocateImageMemory( image.image, image.memoryType);
-	image.imageView = pCore->CreateImageView(image.image, image.format, vk::ImageAspectFlagBits::eColor);
-
-	// transfer image data from staging buffer
-	TransitionImageLayout( image.image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
-	CopyBufferToImage( stagingBuffer.buffer, image.image, image.width, image.height);
-	TransitionImageLayout( image.image, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
-
-	//cleanup	
-	stbi_image_free(pixels);
-	pCore->Device().destroyBuffer( stagingBuffer.buffer, nullptr);
-	pCore->Device().freeMemory( stagingBuffer.bufferMemory, nullptr);
-
-	mDeletionStack.Push( [&](){
-		pCore->Device().destroyImageView( image.imageView);
-		pCore->Device().destroyImage( image.image);
-		pCore->Device().freeMemory( image.imageMemory);
-	});
-}
-
-
 void Renderer::CreateDescriptorSetLayouts() {
 
 	auto cameraDataBinding = vk::DescriptorSetLayoutBinding{}
@@ -1580,19 +1572,15 @@ void Renderer::CreateDescriptorSets() {
 
 void Renderer::CreateSamplers() {
 
-
-}
-
-
-void Renderer::CreateShaderModules() {
-
-	
+	CreateSampler( "Samplers/default_depth.sampler.json");
+	mDepthSampler = mSamplers[ SID("Samplers/default_depth.sampler.json")];
 }
 
 
 void Renderer::CreatePipelines() {
 
-
+	CreatePipeline( "Pipelines/depth_reduce.pipeline.json");
+	mDepthReducePipeline = mPipelines[ SID("Pipelines/depth_reduce.pipeline.json")];
 }
 
 
@@ -1840,6 +1828,9 @@ void Renderer::DrawFrame() {
 	}
 
 
+	frame.descriptorAllocator.ResetPools();
+
+
 	// get current frames command buffer and reset
 	auto &cmd = frame.commandBuffer;
 	cmd.reset( vk::CommandBufferResetFlagBits::eReleaseResources);	
@@ -1859,6 +1850,9 @@ void Renderer::DrawFrame() {
 	// render passes
 	DrawShadowPass( cmd, imageIndex);
 	DrawForwardPass( cmd, imageIndex);
+
+	// depth pyramid
+	UpdateDepthPyramid( cmd);
 
 	
 	cmd.end();
@@ -2007,6 +2001,72 @@ void Renderer::RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass) {
 		
 		cmd.drawIndexedIndirect( pass->drawIndirectBuffer.buffer, multibatch.first * sizeof(IndirectData), multibatch.count, sizeof(IndirectData));
 	}
+}
+
+
+void Renderer::UpdateDepthPyramid( vk::CommandBuffer cmd) {
+
+	// place barrier to make sure depth image write has been completed in render pass and change layout to shader read optimal
+	vk::ImageMemoryBarrier depthReadBarrier = vk::ImageMemoryBarrier{}
+		.setImage( mDepthImage.image )
+		.setSrcAccessMask( vk::AccessFlagBits::eDepthStencilAttachmentWrite )
+		.setDstAccessMask( vk::AccessFlagBits::eShaderRead )
+		.setOldLayout( vk::ImageLayout::eDepthStencilAttachmentOptimal )
+		.setNewLayout( vk::ImageLayout::eShaderReadOnlyOptimal )
+		.setSubresourceRange( vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1} );
+	cmd.pipelineBarrier( vk::PipelineStageFlagBits::eLateFragmentTests, vk::PipelineStageFlagBits::eComputeShader, vk::DependencyFlagBits::eByRegion, 0, nullptr, 0, nullptr, 1, &depthReadBarrier);
+
+	cmd.bindPipeline( vk::PipelineBindPoint::eCompute, mDepthReducePipeline.pipeline);
+
+	U32 depthPyramidLevels = (U32)mDepthPyramidViews.GetSize();
+	for ( U32 i = 0; i < depthPyramidLevels; ++i)
+	{
+		// set image descriptors
+		auto srcImageInfo = vk::DescriptorImageInfo{}
+			.setSampler( mDepthSampler )
+			.setImageView( i == 0 ? mDepthImage.imageView : mDepthPyramidViews[i-1] )
+			.setImageLayout( i == 0 ? vk::ImageLayout::eShaderReadOnlyOptimal : vk::ImageLayout::eGeneral);
+
+		auto dstImageInfo = vk::DescriptorImageInfo{}
+			.setSampler( mDepthSampler )
+			.setImageView( mDepthPyramidViews[i] )
+			.setImageLayout( vk::ImageLayout::eGeneral );
+
+		vk::DescriptorSet depthSet = DescriptorSetBuilder( pCore->Device(), &CurrentFrame().descriptorAllocator, pDescriptorLayoutCache)
+			.BindImage( 0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eCompute, &srcImageInfo)
+			.BindImage( 1, vk::DescriptorType::eStorageImage, vk::ShaderStageFlagBits::eCompute, &dstImageInfo)
+			.Build();
+		cmd.bindDescriptorSets( vk::PipelineBindPoint::eCompute, mDepthReducePipeline.pipelineLayout, 0, 1, &depthSet, 0, nullptr);
+
+		// set push constants
+		uint32_t levelWidth = std::max(mDepthPyramid.width >> i, 1U);
+		uint32_t levelHeight = std::max(mDepthPyramid.height >> i, 1U);
+		glm::vec2 imageSize = { levelWidth, levelHeight};
+		cmd.pushConstants( mDepthReducePipeline.pipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof( imageSize), &imageSize);
+
+		// dispatch
+		cmd.dispatch( (levelWidth + 32 - 1) / 32, (levelHeight + 32 - 1) / 32, 1);
+		
+		// place barrier between passes
+		vk::ImageMemoryBarrier  depthReduceBarrier = vk::ImageMemoryBarrier{}
+			.setImage( mDepthPyramid.image )
+			.setSrcAccessMask( vk::AccessFlagBits::eShaderWrite )
+			.setDstAccessMask( vk::AccessFlagBits::eShaderRead )
+			.setOldLayout( vk::ImageLayout::eGeneral )
+			.setNewLayout( vk::ImageLayout::eGeneral )
+			.setSubresourceRange( vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1} );
+		cmd.pipelineBarrier( vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader, vk::DependencyFlagBits::eByRegion, 0, nullptr, 0, nullptr, 1, &depthReduceBarrier);
+	}
+	
+	// place one more barrier to make sure depth pyramid is finished before usage and change layout back to depth stencil optimal
+	vk::ImageMemoryBarrier  depthWriteBarrier = vk::ImageMemoryBarrier{}
+		.setImage( mDepthImage.image )
+		.setSrcAccessMask( vk::AccessFlagBits::eShaderRead )
+		.setDstAccessMask( vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite )
+		.setOldLayout( vk::ImageLayout::eShaderReadOnlyOptimal )
+		.setNewLayout( vk::ImageLayout::eDepthStencilAttachmentOptimal )
+		.setSubresourceRange( vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1} );
+	cmd.pipelineBarrier( vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eEarlyFragmentTests, vk::DependencyFlagBits::eByRegion, 0, nullptr, 0, nullptr, 1, &depthWriteBarrier);
 }
 
     

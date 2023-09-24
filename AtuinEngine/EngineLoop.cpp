@@ -100,7 +100,7 @@ void EngineLoop::Run() {
         currTime = mGameClock.ElapsedUnscaledTime();
         if ( currTime - prevTime >= 1.0)
         {
-            std::cout << frame / (currTime - prevTime) << '\n';
+            std::cout << (double)frame / (currTime - prevTime) << '\n';
             prevTime = currTime;
             frame = 0;
         }

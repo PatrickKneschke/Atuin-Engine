@@ -18,6 +18,8 @@ class DescriptorSetAllocator {
 
 public:
 
+    DescriptorSetAllocator() : mPoolSizes {}, mUsedPools {}, mFreePools {} {}
+
     void Init( vk::Device device);
     vk::DescriptorSet Allocate( vk::DescriptorSetLayout layout);
     void ResetPools();
@@ -37,7 +39,6 @@ private:
     vk::DescriptorPool mCurrPool;
     Array<vk::DescriptorPool> mUsedPools;
     Array<vk::DescriptorPool> mFreePools;
-
 };
 
 
