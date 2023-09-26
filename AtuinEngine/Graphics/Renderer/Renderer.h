@@ -9,6 +9,7 @@
 #include "MeshPass.h"
 #include "Descriptors.h"
 #include "Pipeline.h"
+#include "Camera.h"
 #include "Core/Util/Types.h"
 #include "Core/Config/CVar.h"
 #include "Core/Debug/Log.h"
@@ -60,7 +61,7 @@ struct FrameResources {
 	vk::CommandBuffer commandBuffer;
 
     // DeletionStack deletionStack;
-    DescriptorSetAllocator descriptorAllocator;
+    DescriptorSetAllocator *descriptorAllocator;
 };
 
 // mesh + material combination as stored in the ModelComponent of Entities
@@ -89,6 +90,37 @@ struct RenderObject {
 };
 
 
+struct CameraData {
+
+    glm::mat4 view = glm::mat4(1.f);
+    glm::mat4 proj = glm::mat4(1.f);
+    glm::mat4 viewProj = glm::mat4(1.f);
+    glm::vec4 position = glm::vec4(0.f);
+};
+
+
+struct ViewCullData {
+
+	glm::mat4 view; // camera view matrix
+	
+	float P00, P11, zNear, zFar; // symmetric projection parameters
+	float frustum[4]; // data for left/right/top/bottom frustum planes
+	U32 pyramidWidth, pyramidHeight; // depth pyramid size in texels
+
+	U32 drawCount;
+	U32 enableDistCull;
+	U32 enableOcclusionCull;
+};
+
+
+struct DirectionalCullData {
+    
+    glm::vec3 aabbMin;
+    glm::vec3 aabbMax;
+	uint drawCount;
+};
+
+
 class RendererCore;
 class ResourceManager;
 
@@ -112,13 +144,13 @@ private:
     
     FrameResources& CurrentFrame() { return mFrames[mFrameCount % pFrameOverlap->Get()]; }
 
+    void CreateSubmitContexts();
+    void CreateFrameResources();
 	void CreateDepthResources();
     void CreateRenderPasses();
     void CreateFramebuffers();
     void DestroyFramebuffers();
     void RecreateSwapchain();
-    void CreateSubmitContexts();
-    void CreateFrameResources();
     void CreateDefaultPipelineBuilder();
     void CreateMeshPass( MeshPass *pass, PassType type);
 
@@ -143,7 +175,8 @@ private:
     void UpdateCameraData();
     void UpdateScenedata();
     void DrawFrame();
-    void CullPassObjects( vk::CommandBuffer cmd, MeshPass *pass);
+    void CullShadowPass( vk::CommandBuffer cmd);
+    void CullForwardPass( vk::CommandBuffer cmd);
     void DrawShadowPass( vk::CommandBuffer cmd, U32 imageIndex);
     void DrawForwardPass( vk::CommandBuffer cmd, U32 imageIndex);
     void RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass);
@@ -191,12 +224,21 @@ private:
 
     Swapchain mSwapchain;
     Image mDepthImage;
+
     //depth pyramid image views
     Image mDepthPyramid;
     Array<vk::ImageView> mDepthPyramidViews;
 
     Pipeline mDepthReducePipeline;
     vk::Sampler mDepthSampler;
+
+    // culling
+    Pipeline mViewCullPipeline;
+    Pipeline mDirectionalCullPipeline;
+    Array<vk::BufferMemoryBarrier> mCullBarriers;
+
+    // camera data
+    Camera mMainCamera;
     
     // render passes and framebuffers
 

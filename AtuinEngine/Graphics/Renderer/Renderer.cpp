@@ -10,9 +10,6 @@
 
 #include "GLFW/glfw3.h"
 
-#include "stb/stb_image.h"
-#include "tinyobjloader/tiny_obj_loader.h"
-
 
 namespace Atuin {
 
@@ -56,13 +53,13 @@ void Renderer::StartUp(GLFWwindow *window) {
 
 	pCore->PrepareSwapchain(mSwapchain);
 	pCore->CreateSwapchain(mSwapchain);
-    
-	CreateDepthResources();
-	CreateRenderPasses();	
-	CreateFramebuffers();
 
 	CreateSubmitContexts();
 	CreateFrameResources();
+    
+	CreateDepthResources();
+	CreateRenderPasses();
+	CreateFramebuffers();
 
     CreateDefaultPipelineBuilder();
 	CreateSamplers();
@@ -75,6 +72,15 @@ void Renderer::StartUp(GLFWwindow *window) {
 	CreateDescriptorResources();
 	CreateDescriptorSetLayouts();
 	CreateDescriptorSets();
+
+
+	float unit = 30;
+	mMainCamera.position =  {3.f * unit, 5.f * unit, 4.f * unit};
+	mMainCamera.center = {0.f, 0.f, 0.f};
+	mMainCamera.fov = glm::radians( 60.f);
+	mMainCamera.aspect = (float)mSwapchain.extent.width / (float)mSwapchain.extent.height;
+	mMainCamera.zNear = 0.1f;
+	mMainCamera.zFar = 1000.f;
 }
 
 
@@ -177,16 +183,17 @@ void Renderer::CreateDepthResources() {
 	);
 
 	// depth pyramid
-	U32 pyramidWidth = Math::PrevPowerOfTwo( (U64)mDepthImage.width);
-	U32 pyramidHeight = Math::PrevPowerOfTwo( (U64)mDepthImage.height);
-	U32 pyramidLevels = static_cast<uint32_t>(std::floor( std::log2( std::max( pyramidWidth, pyramidHeight)))) + 1;
 
 	mDepthPyramid.format = vk::Format::eR32Sfloat;
-	mDepthPyramid.usage  = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc;
+	mDepthPyramid.usage  = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst;
 	mDepthPyramid.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
+	mDepthPyramid.width = Math::PrevPowerOfTwo( (U64)mDepthImage.width);
+	mDepthPyramid.height = Math::PrevPowerOfTwo( (U64)mDepthImage.height);
+	
+	U32 pyramidLevels = static_cast<uint32_t>(std::floor( std::log2( std::max( mDepthPyramid.width, mDepthPyramid.height)))) + 1;
 
 	mDepthPyramid.image = pCore->CreateImage(
-		pyramidWidth, pyramidHeight, 
+		mDepthPyramid.width, mDepthPyramid.height, 
 		mDepthPyramid.format, mDepthPyramid.usage, pyramidLevels
 	);	
 	mDepthPyramid.imageMemory = pCore->AllocateImageMemory(
@@ -195,6 +202,8 @@ void Renderer::CreateDepthResources() {
 	mDepthPyramid.imageView = pCore->CreateImageView(
 		mDepthPyramid.image, mDepthPyramid.format, vk::ImageAspectFlagBits::eColor, 0, pyramidLevels
 	);
+
+	TransitionImageLayout( mDepthPyramid.image, vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral, pyramidLevels);
 
 	mDeletionStack.Push( [&](){
 		pCore->Device().destroyImageView( mDepthPyramid.imageView );
@@ -209,7 +218,7 @@ void Renderer::CreateDepthResources() {
 			mDepthPyramid.image, mDepthPyramid.format, vk::ImageAspectFlagBits::eColor, i, 1
 		);
 
-		mDeletionStack.Push( [&](){
+		mDeletionStack.Push( [&, i](){
 			pCore->Device().destroyImageView( mDepthPyramidViews[i] );
 		});
 	}
@@ -1065,8 +1074,8 @@ void Renderer::UpdateMeshPassBatchBuffer( MeshPass *pass) {
 			.setFirstIndex( mesh.firstIndex )
 			.setIndexCount( mesh.indexCount )
 			.setFirstInstance( batch.first )
-			.setInstanceCount( batch.count );
-			// .setInstanceCount( 0 ); // TODO set to 0 when culling is implemented		
+			.setInstanceCount( 0 );
+			// .setInstanceCount( batch.count );
 	}
 	pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
 
@@ -1315,7 +1324,8 @@ void Renderer::CreateFrameResources() {
 		frame.commandPool = pCore->CreateCommandPool( pCore->QueueFamilies().graphicsFamily);
 		frame.commandBuffer = pCore->AllocateCommandBuffer( frame.commandPool);
 
-		frame.descriptorAllocator.Init( pCore->Device());
+		frame.descriptorAllocator = mMemory.New<DescriptorSetAllocator>();
+		frame.descriptorAllocator->Init( pCore->Device());
 
 		mDeletionStack.Push( [&](){
 			pCore->Device().destroyFence( frame.renderFence, nullptr);
@@ -1324,7 +1334,8 @@ void Renderer::CreateFrameResources() {
 			
 			pCore->Device().destroyCommandPool( frame.commandPool);
 
-			frame.descriptorAllocator.DestroyPools();
+			frame.descriptorAllocator->DestroyPools();
+			mMemory.Delete( frame.descriptorAllocator);
 		});
 	}	
 }
@@ -1581,6 +1592,9 @@ void Renderer::CreatePipelines() {
 
 	CreatePipeline( "Pipelines/depth_reduce.pipeline.json");
 	mDepthReducePipeline = mPipelines[ SID("Pipelines/depth_reduce.pipeline.json")];
+
+	CreatePipeline( "Pipelines/view_culling.pipeline.json");
+	mViewCullPipeline = mPipelines[ SID("Pipelines/view_culling.pipeline.json")];
 }
 
 
@@ -1609,6 +1623,14 @@ void Renderer::TransitionImageLayout(vk::Image image, vk::ImageLayout initialLay
 		
 		sourceStage = vk::PipelineStageFlagBits::eTopOfPipe; 
 		destinationStage = vk::PipelineStageFlagBits::eTransfer;
+	}
+	else if (initialLayout == vk::ImageLayout::eUndefined && finalLayout == vk::ImageLayout::eGeneral ) 
+	{	
+		barrier.setSrcAccessMask( vk::AccessFlagBits::eNone );
+		barrier.setDstAccessMask( vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite);
+		
+		sourceStage = vk::PipelineStageFlagBits::eTopOfPipe; 
+		destinationStage = vk::PipelineStageFlagBits::eFragmentShader;
 	}
 	else if( initialLayout == vk::ImageLayout::eTransferDstOptimal && finalLayout == vk::ImageLayout::eShaderReadOnlyOptimal ) 
 	{
@@ -1742,22 +1764,10 @@ void Renderer::CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, Size offse
 void Renderer::UpdateCameraData() {
 
 	CameraData camera;
-	float unit = 30;
-	camera.position = {3.f * unit, 5.f * unit, 4.f * unit};
-	// float angle = (float)mFrameCount / 120.f * glm::radians(30.f);
-	// camera.position = {4.f*cos(angle), 0.f, 4.f*sin(angle)};
-	camera.view = glm::lookAt(
-		camera.position,
-		glm::vec3(0.f, 0.f, 0.f),
-		glm::vec3(0.f, 1.f, 0.f)
-	);
-	camera.proj = glm::perspective(
-		glm::radians(60.f),
-		(float)mSwapchain.extent.width / (float)mSwapchain.extent.height,
-		0.1f, 1000.0f
-	);
-	camera.proj[1][1] *= -1; // flip y scaling factor -> correction of OpenGL inverse y-axis
+	camera.view = mMainCamera.View();
+	camera.proj = mMainCamera.Projection();
 	camera.viewProj = camera.proj * camera.view;
+	camera.position = glm::vec4( mMainCamera.position, mMainCamera.zoom); 
 	
 	UploadBufferData( &camera, sizeof(CameraData), mCameraBuffer.buffer);
 }
@@ -1828,7 +1838,7 @@ void Renderer::DrawFrame() {
 	}
 
 
-	frame.descriptorAllocator.ResetPools();
+	frame.descriptorAllocator->ResetPools();
 
 
 	// get current frames command buffer and reset
@@ -1843,9 +1853,16 @@ void Renderer::DrawFrame() {
 
 
 	// compute culling
-	CullPassObjects( cmd, &mShadowMeshPass);
-	CullPassObjects( cmd, &mOpaqueMeshPass);
-	CullPassObjects( cmd, &mTransparentMeshPass);
+	mCullBarriers.Clear();
+
+	CullShadowPass( cmd);
+	CullForwardPass( cmd);
+
+	cmd.pipelineBarrier( 
+		vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eDrawIndirect, vk::DependencyFlags{}, 
+		0, nullptr, (U32)mCullBarriers.GetSize(), mCullBarriers.Data(), 0, nullptr
+	);
+
 
 	// render passes
 	DrawShadowPass( cmd, imageIndex);
@@ -1905,9 +1922,114 @@ void Renderer::DrawFrame() {
 }
 
 
-void Renderer::CullPassObjects( vk::CommandBuffer cmd, MeshPass *pass) {
+void Renderer::CullShadowPass( vk::CommandBuffer cmd) {
 
 
+}
+    
+
+void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
+
+	// get cull data
+	glm::mat4 proj = mMainCamera.Projection();
+	glm::mat4 projT = glm::transpose( proj);
+	glm::vec2 frustumX = (projT[3] + projT[0]) / glm::length( glm::vec3( projT[3] + projT[0]));
+	glm::vec2 frustumY = (projT[3] + projT[1]) / glm::length( glm::vec3( projT[3] + projT[1]));
+
+	ViewCullData viewCullOpaque;
+	viewCullOpaque.view = mMainCamera.View();
+	viewCullOpaque.P00 = proj[0][0];
+	viewCullOpaque.P11 = proj[1][1];
+	viewCullOpaque.zNear = mMainCamera.zNear;
+	viewCullOpaque.zFar = mMainCamera.zFar;
+	viewCullOpaque.frustum[0] = frustumX.x;
+	viewCullOpaque.frustum[1] = frustumX.y;
+	viewCullOpaque.frustum[2] = frustumY.x;
+	viewCullOpaque.frustum[3] = frustumY.y;
+	viewCullOpaque.pyramidWidth = mDepthPyramid.width;
+	viewCullOpaque.pyramidHeight = mDepthPyramid.height;
+	viewCullOpaque.drawCount = (U32)mOpaqueMeshPass.renderBatches.GetSize();
+	viewCullOpaque.enableDistCull = 1;
+	viewCullOpaque.enableOcclusionCull = 1;
+
+	ViewCullData viewCullTransparent = viewCullOpaque;
+	viewCullTransparent.drawCount = (U32)mTransparentMeshPass.renderBatches.GetSize(); 
+
+	// build descriptor sets
+	auto pyramidInfo = mDepthPyramid.DescriptorInfo( mDepthSampler);
+	auto objectInfo = mObjectBuffer.DescriptorInfo();
+	auto instanceDataOpaqueInfo = mOpaqueMeshPass.instanceDataBuffer.DescriptorInfo();
+	auto drawIndirectOpaqueInfo = mOpaqueMeshPass.drawIndirectBuffer.DescriptorInfo();
+	auto instanceIdxOpaqueInfo = mOpaqueMeshPass.instanceIndexBuffer.DescriptorInfo();
+	vk::DescriptorSet viewCullOpaqueSet = DescriptorSetBuilder( pCore->Device(), CurrentFrame().descriptorAllocator, pDescriptorLayoutCache)
+		.BindImage( 0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eCompute, &pyramidInfo)
+		.BindBuffer( 1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &objectInfo)
+		.BindBuffer( 2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceDataOpaqueInfo)
+		.BindBuffer( 3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &drawIndirectOpaqueInfo)
+		.BindBuffer( 4, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceIdxOpaqueInfo)
+		.Build();
+
+	auto instanceDataTransparentInfo = mOpaqueMeshPass.instanceDataBuffer.DescriptorInfo();
+	auto drawIndirectTransparentInfo = mOpaqueMeshPass.drawIndirectBuffer.DescriptorInfo();
+	auto instanceIdxTransparentInfo = mOpaqueMeshPass.instanceIndexBuffer.DescriptorInfo();
+	vk::DescriptorSet viewCullTransparentSet = DescriptorSetBuilder( pCore->Device(), CurrentFrame().descriptorAllocator, pDescriptorLayoutCache)
+		.BindImage( 0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eCompute, &pyramidInfo)
+		.BindBuffer( 1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &objectInfo)
+		.BindBuffer( 2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceDataTransparentInfo)
+		.BindBuffer( 3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &drawIndirectTransparentInfo)
+		.BindBuffer( 4, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceIdxTransparentInfo)
+		.Build();
+
+	// dispatch culls
+	cmd.bindPipeline( vk::PipelineBindPoint::eCompute, mViewCullPipeline.pipeline);
+
+	cmd.bindDescriptorSets( vk::PipelineBindPoint::eCompute, mViewCullPipeline.pipelineLayout, 0, 1, &viewCullOpaqueSet, 0, nullptr);
+	cmd.pushConstants( mViewCullPipeline.pipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof( ViewCullData), &viewCullOpaque);
+
+	cmd.dispatch( (U32)(viewCullOpaque.drawCount / 256) + 1, 1, 1);
+
+	cmd.bindDescriptorSets( vk::PipelineBindPoint::eCompute, mViewCullPipeline.pipelineLayout, 0, 1, &viewCullTransparentSet, 0, nullptr);
+	cmd.pushConstants( mViewCullPipeline.pipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof( ViewCullData), &viewCullTransparent);
+
+	cmd.dispatch( (U32)(viewCullTransparent.drawCount / 256) + 1, 1, 1);
+
+	// set barriers between buffer writes and indirect draws
+	mCullBarriers.PushBack(
+		vk::BufferMemoryBarrier{}
+			.setBuffer( mOpaqueMeshPass.drawIndirectBuffer.buffer)
+			.setSize( VK_WHOLE_SIZE)
+			.setSrcAccessMask( vk::AccessFlagBits::eShaderWrite)
+			.setDstAccessMask( vk::AccessFlagBits::eIndirectCommandRead)
+			.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+			.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+	);
+	mCullBarriers.PushBack(
+		vk::BufferMemoryBarrier{}
+			.setBuffer( mOpaqueMeshPass.instanceIndexBuffer.buffer)
+			.setSize( VK_WHOLE_SIZE)
+			.setSrcAccessMask( vk::AccessFlagBits::eShaderWrite)
+			.setDstAccessMask( vk::AccessFlagBits::eIndirectCommandRead)
+			.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+			.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+	);
+	mCullBarriers.PushBack(
+		vk::BufferMemoryBarrier{}
+			.setBuffer( mTransparentMeshPass.drawIndirectBuffer.buffer)
+			.setSize( VK_WHOLE_SIZE)
+			.setSrcAccessMask( vk::AccessFlagBits::eShaderWrite)
+			.setDstAccessMask( vk::AccessFlagBits::eIndirectCommandRead)
+			.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+			.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+	);
+	mCullBarriers.PushBack(
+		vk::BufferMemoryBarrier{}
+			.setBuffer( mTransparentMeshPass.instanceIndexBuffer.buffer)
+			.setSize( VK_WHOLE_SIZE)
+			.setSrcAccessMask( vk::AccessFlagBits::eShaderWrite)
+			.setDstAccessMask( vk::AccessFlagBits::eIndirectCommandRead)
+			.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+			.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+	);
 }
 
 
@@ -2024,7 +2146,7 @@ void Renderer::UpdateDepthPyramid( vk::CommandBuffer cmd) {
 		// set image descriptors
 		auto srcImageInfo = vk::DescriptorImageInfo{}
 			.setSampler( mDepthSampler )
-			.setImageView( i == 0 ? mDepthImage.imageView : mDepthPyramidViews[i-1] )
+			.setImageView(   i == 0 ? mDepthImage.imageView : mDepthPyramidViews[i-1] )
 			.setImageLayout( i == 0 ? vk::ImageLayout::eShaderReadOnlyOptimal : vk::ImageLayout::eGeneral);
 
 		auto dstImageInfo = vk::DescriptorImageInfo{}
@@ -2032,7 +2154,7 @@ void Renderer::UpdateDepthPyramid( vk::CommandBuffer cmd) {
 			.setImageView( mDepthPyramidViews[i] )
 			.setImageLayout( vk::ImageLayout::eGeneral );
 
-		vk::DescriptorSet depthSet = DescriptorSetBuilder( pCore->Device(), &CurrentFrame().descriptorAllocator, pDescriptorLayoutCache)
+		vk::DescriptorSet depthSet = DescriptorSetBuilder( pCore->Device(), CurrentFrame().descriptorAllocator, pDescriptorLayoutCache)
 			.BindImage( 0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eCompute, &srcImageInfo)
 			.BindImage( 1, vk::DescriptorType::eStorageImage, vk::ShaderStageFlagBits::eCompute, &dstImageInfo)
 			.Build();

@@ -90,15 +90,6 @@ struct Buffer {
 };
 
 
-struct CameraData {
-
-	glm::mat4 view;
-	glm::mat4 proj;
-	glm::mat4 viewProj;
-	glm::vec3 position;
-};
-
-
 struct ObjectData {
 
 	glm::mat4 transform;

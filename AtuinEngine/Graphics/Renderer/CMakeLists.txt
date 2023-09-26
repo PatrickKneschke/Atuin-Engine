@@ -8,6 +8,7 @@ add_library( Renderer
     Descriptors.cpp 
     Pipeline.cpp 
     ResourceManager.cpp 
+    Camera.cpp 
     VulkanInclude.h 
     Renderer.h 
     RendererCore.h
@@ -16,6 +17,7 @@ add_library( Renderer
     Material.h 
     Descriptors.h 
     Pipeline.h 
-    ResourceManager.h 
+    ResourceManager.h
+    Camera.h 
     JsonToVulkan.h
 )
