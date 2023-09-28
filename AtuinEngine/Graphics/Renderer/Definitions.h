@@ -59,10 +59,10 @@ struct Image {
 	U32                     width;
 	U32                     height;
 
-	vk::DescriptorImageInfo DescriptorInfo( vk::Sampler sampler) {
+	vk::DescriptorImageInfo DescriptorInfo( vk::Sampler sampler, vk::ImageLayout layout = vk::ImageLayout::eShaderReadOnlyOptimal) {
 
 		auto imageInfo = vk::DescriptorImageInfo{}
-			.setImageLayout( vk::ImageLayout::eShaderReadOnlyOptimal )
+			.setImageLayout( layout )
 			.setImageView( imageView )
 			.setSampler( sampler );
 

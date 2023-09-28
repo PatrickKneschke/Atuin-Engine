@@ -535,22 +535,35 @@ void Renderer::CreateSampler( std::string_view samplerName) {
 	auto content = mFiles.Read( mResourceDir + samplerName.data());
 	Json samplerJson = Json::Load( std::string_view( content.Data(), content.GetSize()));
 
-	vk::Sampler newSampler = pCore->CreateSampler(
-		JsonVk::GetFilter( samplerJson.At( "minFilter").ToString()), 
-		JsonVk::GetFilter( samplerJson.At( "magFilter").ToString()), 
-		JsonVk::GetAddressMode( samplerJson.At( "addressModeU").ToString()), 
-		JsonVk::GetAddressMode( samplerJson.At( "addressModeV").ToString()), 
-		JsonVk::GetAddressMode( samplerJson.At( "addressModeW").ToString()),
-		samplerJson.At( "enableAnisotropy").ToBool(),
-		(float)pMaxAnisotropy->Get(),
-		JsonVk::GetMipMapMode( samplerJson.At( "mipmapMode").ToString()), 
-		(float)samplerJson.At( "minLod").ToFloat(),
-		(float)samplerJson.At( "maxLod").ToFloat(),
-		(float)samplerJson.At( "mipLodBias").ToFloat(),
-		samplerJson.At( "enableCompare").ToBool(),
-		JsonVk::GetCompareOp( samplerJson.At( "compareOp").ToString()),
-		JsonVk::GetBorder( samplerJson.At( "borderColor").ToString())
-	);
+	auto samplerInfo = vk::SamplerCreateInfo{}
+		.setMinFilter( JsonVk::GetFilter( samplerJson.At( "minFilter").ToString()) )
+		.setMagFilter( JsonVk::GetFilter( samplerJson.At( "magFilter").ToString()) )
+		.setAddressModeU( JsonVk::GetAddressMode( samplerJson.At( "addressModeU").ToString()) )
+		.setAddressModeV( JsonVk::GetAddressMode( samplerJson.At( "addressModeV").ToString()) )
+		.setAddressModeW( JsonVk::GetAddressMode( samplerJson.At( "addressModeW").ToString()) )
+		.setAnisotropyEnable( samplerJson.At( "enableAnisotropy").ToBool() )
+		.setMaxAnisotropy( (float)pMaxAnisotropy->Get() )
+		.setMipmapMode( JsonVk::GetMipMapMode( samplerJson.At( "mipmapMode").ToString()) )
+		.setMinLod( (float)samplerJson.At( "minLod").ToFloat() )
+		.setMaxLod( (float)samplerJson.At( "maxLod").ToFloat() )
+		.setMipLodBias( (float)samplerJson.At( "mipLodBias").ToFloat() )
+		.setCompareEnable( samplerJson.At( "enableCompare").ToBool() )
+		.setCompareOp( JsonVk::GetCompareOp( samplerJson.At( "compareOp").ToString()) )
+		.setBorderColor( JsonVk::GetBorder( samplerJson.At( "borderColor").ToString()) );
+	
+	vk::SamplerReductionModeCreateInfo reductionModeInfo;
+	if ( !samplerJson["reductionMode"].IsNull() )
+	{
+		reductionModeInfo.setReductionMode( JsonVk::GetReductionMode( samplerJson[ "reductionMode"].ToString()) );
+		samplerInfo.setPNext( &reductionModeInfo);
+	}	
+
+	vk::Sampler newSampler;
+	vk::Result result = pCore->Device().createSampler(&samplerInfo, nullptr, &newSampler);
+	if( result != vk::Result::eSuccess )
+	{
+		throw std::runtime_error("Failed to create texture sampler " + vk::to_string(result));
+	}
 
 	mSamplers[ samplerId] = newSampler;
 
@@ -935,7 +948,7 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 			pass->drawIndirectBuffer,
 			pass->indirectBatches.GetSize() * sizeof(IndirectData),
 			vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eIndirectBuffer | vk::BufferUsageFlagBits::eTransferDst,
-			vk::MemoryPropertyFlagBits::eDeviceLocal
+			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent //vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
 	}
 	if ( pass->instanceDataBuffer.bufferSize < pass->renderBatches.GetSize() * sizeof(InstanceData))
@@ -1128,34 +1141,34 @@ void Renderer::UpdateMeshPassInstanceBuffer( MeshPass *pass) {
 
 
 
-	// TODO fill isntance buffer later in culling pass
-	copySize = pass->renderBatches.GetSize() * sizeof(U32);
+	// // TODO fill isntance buffer later in culling pass
+	// copySize = pass->renderBatches.GetSize() * sizeof(U32);
 
-	// fill staging buffer
-	Buffer stagingBuffer2 = CreateStagingBuffer( copySize);
-	result = pCore->Device().mapMemory( stagingBuffer2.bufferMemory, 0, copySize, vk::MemoryMapFlags(), &data);
-	if( result != vk::Result::eSuccess )
-	{
-		throw std::runtime_error("Failed to map staging buffer memory " + vk::to_string(result));
-	}
+	// // fill staging buffer
+	// Buffer stagingBuffer2 = CreateStagingBuffer( copySize);
+	// result = pCore->Device().mapMemory( stagingBuffer2.bufferMemory, 0, copySize, vk::MemoryMapFlags(), &data);
+	// if( result != vk::Result::eSuccess )
+	// {
+	// 	throw std::runtime_error("Failed to map staging buffer memory " + vk::to_string(result));
+	// }
 
-	U32 *instanceIdx = (U32*)data;
-	for ( U32 batchIdx = 0; batchIdx < pass->indirectBatches.GetSize(); batchIdx++)
-	{
-		IndirectBatch batch = pass->indirectBatches[ batchIdx];
-		for ( U32 i = 0; i < batch.count; i++)
-		{
-			instanceIdx[ batch.first + i] = pass->renderBatches[ batch.first + i].objectIdx;
-		}
-	}
-	pCore->Device().unmapMemory( stagingBuffer2.bufferMemory);
+	// U32 *instanceIdx = (U32*)data;
+	// for ( U32 batchIdx = 0; batchIdx < pass->indirectBatches.GetSize(); batchIdx++)
+	// {
+	// 	IndirectBatch batch = pass->indirectBatches[ batchIdx];
+	// 	for ( U32 i = 0; i < batch.count; i++)
+	// 	{
+	// 		instanceIdx[ batch.first + i] = pass->renderBatches[ batch.first + i].objectIdx;
+	// 	}
+	// }
+	// pCore->Device().unmapMemory( stagingBuffer2.bufferMemory);
 
-	// upload buffer data to Gpu memory
-	CopyBuffer( stagingBuffer2.buffer, pass->instanceIndexBuffer.buffer, 0, stagingBuffer2.bufferSize);
+	// // upload buffer data to Gpu memory
+	// CopyBuffer( stagingBuffer2.buffer, pass->instanceIndexBuffer.buffer, 0, stagingBuffer2.bufferSize);
 
-	// cleanup
-	pCore->Device().destroyBuffer( stagingBuffer2.buffer);
-	pCore->Device().freeMemory( stagingBuffer2.bufferMemory);
+	// // cleanup
+	// pCore->Device().destroyBuffer( stagingBuffer2.buffer);
+	// pCore->Device().freeMemory( stagingBuffer2.bufferMemory);
 }
 
 
@@ -1458,7 +1471,7 @@ void Renderer::CreateMeshPass( MeshPass *pass, PassType type) {
 		pass->drawIndirectBuffer,
 		sizeof(IndirectData),
 		vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eIndirectBuffer | vk::BufferUsageFlagBits::eTransferDst,
-		vk::MemoryPropertyFlagBits::eDeviceLocal
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent //vk::MemoryPropertyFlagBits::eDeviceLocal
 	);
 	
 	CreateBuffer(
@@ -1855,7 +1868,7 @@ void Renderer::DrawFrame() {
 	// compute culling
 	mCullBarriers.Clear();
 
-	CullShadowPass( cmd);
+	CullShadowPass( cmd  );
 	CullForwardPass( cmd);
 
 	cmd.pipelineBarrier( 
@@ -1919,6 +1932,24 @@ void Renderer::DrawFrame() {
 	}
 
 	++mFrameCount;
+
+
+
+	void *data;
+	result = pCore->Device().mapMemory( mOpaqueMeshPass.drawIndirectBuffer.bufferMemory, 0, mOpaqueMeshPass.drawIndirectBuffer.bufferSize, vk::MemoryMapFlags(), &data);
+	if( result != vk::Result::eSuccess )
+	{
+		throw std::runtime_error("Failed to map buffer memory " + vk::to_string(result));
+	}
+
+	IndirectData *indirectData = (IndirectData*)data;
+	for ( U32 i = 0; i < mOpaqueMeshPass.indirectBatches.GetSize(); i++)
+	{
+		std::cout << i << "   :   " << indirectData[i].drawIndirectCmd.firstInstance << "   , "  << indirectData[i].drawIndirectCmd.instanceCount << '\n';
+	}
+	std::cout << "----------------------------\n";
+	pCore->Device().unmapMemory( mOpaqueMeshPass.drawIndirectBuffer.bufferMemory);
+	
 }
 
 
@@ -1936,27 +1967,27 @@ void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 	glm::vec2 frustumX = (projT[3] + projT[0]) / glm::length( glm::vec3( projT[3] + projT[0]));
 	glm::vec2 frustumY = (projT[3] + projT[1]) / glm::length( glm::vec3( projT[3] + projT[1]));
 
-	ViewCullData viewCullOpaque;
-	viewCullOpaque.view = mMainCamera.View();
-	viewCullOpaque.P00 = proj[0][0];
-	viewCullOpaque.P11 = proj[1][1];
-	viewCullOpaque.zNear = mMainCamera.zNear;
-	viewCullOpaque.zFar = mMainCamera.zFar;
-	viewCullOpaque.frustum[0] = frustumX.x;
-	viewCullOpaque.frustum[1] = frustumX.y;
-	viewCullOpaque.frustum[2] = frustumY.x;
-	viewCullOpaque.frustum[3] = frustumY.y;
-	viewCullOpaque.pyramidWidth = mDepthPyramid.width;
-	viewCullOpaque.pyramidHeight = mDepthPyramid.height;
-	viewCullOpaque.drawCount = (U32)mOpaqueMeshPass.renderBatches.GetSize();
-	viewCullOpaque.enableDistCull = 1;
-	viewCullOpaque.enableOcclusionCull = 1;
+	ViewCullData opaqueCull;
+	opaqueCull.view = mMainCamera.View();
+	opaqueCull.P00 = proj[0][0];
+	opaqueCull.P11 = proj[1][1];
+	opaqueCull.zNear = mMainCamera.zNear;
+	opaqueCull.zFar = mMainCamera.zFar;
+	opaqueCull.frustum[0] = frustumX.x;
+	opaqueCull.frustum[1] = frustumX.y;
+	opaqueCull.frustum[2] = frustumY.x;
+	opaqueCull.frustum[3] = frustumY.y;
+	opaqueCull.pyramidWidth = mDepthPyramid.width;
+	opaqueCull.pyramidHeight = mDepthPyramid.height;
+	opaqueCull.drawCount = (U32)mOpaqueMeshPass.renderBatches.GetSize();
+	opaqueCull.enableDistCull = 1;
+	opaqueCull.enableOcclusionCull = 1;
 
-	ViewCullData viewCullTransparent = viewCullOpaque;
-	viewCullTransparent.drawCount = (U32)mTransparentMeshPass.renderBatches.GetSize(); 
+	ViewCullData transparentCull = opaqueCull;
+	transparentCull.drawCount = (U32)mTransparentMeshPass.renderBatches.GetSize(); 
 
 	// build descriptor sets
-	auto pyramidInfo = mDepthPyramid.DescriptorInfo( mDepthSampler);
+	auto pyramidInfo = mDepthPyramid.DescriptorInfo( mDepthSampler, vk::ImageLayout::eGeneral);
 	auto objectInfo = mObjectBuffer.DescriptorInfo();
 	auto instanceDataOpaqueInfo = mOpaqueMeshPass.instanceDataBuffer.DescriptorInfo();
 	auto drawIndirectOpaqueInfo = mOpaqueMeshPass.drawIndirectBuffer.DescriptorInfo();
@@ -1969,9 +2000,9 @@ void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 		.BindBuffer( 4, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceIdxOpaqueInfo)
 		.Build();
 
-	auto instanceDataTransparentInfo = mOpaqueMeshPass.instanceDataBuffer.DescriptorInfo();
-	auto drawIndirectTransparentInfo = mOpaqueMeshPass.drawIndirectBuffer.DescriptorInfo();
-	auto instanceIdxTransparentInfo = mOpaqueMeshPass.instanceIndexBuffer.DescriptorInfo();
+	auto instanceDataTransparentInfo = mTransparentMeshPass.instanceDataBuffer.DescriptorInfo();
+	auto drawIndirectTransparentInfo = mTransparentMeshPass.drawIndirectBuffer.DescriptorInfo();
+	auto instanceIdxTransparentInfo = mTransparentMeshPass.instanceIndexBuffer.DescriptorInfo();
 	vk::DescriptorSet viewCullTransparentSet = DescriptorSetBuilder( pCore->Device(), CurrentFrame().descriptorAllocator, pDescriptorLayoutCache)
 		.BindImage( 0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eCompute, &pyramidInfo)
 		.BindBuffer( 1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &objectInfo)
@@ -1984,14 +2015,14 @@ void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 	cmd.bindPipeline( vk::PipelineBindPoint::eCompute, mViewCullPipeline.pipeline);
 
 	cmd.bindDescriptorSets( vk::PipelineBindPoint::eCompute, mViewCullPipeline.pipelineLayout, 0, 1, &viewCullOpaqueSet, 0, nullptr);
-	cmd.pushConstants( mViewCullPipeline.pipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof( ViewCullData), &viewCullOpaque);
+	cmd.pushConstants( mViewCullPipeline.pipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof( ViewCullData), &opaqueCull);
 
-	cmd.dispatch( (U32)(viewCullOpaque.drawCount / 256) + 1, 1, 1);
+	cmd.dispatch( (U32)(opaqueCull.drawCount / 256) + 1, 1, 1);
 
 	cmd.bindDescriptorSets( vk::PipelineBindPoint::eCompute, mViewCullPipeline.pipelineLayout, 0, 1, &viewCullTransparentSet, 0, nullptr);
-	cmd.pushConstants( mViewCullPipeline.pipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof( ViewCullData), &viewCullTransparent);
+	cmd.pushConstants( mViewCullPipeline.pipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof( ViewCullData), &transparentCull);
 
-	cmd.dispatch( (U32)(viewCullTransparent.drawCount / 256) + 1, 1, 1);
+	cmd.dispatch( (U32)(transparentCull.drawCount / 256) + 1, 1, 1);
 
 	// set barriers between buffer writes and indirect draws
 	mCullBarriers.PushBack(

@@ -161,6 +161,26 @@ inline vk::BorderColor GetBorder( std::string_view borderColor) {
 }
 
 
+inline vk::SamplerReductionMode GetReductionMode( std::string_view reductionMode) {
+
+	vk::SamplerReductionMode res;
+	if( reductionMode == "min")
+	{
+		res = vk::SamplerReductionMode::eMin;
+	}
+	else if( reductionMode == "max")
+	{
+		res = vk::SamplerReductionMode::eMax;
+	}
+	else 
+	{
+		throw std::runtime_error( FormatStr( "Unsupported or unknown sampler reduction mode \"%s\"", reductionMode));
+	}
+
+	return res;
+}
+
+
 inline vk::DescriptorType GetDescriptorType( std::string_view descriptorType) {
 
 	vk::DescriptorType res;

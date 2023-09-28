@@ -19,7 +19,8 @@ namespace Atuin {
 // required vulkan extensions
 const Array<const char*> requiredExtensions {
 
-	VK_KHR_SWAPCHAIN_EXTENSION_NAME
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+    VK_EXT_SAMPLER_FILTER_MINMAX_EXTENSION_NAME
 };
 
 
