@@ -10,6 +10,8 @@
 
 #include "GLFW/glfw3.h"
 
+#include <glm/gtx/string_cast.hpp>
+
 
 namespace Atuin {
 
@@ -73,14 +75,19 @@ void Renderer::StartUp(GLFWwindow *window) {
 	CreateDescriptorSetLayouts();
 	CreateDescriptorSets();
 
-
-	float unit = 30;
-	mMainCamera.position =  {3.f * unit, 5.f * unit, 4.f * unit};
-	mMainCamera.center = {0.f, 0.f, 0.f};
-	mMainCamera.fov = glm::radians( 60.f);
+	// camera
+	float unit = 20;
+	mMainCamera.position = {0.f * unit, 0.f * unit, 1.f * unit};
+	// mMainCamera.center = {0.f, 4.f, 0.f};
+	mMainCamera.forward = glm::normalize( glm::vec3(0.f, 0.f, 0.f) - mMainCamera.position);
+	mMainCamera.fov = glm::radians( 90.f);
 	mMainCamera.aspect = (float)mSwapchain.extent.width / (float)mSwapchain.extent.height;
 	mMainCamera.zNear = 0.1f;
 	mMainCamera.zFar = 1000.f;
+	mMainCamera.UpdateCoordinates();
+
+
+	// std::cout << to_string(mMainCamera.Projection()) << '\n';
 }
 
 
@@ -966,7 +973,7 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 			pass->instanceIndexBuffer,
 			pass->renderBatches.GetSize() * sizeof(U32),
 			vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
-			vk::MemoryPropertyFlagBits::eDeviceLocal
+			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent //vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
 
 		auto instanceInfo = pass->instanceIndexBuffer.DescriptorInfo();
@@ -1058,7 +1065,7 @@ void Renderer::BuildMeshPassBatches( MeshPass *pass) {
 
 void Renderer::UpdateMeshPassBatchBuffer( MeshPass *pass) {
 
-	if ( !pass->rebuildBatches)
+	if ( pass->indirectBatches.IsEmpty())
 	{
 		return;
 	}
@@ -1478,7 +1485,7 @@ void Renderer::CreateMeshPass( MeshPass *pass, PassType type) {
 		pass->instanceDataBuffer,
 		sizeof(InstanceData),
 		vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
-		vk::MemoryPropertyFlagBits::eDeviceLocal
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent //vk::MemoryPropertyFlagBits::eDeviceLocal
 	);
 	
 	CreateBuffer(
@@ -1934,7 +1941,6 @@ void Renderer::DrawFrame() {
 	++mFrameCount;
 
 
-
 	void *data;
 	result = pCore->Device().mapMemory( mOpaqueMeshPass.drawIndirectBuffer.bufferMemory, 0, mOpaqueMeshPass.drawIndirectBuffer.bufferSize, vk::MemoryMapFlags(), &data);
 	if( result != vk::Result::eSuccess )
@@ -1964,27 +1970,39 @@ void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 	// get cull data
 	glm::mat4 proj = mMainCamera.Projection();
 	glm::mat4 projT = glm::transpose( proj);
-	glm::vec2 frustumX = (projT[3] + projT[0]) / glm::length( glm::vec3( projT[3] + projT[0]));
-	glm::vec2 frustumY = (projT[3] + projT[1]) / glm::length( glm::vec3( projT[3] + projT[1]));
+	// glm::vec4 frustumX = (projT[3] + projT[0]) / glm::length( glm::vec3( projT[3] + projT[0]));
+	// glm::vec4 frustumY = (projT[3] + projT[1]) / glm::length( glm::vec3( projT[3] + projT[1]));
+
+	U32 width = mMainCamera.zFar * tan( mMainCamera.fov / 2) * mMainCamera.aspect;
+	U32 height = mMainCamera.zFar * tan( mMainCamera.fov / 2);
+
+	glm::vec3 pr = (float)width * mMainCamera.right + mMainCamera.zFar * mMainCamera.forward;
+	glm::vec3 pu = (float)height * mMainCamera.up + mMainCamera.zFar * mMainCamera.forward;
+	glm::vec3 nr = glm::normalize( glm::cross( pr, mMainCamera.up));
+	glm::vec3 nu = glm::normalize( glm::cross( mMainCamera.right, pu));
+
+	// std::cout << to_string(pr) << "   " << to_string(mMainCamera.up) << '\n';
+	// std::cout << to_string(pu) << "   " << to_string(mMainCamera.right) << '\n';
+	// std::cout << to_string(nr) << "   " << to_string(nu) << '\n';
 
 	ViewCullData opaqueCull;
 	opaqueCull.view = mMainCamera.View();
 	opaqueCull.P00 = proj[0][0];
 	opaqueCull.P11 = proj[1][1];
-	opaqueCull.zNear = mMainCamera.zNear;
-	opaqueCull.zFar = mMainCamera.zFar;
-	opaqueCull.frustum[0] = frustumX.x;
-	opaqueCull.frustum[1] = frustumX.y;
-	opaqueCull.frustum[2] = frustumY.x;
-	opaqueCull.frustum[3] = frustumY.y;
+	opaqueCull.zNear = -mMainCamera.zNear;
+	opaqueCull.zFar = -mMainCamera.zFar;
+	opaqueCull.frustum[0] = nr.x; // frustumX.x;
+	opaqueCull.frustum[1] = nr.z; // frustumX.z;
+	opaqueCull.frustum[2] = nu.y; // frustumY.y;
+	opaqueCull.frustum[3] = nu.z; // frustumY.z;
 	opaqueCull.pyramidWidth = mDepthPyramid.width;
 	opaqueCull.pyramidHeight = mDepthPyramid.height;
 	opaqueCull.drawCount = (U32)mOpaqueMeshPass.renderBatches.GetSize();
 	opaqueCull.enableDistCull = 1;
 	opaqueCull.enableOcclusionCull = 1;
 
-	ViewCullData transparentCull = opaqueCull;
-	transparentCull.drawCount = (U32)mTransparentMeshPass.renderBatches.GetSize(); 
+	// ViewCullData transparentCull = opaqueCull;
+	// transparentCull.drawCount = (U32)mTransparentMeshPass.renderBatches.GetSize(); 
 
 	// build descriptor sets
 	auto pyramidInfo = mDepthPyramid.DescriptorInfo( mDepthSampler, vk::ImageLayout::eGeneral);
@@ -2000,16 +2018,16 @@ void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 		.BindBuffer( 4, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceIdxOpaqueInfo)
 		.Build();
 
-	auto instanceDataTransparentInfo = mTransparentMeshPass.instanceDataBuffer.DescriptorInfo();
-	auto drawIndirectTransparentInfo = mTransparentMeshPass.drawIndirectBuffer.DescriptorInfo();
-	auto instanceIdxTransparentInfo = mTransparentMeshPass.instanceIndexBuffer.DescriptorInfo();
-	vk::DescriptorSet viewCullTransparentSet = DescriptorSetBuilder( pCore->Device(), CurrentFrame().descriptorAllocator, pDescriptorLayoutCache)
-		.BindImage( 0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eCompute, &pyramidInfo)
-		.BindBuffer( 1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &objectInfo)
-		.BindBuffer( 2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceDataTransparentInfo)
-		.BindBuffer( 3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &drawIndirectTransparentInfo)
-		.BindBuffer( 4, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceIdxTransparentInfo)
-		.Build();
+	// auto instanceDataTransparentInfo = mTransparentMeshPass.instanceDataBuffer.DescriptorInfo();
+	// auto drawIndirectTransparentInfo = mTransparentMeshPass.drawIndirectBuffer.DescriptorInfo();
+	// auto instanceIdxTransparentInfo = mTransparentMeshPass.instanceIndexBuffer.DescriptorInfo();
+	// vk::DescriptorSet viewCullTransparentSet = DescriptorSetBuilder( pCore->Device(), CurrentFrame().descriptorAllocator, pDescriptorLayoutCache)
+	// 	.BindImage( 0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eCompute, &pyramidInfo)
+	// 	.BindBuffer( 1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &objectInfo)
+	// 	.BindBuffer( 2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceDataTransparentInfo)
+	// 	.BindBuffer( 3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &drawIndirectTransparentInfo)
+	// 	.BindBuffer( 4, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceIdxTransparentInfo)
+	// 	.Build();
 
 	// dispatch culls
 	cmd.bindPipeline( vk::PipelineBindPoint::eCompute, mViewCullPipeline.pipeline);
@@ -2019,10 +2037,10 @@ void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 
 	cmd.dispatch( (U32)(opaqueCull.drawCount / 256) + 1, 1, 1);
 
-	cmd.bindDescriptorSets( vk::PipelineBindPoint::eCompute, mViewCullPipeline.pipelineLayout, 0, 1, &viewCullTransparentSet, 0, nullptr);
-	cmd.pushConstants( mViewCullPipeline.pipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof( ViewCullData), &transparentCull);
+	// cmd.bindDescriptorSets( vk::PipelineBindPoint::eCompute, mViewCullPipeline.pipelineLayout, 0, 1, &viewCullTransparentSet, 0, nullptr);
+	// cmd.pushConstants( mViewCullPipeline.pipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof( ViewCullData), &transparentCull);
 
-	cmd.dispatch( (U32)(transparentCull.drawCount / 256) + 1, 1, 1);
+	// cmd.dispatch( (U32)(transparentCull.drawCount / 256) + 1, 1, 1);
 
 	// set barriers between buffer writes and indirect draws
 	mCullBarriers.PushBack(
@@ -2043,24 +2061,24 @@ void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 			.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
 			.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
 	);
-	mCullBarriers.PushBack(
-		vk::BufferMemoryBarrier{}
-			.setBuffer( mTransparentMeshPass.drawIndirectBuffer.buffer)
-			.setSize( VK_WHOLE_SIZE)
-			.setSrcAccessMask( vk::AccessFlagBits::eShaderWrite)
-			.setDstAccessMask( vk::AccessFlagBits::eIndirectCommandRead)
-			.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
-			.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
-	);
-	mCullBarriers.PushBack(
-		vk::BufferMemoryBarrier{}
-			.setBuffer( mTransparentMeshPass.instanceIndexBuffer.buffer)
-			.setSize( VK_WHOLE_SIZE)
-			.setSrcAccessMask( vk::AccessFlagBits::eShaderWrite)
-			.setDstAccessMask( vk::AccessFlagBits::eIndirectCommandRead)
-			.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
-			.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
-	);
+	// mCullBarriers.PushBack(
+	// 	vk::BufferMemoryBarrier{}
+	// 		.setBuffer( mTransparentMeshPass.drawIndirectBuffer.buffer)
+	// 		.setSize( VK_WHOLE_SIZE)
+	// 		.setSrcAccessMask( vk::AccessFlagBits::eShaderWrite)
+	// 		.setDstAccessMask( vk::AccessFlagBits::eIndirectCommandRead)
+	// 		.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+	// 		.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+	// );
+	// mCullBarriers.PushBack(
+	// 	vk::BufferMemoryBarrier{}
+	// 		.setBuffer( mTransparentMeshPass.instanceIndexBuffer.buffer)
+	// 		.setSize( VK_WHOLE_SIZE)
+	// 		.setSrcAccessMask( vk::AccessFlagBits::eShaderWrite)
+	// 		.setDstAccessMask( vk::AccessFlagBits::eIndirectCommandRead)
+	// 		.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+	// 		.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+	// );
 }
 
 

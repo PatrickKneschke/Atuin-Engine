@@ -86,22 +86,6 @@ public:
         U32 baseMipLevel = 0,
 		U32 mipLevels = 1
 	) const;
-    vk::Sampler CreateSampler(
-        vk::Filter minFilter,
-        vk::Filter magFilter,
-		vk::SamplerAddressMode addressModeU,
-		vk::SamplerAddressMode addressModeV,
-		vk::SamplerAddressMode addressModeW,
-		bool enableAnisotropy,
-        float maxAnisotropy, 
-		vk::SamplerMipmapMode mipmapMode,
-        float minLod = 0.f,
-        float maxLod = 1.f,
-        float mipLodBias = 0.f,
-		bool enableCompare = VK_FALSE,
-        vk::CompareOp compareOp = vk::CompareOp::eAlways,
-		vk::BorderColor borderColor = vk::BorderColor::eFloatOpaqueBlack
-    ) const;
 
     vk::CommandPool CreateCommandPool(
         U32 queueFamily,

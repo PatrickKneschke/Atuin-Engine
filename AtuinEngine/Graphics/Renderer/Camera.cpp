@@ -5,11 +5,18 @@
 namespace Atuin {
 
 
+void Camera::UpdateCoordinates() {
+
+	right = glm::normalize( glm::cross( up, -forward));
+	up = glm::normalize( glm::cross( -forward, right));
+}
+
+
 glm::mat4 Camera::View() {
 
     glm::mat4 view = glm::lookAt(
 		position,
-		center,
+		position + forward,
 		up
 	);
 

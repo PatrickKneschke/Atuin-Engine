@@ -39,15 +39,15 @@ private:
             "Meshes/Default/cube.obj", "Meshes/Default/sphere.obj", "Meshes/Default/torus.obj"
         };
 
-        int N = 20;
+        int N = 10;
         mTestObjects.Reserve( N*N*N);
         for ( int i = 0; i < N; i++)
         {
             for ( int j = 0; j < N; j++)
             {
-                for ( int k = 0; k < N; k++)
+                for ( int k = 0; k < 1; k++)
                 {
-                    int modelIdx = std::rand() % 3;
+                    int modelIdx = 1;//std::rand() % 3;
                     glm::vec3 position = glm::vec3( (float)i * 4.f,  (float)j * 4.f, (float)k * 4.f);
 
                     MeshObject obj;
