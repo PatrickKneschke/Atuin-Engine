@@ -76,18 +76,17 @@ void Renderer::StartUp(GLFWwindow *window) {
 	CreateDescriptorSets();
 
 	// camera
-	float unit = 20;
-	mMainCamera.position = {0.f * unit, 0.f * unit, 1.f * unit};
-	// mMainCamera.center = {0.f, 4.f, 0.f};
-	mMainCamera.forward = glm::normalize( glm::vec3(0.f, 0.f, 0.f) - mMainCamera.position);
-	mMainCamera.fov = glm::radians( 90.f);
+	float unit = 25;
+	mMainCamera.position = {-1.0f * unit, 5.f * unit, -1.5f * unit};
+	mMainCamera.forward = glm::normalize( glm::vec3(0.f, 3.f * unit, 0.f) - mMainCamera.position);
+	mMainCamera.fov = glm::radians( 60.f);
 	mMainCamera.aspect = (float)mSwapchain.extent.width / (float)mSwapchain.extent.height;
 	mMainCamera.zNear = 0.1f;
 	mMainCamera.zFar = 1000.f;
 	mMainCamera.UpdateCoordinates();
 
 
-	// std::cout << to_string(mMainCamera.Projection()) << '\n';
+	// SetupDebug();
 }
 
 
@@ -194,8 +193,8 @@ void Renderer::CreateDepthResources() {
 	mDepthPyramid.format = vk::Format::eR32Sfloat;
 	mDepthPyramid.usage  = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst;
 	mDepthPyramid.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
-	mDepthPyramid.width = Math::PrevPowerOfTwo( (U64)mDepthImage.width);
-	mDepthPyramid.height = Math::PrevPowerOfTwo( (U64)mDepthImage.height);
+	mDepthPyramid.width = (U32)Math::PrevPowerOfTwo( (U64)mDepthImage.width);
+	mDepthPyramid.height = (U32)Math::PrevPowerOfTwo( (U64)mDepthImage.height);
 	
 	U32 pyramidLevels = static_cast<uint32_t>(std::floor( std::log2( std::max( mDepthPyramid.width, mDepthPyramid.height)))) + 1;
 
@@ -269,6 +268,7 @@ void Renderer::CreateRenderPasses() {
 	});
 
 	// shadow pass
+
 }
 
 
@@ -664,6 +664,7 @@ void Renderer::CreatePipeline( std::string_view pipelineName) {
 	if ( type == "graphics")
 	{
 		GraphicsPipelineBuilder pipelineBuilder = mDefaultPipelineBuilder;
+
 		pipelineBuilder.descriptorLayouts = layouts;
 		pipelineBuilder.pushConstants = pushConstants;
 
@@ -1605,6 +1606,8 @@ void Renderer::CreateSamplers() {
 
 	CreateSampler( "Samplers/default_depth.sampler.json");
 	mDepthSampler = mSamplers[ SID("Samplers/default_depth.sampler.json")];
+
+	CreateSampler( "Samplers/default_smooth.sampler.json");
 }
 
 
@@ -1615,6 +1618,9 @@ void Renderer::CreatePipelines() {
 
 	CreatePipeline( "Pipelines/view_culling.pipeline.json");
 	mViewCullPipeline = mPipelines[ SID("Pipelines/view_culling.pipeline.json")];
+
+	CreatePipeline( "Pipelines/default_fullscreen_texture.pipeline.json");
+	mDepthDebugPipeline = mPipelines[ SID("Pipelines/default_fullscreen_texture.pipeline.json")];
 }
 
 
@@ -1891,6 +1897,9 @@ void Renderer::DrawFrame() {
 	// depth pyramid
 	UpdateDepthPyramid( cmd);
 
+
+	// DrawDebug( cmd, imageIndex);
+
 	
 	cmd.end();
 
@@ -1970,20 +1979,9 @@ void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 	// get cull data
 	glm::mat4 proj = mMainCamera.Projection();
 	glm::mat4 projT = glm::transpose( proj);
-	// glm::vec4 frustumX = (projT[3] + projT[0]) / glm::length( glm::vec3( projT[3] + projT[0]));
-	// glm::vec4 frustumY = (projT[3] + projT[1]) / glm::length( glm::vec3( projT[3] + projT[1]));
-
-	U32 width = mMainCamera.zFar * tan( mMainCamera.fov / 2) * mMainCamera.aspect;
-	U32 height = mMainCamera.zFar * tan( mMainCamera.fov / 2);
-
-	glm::vec3 pr = (float)width * mMainCamera.right + mMainCamera.zFar * mMainCamera.forward;
-	glm::vec3 pu = (float)height * mMainCamera.up + mMainCamera.zFar * mMainCamera.forward;
-	glm::vec3 nr = glm::normalize( glm::cross( pr, mMainCamera.up));
-	glm::vec3 nu = glm::normalize( glm::cross( mMainCamera.right, pu));
-
-	// std::cout << to_string(pr) << "   " << to_string(mMainCamera.up) << '\n';
-	// std::cout << to_string(pu) << "   " << to_string(mMainCamera.right) << '\n';
-	// std::cout << to_string(nr) << "   " << to_string(nu) << '\n';
+	// normalls of left and upper frustum plane ( pointing inward )
+	glm::vec4 frustumX = (projT[3] + projT[0]) / glm::length( glm::vec3( projT[3] + projT[0]));
+	glm::vec4 frustumY = (projT[3] + projT[1]) / glm::length( glm::vec3( projT[3] + projT[1]));
 
 	ViewCullData opaqueCull;
 	opaqueCull.view = mMainCamera.View();
@@ -1991,12 +1989,12 @@ void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 	opaqueCull.P11 = proj[1][1];
 	opaqueCull.zNear = -mMainCamera.zNear;
 	opaqueCull.zFar = -mMainCamera.zFar;
-	opaqueCull.frustum[0] = nr.x; // frustumX.x;
-	opaqueCull.frustum[1] = nr.z; // frustumX.z;
-	opaqueCull.frustum[2] = nu.y; // frustumY.y;
-	opaqueCull.frustum[3] = nu.z; // frustumY.z;
-	opaqueCull.pyramidWidth = mDepthPyramid.width;
-	opaqueCull.pyramidHeight = mDepthPyramid.height;
+	opaqueCull.frustum[0] = frustumX.x;
+	opaqueCull.frustum[1] = frustumX.z;
+	opaqueCull.frustum[2] = frustumY.y;
+	opaqueCull.frustum[3] = frustumY.z;
+	opaqueCull.pyramidWidth = (float)mDepthPyramid.width;
+	opaqueCull.pyramidHeight = (float)mDepthPyramid.height;
 	opaqueCull.drawCount = (U32)mOpaqueMeshPass.renderBatches.GetSize();
 	opaqueCull.enableDistCull = 1;
 	opaqueCull.enableOcclusionCull = 1;
@@ -2238,6 +2236,100 @@ void Renderer::UpdateDepthPyramid( vk::CommandBuffer cmd) {
 		.setNewLayout( vk::ImageLayout::eDepthStencilAttachmentOptimal )
 		.setSubresourceRange( vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1} );
 	cmd.pipelineBarrier( vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eEarlyFragmentTests, vk::DependencyFlagBits::eByRegion, 0, nullptr, 0, nullptr, 1, &depthWriteBarrier);
+}
+
+
+
+
+void Renderer::SetupDebug() {
+
+	// depth debug pass
+	auto presentAttachment = vk::AttachmentDescription{}
+		.setFormat( mSwapchain.imageFormat )
+		.setSamples( vk::SampleCountFlagBits::e1 )
+		.setLoadOp( vk::AttachmentLoadOp::eClear )
+		.setStoreOp( vk::AttachmentStoreOp::eStore )
+		.setStencilLoadOp( vk::AttachmentLoadOp::eDontCare )
+		.setStencilStoreOp( vk::AttachmentStoreOp::eDontCare )
+		.setInitialLayout( vk::ImageLayout::eUndefined )
+		.setFinalLayout( vk::ImageLayout::ePresentSrcKHR );
+		
+	Array<vk::AttachmentDescription> renderAttachments = {
+		presentAttachment
+	};
+
+	mDepthDebugPass = pCore->CreateRenderPass( renderAttachments);
+
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyRenderPass( mDepthDebugPass );
+	});
+
+	mDepthDebugFramebuffers.Resize( mSwapchain.imageCount);
+	for (U32 i = 0; i < mSwapchain.imageCount; i++)
+	{
+		Array<vk::ImageView> debugAttachments =  {
+			mSwapchain.imageViews[i]
+		};
+		mDepthDebugFramebuffers[i] = pCore->CreateFramebuffer( mDepthDebugPass, debugAttachments, mSwapchain.extent.width, mSwapchain.extent.height);
+
+		mDeletionStack.Push( [&, i](){
+			pCore->Device().destroyFramebuffer( mDepthDebugFramebuffers[i] );
+		});
+	}
+
+}
+
+
+void Renderer::DrawDebug( vk::CommandBuffer cmd, U32 imageIndex) {
+
+	auto depthImageInfo = mDepthImage.DescriptorInfo( mSamplers[ SID("Samplers/default_smooth.sampler.json")]);
+	auto descriptor = DescriptorSetBuilder( pCore->Device(), CurrentFrame().descriptorAllocator, pDescriptorLayoutCache)
+		.BindImage( 0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, &depthImageInfo)
+		.Build();
+		
+	//start renderpass
+	vk::ClearValue clearValues[1];
+	clearValues[0].setColor( vk::ClearColorValue().setFloat32({0.8f, 0.f, 0.f, 1.0f}) );
+
+	auto renderInfo = vk::RenderPassBeginInfo{}
+		.setRenderPass( mDepthDebugPass )
+		.setRenderArea( {{0, 0}, mSwapchain.extent} )
+		.setFramebuffer( mDepthDebugFramebuffers[imageIndex] )
+		.setClearValueCount( 1 )
+		.setPClearValues( clearValues );		
+	cmd.beginRenderPass(renderInfo, vk::SubpassContents::eInline);
+	
+	// set viewport
+	auto viewport = vk::Viewport{}
+		.setX( 0.f )
+		.setY( 0.f )
+		.setWidth( (float)mSwapchain.extent.width )
+		.setHeight( (float)mSwapchain.extent.height )
+		.setMinDepth( 0.f )
+		.setMaxDepth( 1.f );
+	auto scissor = vk::Rect2D{}
+		.setOffset( {0, 0} )
+		.setExtent( mSwapchain.extent );
+
+	cmd.setViewport( 0, 1, &viewport);
+	cmd.setScissor( 0, 1, &scissor);
+
+	std::cout << mDepthDebugPipeline.pipeline << '\n';
+
+	cmd.bindPipeline(
+		vk::PipelineBindPoint::eGraphics, mDepthDebugPipeline.pipeline
+	);
+	cmd.bindDescriptorSets( 
+		vk::PipelineBindPoint::eGraphics, mDepthDebugPipeline.pipelineLayout, 0, 1, &descriptor, 0, nullptr
+	);
+	cmd.pushConstants(
+		 mDepthDebugPipeline.pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof( float), &mMainCamera.zNear
+	);
+
+	cmd.draw( 3, 1, 0, 0);
+
+
+	cmd.endRenderPass();
 }
 
     

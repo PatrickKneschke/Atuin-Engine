@@ -59,12 +59,24 @@ Pipeline GraphicsPipelineBuilder::Build( vk::Device device, vk::RenderPass rende
 
 void GraphicsPipelineBuilder::FillFromJson( Json &pipelineJson) {
 
+	// vertex input
+	auto disableVertexInput = pipelineJson[ "disableVertexInput"];
+	if ( !disableVertexInput.IsNull() && disableVertexInput.ToBool())
+	{		
+		vertexInputInfo
+			.setVertexBindingDescriptionCount( 0 )
+			.setPVertexBindingDescriptions( nullptr )
+			.setVertexAttributeDescriptionCount( 0 )
+			.setPVertexAttributeDescriptions( nullptr );
+	}
+
 	// tesselation
 	auto tesselationPoints = pipelineJson[ "tesselationControlPoints"];
 	if ( !tesselationPoints.IsNull())
 	{
 		tesselationInfo.setPatchControlPoints( (U32)tesselationPoints.ToInt());
 	}
+
 	// rasterization
 	auto rasterization = pipelineJson[ "rasterization"];
 	if ( !rasterization.IsNull())
@@ -106,6 +118,7 @@ void GraphicsPipelineBuilder::FillFromJson( Json &pipelineJson) {
 			rasterizerInfo.setLineWidth( (float)lineWidth.ToFloat() );
 		}		
 	}
+	
 	// depth stencil
 	auto depthStencil = pipelineJson[ "depthStencil"];
 	if ( !depthStencil.IsNull())

@@ -105,7 +105,7 @@ struct ViewCullData {
 	
 	float P00, P11, zNear, zFar; // symmetric projection parameters
 	float frustum[4]; // data for left/right/top/bottom frustum planes
-	U32 pyramidWidth, pyramidHeight; // depth pyramid size in texels
+	float pyramidWidth, pyramidHeight; // depth pyramid size in texels
 
 	U32 drawCount;
 	U32 enableDistCull;
@@ -242,7 +242,7 @@ private:
     
     // render passes and framebuffers
 
-    vk::RenderPass mShadowpass;
+    vk::RenderPass mShadowPass;
     vk::RenderPass mForwardPass;
 
     Array<vk::Framebuffer> mShadowFramebuffers;
@@ -285,6 +285,14 @@ private:
     vk::DescriptorSetLayout mPassDataLayout;
 
     vk::DescriptorSet mGlobalDataSet;
+
+
+    // debug
+    vk::RenderPass mDepthDebugPass;
+    Array<vk::Framebuffer> mDepthDebugFramebuffers;
+    Pipeline mDepthDebugPipeline;
+    void SetupDebug();
+    void DrawDebug( vk::CommandBuffer cmd, U32 imageIndex);
 };
 
 
