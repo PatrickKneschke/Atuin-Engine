@@ -109,7 +109,7 @@ void GraphicsPipelineBuilder::FillFromJson( Json &pipelineJson) {
 		auto culling = rasterization[ "culling"];
 		if ( !culling.IsNull())
 		{
-			rasterizerInfo.setCullMode( discard.ToBool() ? vk::CullModeFlagBits::eBack : vk::CullModeFlagBits::eNone );
+			rasterizerInfo.setCullMode( culling.ToBool() ? vk::CullModeFlagBits::eBack : vk::CullModeFlagBits::eNone );
 		}
 		// line width
 		auto lineWidth = rasterization[ "lineWidth"];

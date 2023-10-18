@@ -76,17 +76,15 @@ void Renderer::StartUp(GLFWwindow *window) {
 	CreateDescriptorSets();
 
 	// camera
-	float unit = 25;
-	mMainCamera.position = {-1.0f * unit, 5.f * unit, -1.5f * unit};
-	mMainCamera.forward = glm::normalize( glm::vec3(0.f, 3.f * unit, 0.f) - mMainCamera.position);
+	float unit = 4;
+	mMainCamera.position = {-1.f * unit, -1.f * unit, -1.f * unit};
+	mMainCamera.forward = glm::normalize( glm::vec3(0.f, 0.f, 0.f) - mMainCamera.position);
 	mMainCamera.fov = glm::radians( 60.f);
 	mMainCamera.aspect = (float)mSwapchain.extent.width / (float)mSwapchain.extent.height;
 	mMainCamera.zNear = 0.1f;
 	mMainCamera.zFar = 1000.f;
 	mMainCamera.UpdateCoordinates();
 
-
-	// SetupDebug();
 }
 
 
@@ -94,7 +92,18 @@ void Renderer::ShutDown() {
 
 	pCore->Device().waitIdle();
 
+
+	// debug
+	pCore->Device().destroyBuffer( cullDebugBuffer.buffer);
+	pCore->Device().freeMemory(    cullDebugBuffer.bufferMemory);
+
+
+
 	mDeletionStack.Flush();
+	for ( auto &frame : mFrames) {
+
+		frame.deletionStack.Flush();
+	}
 
 	// deletion of sporadically recreated buffers
 	pCore->Device().destroyBuffer( mCombinedVertexBuffer.buffer);
@@ -159,7 +168,7 @@ void Renderer::Update() {
 		MergeMeshes();
 		mMeshesDirty = false;
 	}	
-	UpdateObjectBuffer();
+	// UpdateObjectBuffer( vk::CommandBuffer{});
 	UpdateMeshPass( &mShadowMeshPass);
 	UpdateMeshPass( &mOpaqueMeshPass);
 	UpdateMeshPass( &mTransparentMeshPass);
@@ -248,7 +257,7 @@ void Renderer::CreateRenderPasses() {
 		.setFormat( mDepthImage.format )
 		.setSamples( vk::SampleCountFlagBits::e1 )
 		.setLoadOp( vk::AttachmentLoadOp::eClear )
-		.setStoreOp( vk::AttachmentStoreOp::eDontCare )
+		.setStoreOp( vk::AttachmentStoreOp::eStore )
 		.setStencilLoadOp( vk::AttachmentLoadOp::eDontCare )
 		.setStencilStoreOp( vk::AttachmentStoreOp::eDontCare )
 		.setInitialLayout( vk::ImageLayout::eUndefined )
@@ -418,7 +427,7 @@ void Renderer::CreateMaterial( std::string_view materialName) {
 	U64 pipelineId = SID( pipelineName.c_str());
 	if ( mPipelines.Find( pipelineId) == mPipelines.End())
 	{
-		CreatePipeline( pipelineName);
+		CreatePipeline( pipelineName, mForwardPass);
 	}
 
 	// get images and build descriptor sets
@@ -580,7 +589,7 @@ void Renderer::CreateSampler( std::string_view samplerName) {
 }
 
 
-void Renderer::CreatePipeline( std::string_view pipelineName) {
+void Renderer::CreatePipeline( std::string_view pipelineName, vk::RenderPass renderPass) {
 
 	U64 pipelineId = SID( pipelineName.data());
 
@@ -730,7 +739,7 @@ void Renderer::CreatePipeline( std::string_view pipelineName) {
 		// read fixed stage configuration from json
 		pipelineBuilder.FillFromJson( pipelineJson);
 
-		newPipeline = pipelineBuilder.Build( pCore->Device(), mForwardPass);
+		newPipeline = pipelineBuilder.Build( pCore->Device(), renderPass);
 	}
 	else if ( type == "compute")
 	{
@@ -882,8 +891,9 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 		std::set_difference( pass->renderBatches.Begin(), pass->renderBatches.End(), deleteBatches.Begin(), deleteBatches.End(), newBatches.Begin());
 		pass->renderBatches = std::move( newBatches);
 
-		pass->rebuildBatches = true;
-		pass->rebuildInstances = true;
+		// pass->rebuildBatches = true;
+		// pass->rebuildInstances = true;
+		pass->hasChanged = true;
 	}
 
 	// handle unbatched objects
@@ -941,14 +951,20 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 			std::inplace_merge( begin, middle, end);
 		}
 
-		pass->rebuildBatches = true;
-		pass->rebuildInstances = true;
+		// pass->rebuildBatches = true;
+		// pass->rebuildInstances = true;
+		pass->hasChanged = true;
+	}
+
+	// if nothing changed no batch updates needed
+	if ( !pass->hasChanged)
+	{
+		return;
 	}
 
 	// rebuild indirect batches
 	BuildMeshPassBatches(pass);
 
-	// TODO update descriptors after creating new buffer
 	// resize Gpu side buffers if necessary
 	if ( pass->drawIndirectBuffer.bufferSize < pass->indirectBatches.GetSize() * sizeof(IndirectData))
 	{
@@ -990,21 +1006,22 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 	}
 
 	// update gpu side buffers
-    UpdateMeshPassBatchBuffer( pass);
-    UpdateMeshPassInstanceBuffer( pass);
+    // UpdateMeshPassBatchBuffer( pass, vk::CommandBuffer{});
+    // UpdateMeshPassInstanceBuffer( pass, vk::CommandBuffer{});
 
-	pass->rebuildBatches = false;
-	pass->rebuildInstances = false;
+	// pass->rebuildBatches = false;
+	// pass->rebuildInstances = false;
+	pass->hasChanged = false;
 }
 
 
 void Renderer::BuildMeshPassBatches( MeshPass *pass) {
 
-	// do nothing if batches are unchanged
-	if( !pass->rebuildBatches)
-	{
-		return;
-	}
+	// // do nothing if batches are unchanged
+	// if( !pass->rebuildBatches)
+	// {
+	// 	return;
+	// }
 
 	// rebuild indirect batches
 	pass->indirectBatches.Clear();
@@ -1064,7 +1081,7 @@ void Renderer::BuildMeshPassBatches( MeshPass *pass) {
 }
 
 
-void Renderer::UpdateMeshPassBatchBuffer( MeshPass *pass) {
+void Renderer::UpdateMeshPassBatchBuffer( MeshPass *pass, vk::CommandBuffer cmd) {
 
 	if ( pass->indirectBatches.IsEmpty())
 	{
@@ -1100,18 +1117,38 @@ void Renderer::UpdateMeshPassBatchBuffer( MeshPass *pass) {
 	}
 	pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
 
-	// upload buffer data to Gpu memory
-	CopyBuffer( stagingBuffer.buffer, pass->drawIndirectBuffer.buffer, 0, stagingBuffer.bufferSize);
+	// // upload buffer data to Gpu memory
+	// CopyBuffer( stagingBuffer.buffer, pass->drawIndirectBuffer.buffer, 0, stagingBuffer.bufferSize);
+
+	auto copyRegion = vk::BufferCopy{}
+		.setSrcOffset( 0 )
+		.setDstOffset( 0 )
+		.setSize( copySize );
+		
+	cmd.copyBuffer(stagingBuffer.buffer, pass->drawIndirectBuffer.buffer, 1, &copyRegion);
+
+	mPreCullBarriers.PushBack( 
+		vk::BufferMemoryBarrier{}
+			.setBuffer( pass->drawIndirectBuffer.buffer)
+			.setSize( VK_WHOLE_SIZE)
+			.setSrcAccessMask( vk::AccessFlagBits::eTransferWrite)
+			.setDstAccessMask( vk::AccessFlagBits::eShaderRead)
+			.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+			.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+	);
 
 	// cleanup
-	pCore->Device().destroyBuffer( stagingBuffer.buffer);
-	pCore->Device().freeMemory( stagingBuffer.bufferMemory);
+	CurrentFrame().deletionStack.Push( [&, stagingBuffer]() {
+
+		pCore->Device().destroyBuffer( stagingBuffer.buffer);
+		pCore->Device().freeMemory( stagingBuffer.bufferMemory);
+	});
 }
     
 	
-void Renderer::UpdateMeshPassInstanceBuffer( MeshPass *pass) {
+void Renderer::UpdateMeshPassInstanceBuffer( MeshPass *pass, vk::CommandBuffer cmd) {
 
-	if ( !pass->rebuildInstances)
+	if ( pass->indirectBatches.IsEmpty())
 	{
 		return;
 	}
@@ -1139,44 +1176,32 @@ void Renderer::UpdateMeshPassInstanceBuffer( MeshPass *pass) {
 	}
 	pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
 
-	// upload buffer data to Gpu memory
-	CopyBuffer( stagingBuffer.buffer, pass->instanceDataBuffer.buffer, 0, stagingBuffer.bufferSize);
+	// // upload buffer data to Gpu memory
+	// CopyBuffer( stagingBuffer.buffer, pass->instanceDataBuffer.buffer, 0, stagingBuffer.bufferSize);
+
+	auto copyRegion = vk::BufferCopy{}
+		.setSrcOffset( 0 )
+		.setDstOffset( 0 )
+		.setSize( copySize );
+		
+	cmd.copyBuffer(stagingBuffer.buffer, pass->instanceDataBuffer.buffer, 1, &copyRegion);
+
+	mPreCullBarriers.PushBack( 
+		vk::BufferMemoryBarrier{}
+			.setBuffer( pass->instanceDataBuffer.buffer)
+			.setSize( VK_WHOLE_SIZE)
+			.setSrcAccessMask( vk::AccessFlagBits::eTransferWrite)
+			.setDstAccessMask( vk::AccessFlagBits::eShaderRead)
+			.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+			.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+	);
 
 	// cleanup
-	pCore->Device().destroyBuffer( stagingBuffer.buffer);
-	pCore->Device().freeMemory( stagingBuffer.bufferMemory);
+	CurrentFrame().deletionStack.Push( [&, stagingBuffer]() {
 
-
-
-
-	// // TODO fill isntance buffer later in culling pass
-	// copySize = pass->renderBatches.GetSize() * sizeof(U32);
-
-	// // fill staging buffer
-	// Buffer stagingBuffer2 = CreateStagingBuffer( copySize);
-	// result = pCore->Device().mapMemory( stagingBuffer2.bufferMemory, 0, copySize, vk::MemoryMapFlags(), &data);
-	// if( result != vk::Result::eSuccess )
-	// {
-	// 	throw std::runtime_error("Failed to map staging buffer memory " + vk::to_string(result));
-	// }
-
-	// U32 *instanceIdx = (U32*)data;
-	// for ( U32 batchIdx = 0; batchIdx < pass->indirectBatches.GetSize(); batchIdx++)
-	// {
-	// 	IndirectBatch batch = pass->indirectBatches[ batchIdx];
-	// 	for ( U32 i = 0; i < batch.count; i++)
-	// 	{
-	// 		instanceIdx[ batch.first + i] = pass->renderBatches[ batch.first + i].objectIdx;
-	// 	}
-	// }
-	// pCore->Device().unmapMemory( stagingBuffer2.bufferMemory);
-
-	// // upload buffer data to Gpu memory
-	// CopyBuffer( stagingBuffer2.buffer, pass->instanceIndexBuffer.buffer, 0, stagingBuffer2.bufferSize);
-
-	// // cleanup
-	// pCore->Device().destroyBuffer( stagingBuffer2.buffer);
-	// pCore->Device().freeMemory( stagingBuffer2.bufferMemory);
+		pCore->Device().destroyBuffer( stagingBuffer.buffer);
+		pCore->Device().freeMemory( stagingBuffer.bufferMemory);
+	});
 }
 
 
@@ -1189,7 +1214,7 @@ void Renderer::UpdateMeshObject( U32 objectIdx) {
 }
 
 
-void Renderer::UpdateObjectBuffer() {
+void Renderer::UpdateObjectBuffer( vk::CommandBuffer cmd) {
 
 	// do nothing if object data has not changed
 	if ( mDirtyObjectIndices.IsEmpty())
@@ -1246,13 +1271,34 @@ void Renderer::UpdateObjectBuffer() {
 	pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
 
 	// upload buffer data to Gpu memory
-	CopyBuffer( stagingBuffer.buffer, mObjectBuffer.buffer, 0, stagingBuffer.bufferSize);
+	// CopyBuffer( stagingBuffer.buffer, mObjectBuffer.buffer, 0, stagingBuffer.bufferSize);
+
+
+	auto copyRegion = vk::BufferCopy{}
+		.setSrcOffset( 0 )
+		.setDstOffset( 0 )
+		.setSize( copySize );
+		
+	cmd.copyBuffer(stagingBuffer.buffer, mObjectBuffer.buffer, 1, &copyRegion);
+
+	mPreCullBarriers.PushBack( 
+		vk::BufferMemoryBarrier{}
+			.setBuffer( mObjectBuffer.buffer)
+			.setSize( VK_WHOLE_SIZE)
+			.setSrcAccessMask( vk::AccessFlagBits::eTransferWrite)
+			.setDstAccessMask( vk::AccessFlagBits::eShaderRead)
+			.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+			.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+	);
 
 	mDirtyObjectIndices.Clear();
 
 	// cleanup
-	pCore->Device().destroyBuffer( stagingBuffer.buffer);
-	pCore->Device().freeMemory( stagingBuffer.bufferMemory);
+	CurrentFrame().deletionStack.Push( [&, stagingBuffer]() {
+
+		pCore->Device().destroyBuffer( stagingBuffer.buffer);
+		pCore->Device().freeMemory( stagingBuffer.bufferMemory);
+	});
 }
 
 
@@ -1315,10 +1361,12 @@ Buffer Renderer::CreateStagingBuffer(Size bufferSize) {
 
 void Renderer::CreateSubmitContexts() {
 
+	mGraphicsSubmit.queue = pCore->GraphicsQueue();
 	mGraphicsSubmit.fence = pCore->CreateFence();
 	mGraphicsSubmit.commandPool = pCore->CreateCommandPool( pCore->QueueFamilies().graphicsFamily);
 	mGraphicsSubmit.commandBuffer = pCore->AllocateCommandBuffer( mGraphicsSubmit.commandPool);
 
+	mTransferSubmit.queue = pCore->TransferQueue();
 	mTransferSubmit.fence = pCore->CreateFence();
 	mTransferSubmit.commandPool = pCore->CreateCommandPool( pCore->QueueFamilies().transferFamily);
 	mTransferSubmit.commandBuffer = pCore->AllocateCommandBuffer( mTransferSubmit.commandPool);
@@ -1437,7 +1485,7 @@ void Renderer::CreateDefaultPipelineBuilder() {
 	mDefaultPipelineBuilder.depthStencilInfo
 		.setDepthTestEnable( VK_TRUE )
 		.setDepthWriteEnable( VK_TRUE )
-		.setDepthCompareOp( vk::CompareOp::eLessOrEqual )
+		.setDepthCompareOp( vk::CompareOp::eLess )
 		.setDepthBoundsTestEnable( VK_FALSE ) 
 		.setMinDepthBounds( 0.0f )
 		.setMaxDepthBounds( 1.0f )
@@ -1619,8 +1667,7 @@ void Renderer::CreatePipelines() {
 	CreatePipeline( "Pipelines/view_culling.pipeline.json");
 	mViewCullPipeline = mPipelines[ SID("Pipelines/view_culling.pipeline.json")];
 
-	CreatePipeline( "Pipelines/default_fullscreen_texture.pipeline.json");
-	mDepthDebugPipeline = mPipelines[ SID("Pipelines/default_fullscreen_texture.pipeline.json")];
+	CreatePipeline( "Pipelines/default_fullscreen_texture.pipeline.json", mForwardPass);
 }
 
 
@@ -1702,7 +1749,10 @@ void Renderer::TransitionImageLayout(vk::Image image, vk::ImageLayout initialLay
 
 void Renderer::CopyBufferToImage(vk::Buffer buffer, vk::Image image, U32 imageWidth, U32 imageHeight) {
 
-	vk::CommandBuffer cmd = mTransferSubmit.commandBuffer;
+	auto context = mTransferSubmit;
+	// auto context = mGraphicsSubmit;
+	vk::CommandBuffer cmd = context.commandBuffer;
+	
 	auto beginInfo = vk::CommandBufferBeginInfo{}
 		.setFlags( vk::CommandBufferUsageFlagBits::eOneTimeSubmit );
 	
@@ -1725,29 +1775,32 @@ void Renderer::CopyBufferToImage(vk::Buffer buffer, vk::Image image, U32 imageWi
 		.setPCommandBuffers( &cmd );
 	
 	vk::Result result;
-	result = pCore->TransferQueue().submit( 1, &submitInfo, mTransferSubmit.fence);
+	result = context.queue.submit( 1, &submitInfo, context.fence);
 	if( result != vk::Result::eSuccess ) 
 	{
 		throw std::runtime_error("Error while submitting to transfer queue " + vk::to_string(result));
 	}
 
-	result = pCore->Device().waitForFences( 1, &mTransferSubmit.fence, true, 1e9);
+	result = pCore->Device().waitForFences( 1, &context.fence, true, 1e9);
 	if( result != vk::Result::eSuccess ) 
 	{
 		throw std::runtime_error("Error while waiting for fence " + vk::to_string(result));
 	}
-	result = pCore->Device().resetFences( 1, &mTransferSubmit.fence);
+	result = pCore->Device().resetFences( 1, &context.fence);
 	if( result != vk::Result::eSuccess ) 
 	{
 		throw std::runtime_error("Error while resetting fence " + vk::to_string(result));
 	}
-	pCore->Device().resetCommandPool( mTransferSubmit.commandPool);
+	pCore->Device().resetCommandPool( context.commandPool);
 }
 
 
 void Renderer::CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, Size offset, Size bufferSize) {
 
-	vk::CommandBuffer cmd = mTransferSubmit.commandBuffer;
+	auto context = mTransferSubmit;	
+	// auto context = mGraphicsSubmit;	
+	vk::CommandBuffer cmd = context.commandBuffer;
+
 	auto beginInfo = vk::CommandBufferBeginInfo{}
 		.setFlags( vk::CommandBufferUsageFlagBits::eOneTimeSubmit );
 	
@@ -1767,27 +1820,27 @@ void Renderer::CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, Size offse
 		.setPCommandBuffers( &cmd );
 	
 	vk::Result result;
-	result = pCore->TransferQueue().submit( 1, &submitInfo, mTransferSubmit.fence);
+	result = context.queue.submit( 1, &submitInfo, context.fence);
 	if( result != vk::Result::eSuccess ) 
 	{
 		throw std::runtime_error("Error while submitting to transfer queue " + vk::to_string(result));
 	}
 
-	result = pCore->Device().waitForFences( 1, &mTransferSubmit.fence, true, 1e9);
+	result = pCore->Device().waitForFences( 1, &context.fence, true, 1e9);
 	if( result != vk::Result::eSuccess ) 
 	{
 		throw std::runtime_error("Error while waiting for fence " + vk::to_string(result));
 	}
-	result = pCore->Device().resetFences( 1, &mTransferSubmit.fence);
+	result = pCore->Device().resetFences( 1, &context.fence);
 	if( result != vk::Result::eSuccess ) 
 	{
 		throw std::runtime_error("Error while resetting fence " + vk::to_string(result));
 	}
-	pCore->Device().resetCommandPool( mTransferSubmit.commandPool);
+	pCore->Device().resetCommandPool( context.commandPool);
 }
 
 
-void Renderer::UpdateCameraData() {
+void Renderer::UpdateCameraData( vk::CommandBuffer cmd) {
 
 	CameraData camera;
 	camera.view = mMainCamera.View();
@@ -1799,7 +1852,7 @@ void Renderer::UpdateCameraData() {
 }
 
 
-void Renderer::UpdateScenedata() {
+void Renderer::UpdateScenedata( vk::CommandBuffer cmd) {
 
 	float angle = (float)mFrameCount / 60.f * glm::radians(30.f);
 	glm::vec3 direction = {cos(angle), 0.f, sin(angle)};
@@ -1820,11 +1873,7 @@ void Renderer::UpdateScenedata() {
 
 void Renderer::DrawFrame() {
 
-	auto frame = CurrentFrame();
-	
-	UpdateCameraData();
-	UpdateScenedata();
-
+	auto &frame = CurrentFrame();
 
 	vk::Result result;
 
@@ -1865,6 +1914,7 @@ void Renderer::DrawFrame() {
 
 
 	frame.descriptorAllocator->ResetPools();
+	frame.deletionStack.Flush();
 
 
 	// get current frames command buffer and reset
@@ -1878,15 +1928,36 @@ void Renderer::DrawFrame() {
 	cmd.begin(cmdBeginInfo);
 
 
+	// buffer updates
+	mPreCullBarriers.Clear();
+
+	UpdateCameraData( cmd);
+	UpdateScenedata( cmd);
+
+	UpdateObjectBuffer( cmd);
+
+    UpdateMeshPassBatchBuffer( &mOpaqueMeshPass, cmd);
+    UpdateMeshPassInstanceBuffer( &mOpaqueMeshPass, cmd);
+    UpdateMeshPassBatchBuffer( &mTransparentMeshPass, cmd);
+    UpdateMeshPassInstanceBuffer( &mTransparentMeshPass, cmd);
+    UpdateMeshPassBatchBuffer( &mShadowMeshPass, cmd);
+    UpdateMeshPassInstanceBuffer( &mShadowMeshPass, cmd);
+
+	cmd.pipelineBarrier( 
+		vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eComputeShader, vk::DependencyFlags{}, 
+		0, nullptr, (U32)mPreCullBarriers.GetSize(), mPreCullBarriers.Data(), 0, nullptr
+	);
+
+
 	// compute culling
-	mCullBarriers.Clear();
+	mPostCullBarriers.Clear();
 
 	CullShadowPass( cmd  );
 	CullForwardPass( cmd);
 
 	cmd.pipelineBarrier( 
 		vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eDrawIndirect, vk::DependencyFlags{}, 
-		0, nullptr, (U32)mCullBarriers.GetSize(), mCullBarriers.Data(), 0, nullptr
+		0, nullptr, (U32)mPostCullBarriers.GetSize(), mPostCullBarriers.Data(), 0, nullptr
 	);
 
 
@@ -1894,12 +1965,10 @@ void Renderer::DrawFrame() {
 	DrawShadowPass( cmd, imageIndex);
 	DrawForwardPass( cmd, imageIndex);
 
+
 	// depth pyramid
 	UpdateDepthPyramid( cmd);
-
-
-	// DrawDebug( cmd, imageIndex);
-
+	
 	
 	cmd.end();
 
@@ -1964,6 +2033,26 @@ void Renderer::DrawFrame() {
 	}
 	std::cout << "----------------------------\n";
 	pCore->Device().unmapMemory( mOpaqueMeshPass.drawIndirectBuffer.bufferMemory);
+
+
+	// if (FrameCount() == 2)
+	// {
+	// 	void *data;
+	// 	result = pCore->Device().mapMemory( cullDebugBuffer.bufferMemory, 0, cullDebugBuffer.bufferSize, vk::MemoryMapFlags(), &data);
+	// 	if( result != vk::Result::eSuccess )
+	// 	{
+	// 		throw std::runtime_error("Failed to map buffer memory " + vk::to_string(result));
+	// 	}
+
+	// 	CullDebugData *debugData = (CullDebugData*)data;
+	// 	for ( U32 i = 0; i < mOpaqueMeshPass.renderBatches.GetSize(); i++)
+	// 	{
+	// 		std::cout << i << "   :   (" << debugData[i].aabb.x << ", " << debugData[i].aabb.y << ", " << debugData[i].aabb.z << ", " << debugData[i].aabb.w << ")   " 
+	// 									<< debugData[i].depth << " ,   " << debugData[i].sampledDepth << "   ,   " << debugData[i].level << "  ->  " << debugData[i].culled << '\n';
+	// 	}
+	// 	std::cout << "----------------------------\n";
+	// 	pCore->Device().unmapMemory( cullDebugBuffer.bufferMemory);
+	// }
 	
 }
 
@@ -1976,12 +2065,23 @@ void Renderer::CullShadowPass( vk::CommandBuffer cmd) {
 
 void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 
+	// debug
+	Size debugSize = mOpaqueMeshPass.renderBatches.GetSize() * sizeof( CullDebugData);
+	if ( cullDebugBuffer.bufferSize < debugSize)
+	{
+		CreateBuffer( cullDebugBuffer, debugSize, vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+	}
+
+
+
 	// get cull data
 	glm::mat4 proj = mMainCamera.Projection();
 	glm::mat4 projT = glm::transpose( proj);
 	// normalls of left and upper frustum plane ( pointing inward )
 	glm::vec4 frustumX = (projT[3] + projT[0]) / glm::length( glm::vec3( projT[3] + projT[0]));
 	glm::vec4 frustumY = (projT[3] + projT[1]) / glm::length( glm::vec3( projT[3] + projT[1]));
+
+	// std::cout << proj[0][0] << "   "  << proj[1][1] << '\n';
 
 	ViewCullData opaqueCull;
 	opaqueCull.view = mMainCamera.View();
@@ -2008,12 +2108,14 @@ void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 	auto instanceDataOpaqueInfo = mOpaqueMeshPass.instanceDataBuffer.DescriptorInfo();
 	auto drawIndirectOpaqueInfo = mOpaqueMeshPass.drawIndirectBuffer.DescriptorInfo();
 	auto instanceIdxOpaqueInfo = mOpaqueMeshPass.instanceIndexBuffer.DescriptorInfo();
+		auto debugInfo = cullDebugBuffer.DescriptorInfo();
 	vk::DescriptorSet viewCullOpaqueSet = DescriptorSetBuilder( pCore->Device(), CurrentFrame().descriptorAllocator, pDescriptorLayoutCache)
 		.BindImage( 0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eCompute, &pyramidInfo)
 		.BindBuffer( 1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &objectInfo)
 		.BindBuffer( 2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceDataOpaqueInfo)
 		.BindBuffer( 3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &drawIndirectOpaqueInfo)
 		.BindBuffer( 4, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceIdxOpaqueInfo)
+			.BindBuffer( 5, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &debugInfo)
 		.Build();
 
 	// auto instanceDataTransparentInfo = mTransparentMeshPass.instanceDataBuffer.DescriptorInfo();
@@ -2041,7 +2143,7 @@ void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 	// cmd.dispatch( (U32)(transparentCull.drawCount / 256) + 1, 1, 1);
 
 	// set barriers between buffer writes and indirect draws
-	mCullBarriers.PushBack(
+	mPostCullBarriers.PushBack(
 		vk::BufferMemoryBarrier{}
 			.setBuffer( mOpaqueMeshPass.drawIndirectBuffer.buffer)
 			.setSize( VK_WHOLE_SIZE)
@@ -2050,7 +2152,7 @@ void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 			.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
 			.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
 	);
-	mCullBarriers.PushBack(
+	mPostCullBarriers.PushBack(
 		vk::BufferMemoryBarrier{}
 			.setBuffer( mOpaqueMeshPass.instanceIndexBuffer.buffer)
 			.setSize( VK_WHOLE_SIZE)
@@ -2236,100 +2338,6 @@ void Renderer::UpdateDepthPyramid( vk::CommandBuffer cmd) {
 		.setNewLayout( vk::ImageLayout::eDepthStencilAttachmentOptimal )
 		.setSubresourceRange( vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1} );
 	cmd.pipelineBarrier( vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eEarlyFragmentTests, vk::DependencyFlagBits::eByRegion, 0, nullptr, 0, nullptr, 1, &depthWriteBarrier);
-}
-
-
-
-
-void Renderer::SetupDebug() {
-
-	// depth debug pass
-	auto presentAttachment = vk::AttachmentDescription{}
-		.setFormat( mSwapchain.imageFormat )
-		.setSamples( vk::SampleCountFlagBits::e1 )
-		.setLoadOp( vk::AttachmentLoadOp::eClear )
-		.setStoreOp( vk::AttachmentStoreOp::eStore )
-		.setStencilLoadOp( vk::AttachmentLoadOp::eDontCare )
-		.setStencilStoreOp( vk::AttachmentStoreOp::eDontCare )
-		.setInitialLayout( vk::ImageLayout::eUndefined )
-		.setFinalLayout( vk::ImageLayout::ePresentSrcKHR );
-		
-	Array<vk::AttachmentDescription> renderAttachments = {
-		presentAttachment
-	};
-
-	mDepthDebugPass = pCore->CreateRenderPass( renderAttachments);
-
-	mDeletionStack.Push( [&](){
-		pCore->Device().destroyRenderPass( mDepthDebugPass );
-	});
-
-	mDepthDebugFramebuffers.Resize( mSwapchain.imageCount);
-	for (U32 i = 0; i < mSwapchain.imageCount; i++)
-	{
-		Array<vk::ImageView> debugAttachments =  {
-			mSwapchain.imageViews[i]
-		};
-		mDepthDebugFramebuffers[i] = pCore->CreateFramebuffer( mDepthDebugPass, debugAttachments, mSwapchain.extent.width, mSwapchain.extent.height);
-
-		mDeletionStack.Push( [&, i](){
-			pCore->Device().destroyFramebuffer( mDepthDebugFramebuffers[i] );
-		});
-	}
-
-}
-
-
-void Renderer::DrawDebug( vk::CommandBuffer cmd, U32 imageIndex) {
-
-	auto depthImageInfo = mDepthImage.DescriptorInfo( mSamplers[ SID("Samplers/default_smooth.sampler.json")]);
-	auto descriptor = DescriptorSetBuilder( pCore->Device(), CurrentFrame().descriptorAllocator, pDescriptorLayoutCache)
-		.BindImage( 0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, &depthImageInfo)
-		.Build();
-		
-	//start renderpass
-	vk::ClearValue clearValues[1];
-	clearValues[0].setColor( vk::ClearColorValue().setFloat32({0.8f, 0.f, 0.f, 1.0f}) );
-
-	auto renderInfo = vk::RenderPassBeginInfo{}
-		.setRenderPass( mDepthDebugPass )
-		.setRenderArea( {{0, 0}, mSwapchain.extent} )
-		.setFramebuffer( mDepthDebugFramebuffers[imageIndex] )
-		.setClearValueCount( 1 )
-		.setPClearValues( clearValues );		
-	cmd.beginRenderPass(renderInfo, vk::SubpassContents::eInline);
-	
-	// set viewport
-	auto viewport = vk::Viewport{}
-		.setX( 0.f )
-		.setY( 0.f )
-		.setWidth( (float)mSwapchain.extent.width )
-		.setHeight( (float)mSwapchain.extent.height )
-		.setMinDepth( 0.f )
-		.setMaxDepth( 1.f );
-	auto scissor = vk::Rect2D{}
-		.setOffset( {0, 0} )
-		.setExtent( mSwapchain.extent );
-
-	cmd.setViewport( 0, 1, &viewport);
-	cmd.setScissor( 0, 1, &scissor);
-
-	std::cout << mDepthDebugPipeline.pipeline << '\n';
-
-	cmd.bindPipeline(
-		vk::PipelineBindPoint::eGraphics, mDepthDebugPipeline.pipeline
-	);
-	cmd.bindDescriptorSets( 
-		vk::PipelineBindPoint::eGraphics, mDepthDebugPipeline.pipelineLayout, 0, 1, &descriptor, 0, nullptr
-	);
-	cmd.pushConstants(
-		 mDepthDebugPipeline.pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof( float), &mMainCamera.zNear
-	);
-
-	cmd.draw( 3, 1, 0, 0);
-
-
-	cmd.endRenderPass();
 }
 
     

@@ -60,7 +60,7 @@ struct FrameResources {
 	vk::CommandPool commandPool;
 	vk::CommandBuffer commandBuffer;
 
-    // DeletionStack deletionStack;
+    DeletionStack deletionStack;
     DescriptorSetAllocator *descriptorAllocator;
 };
 
@@ -121,6 +121,16 @@ struct DirectionalCullData {
 };
 
 
+struct CullDebugData {
+
+    glm::vec4 aabb;
+    float depth;
+    float sampledDepth;
+    float level;
+    U32 culled;
+};
+
+
 class RendererCore;
 class ResourceManager;
 
@@ -144,6 +154,7 @@ private:
     
     FrameResources& CurrentFrame() { return mFrames[mFrameCount % pFrameOverlap->Get()]; }
 
+    // inits
     void CreateSubmitContexts();
     void CreateFrameResources();
 	void CreateDepthResources();
@@ -154,26 +165,29 @@ private:
     void CreateDefaultPipelineBuilder();
     void CreateMeshPass( MeshPass *pass, PassType type);
 
+    // resources
     void RegisterMeshObject( MeshObject &object);
+    void UpdateMeshObject( U32 objectIdx);
     U64 RegisterMesh( std::string_view meshName);
     U64 RegisterMaterial( std::string_view materialName);
     void CreateMesh( std::string_view meshName);
     void CreateMaterial( std::string_view materialName);
     void CreateTexture( std::string_view textureName, vk::Format format = vk::Format::eR8G8B8A8Unorm);
     void CreateSampler( std::string_view samplerName);
-    void CreatePipeline( std::string_view pipelineName);
+    void CreatePipeline( std::string_view pipelineName, vk::RenderPass renderPass = vk::RenderPass{});
     void CreateShaderModule( std::string_view shaderName);
 
+    // updates
     void MergeMeshes();
     void UpdateMeshPass( MeshPass *pass);
     void BuildMeshPassBatches( MeshPass *pass);
-    void UpdateMeshPassBatchBuffer( MeshPass *pass);
-    void UpdateMeshPassInstanceBuffer( MeshPass *pass);
-    void UpdateMeshObject( U32 objectIdx);
-    void UpdateObjectBuffer();
+    void UpdateMeshPassBatchBuffer( MeshPass *pass, vk::CommandBuffer cmd);
+    void UpdateMeshPassInstanceBuffer( MeshPass *pass, vk::CommandBuffer cmd);
+    void UpdateObjectBuffer( vk::CommandBuffer cmd);
+    void UpdateCameraData( vk::CommandBuffer cmd);
+    void UpdateScenedata( vk::CommandBuffer cmd);
 
-    void UpdateCameraData();
-    void UpdateScenedata();
+    // drawing
     void DrawFrame();
     void CullShadowPass( vk::CommandBuffer cmd);
     void CullForwardPass( vk::CommandBuffer cmd);
@@ -182,6 +196,7 @@ private:
     void RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass);
     void UpdateDepthPyramid( vk::CommandBuffer cmd);
 
+    // utils
     void CreateBuffer( Buffer &buffer, Size size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags memoryType);
     Buffer CreateStagingBuffer(Size bufferSize);
     void UploadBufferData( void *bufferData, Size size, vk::Buffer targetBuffer, Size offset = 0);
@@ -235,7 +250,8 @@ private:
     // culling
     Pipeline mViewCullPipeline;
     Pipeline mDirectionalCullPipeline;
-    Array<vk::BufferMemoryBarrier> mCullBarriers;
+    Array<vk::BufferMemoryBarrier> mPreCullBarriers;
+    Array<vk::BufferMemoryBarrier> mPostCullBarriers;
 
     // camera data
     Camera mMainCamera;
@@ -287,12 +303,7 @@ private:
     vk::DescriptorSet mGlobalDataSet;
 
 
-    // debug
-    vk::RenderPass mDepthDebugPass;
-    Array<vk::Framebuffer> mDepthDebugFramebuffers;
-    Pipeline mDepthDebugPipeline;
-    void SetupDebug();
-    void DrawDebug( vk::CommandBuffer cmd, U32 imageIndex);
+    Buffer cullDebugBuffer;
 };
 
 

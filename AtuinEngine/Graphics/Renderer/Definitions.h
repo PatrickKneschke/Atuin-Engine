@@ -121,6 +121,7 @@ struct SceneData {
 
 struct ImmediateSubmitContext{
 
+	vk::Queue queue;
 	vk::Fence fence;
 	vk::CommandPool commandPool;
 	vk::CommandBuffer commandBuffer;

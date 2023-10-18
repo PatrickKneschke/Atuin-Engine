@@ -115,8 +115,7 @@ struct MeshPass {
     vk::DescriptorSet passDataSet;
 
     // dirty flags
-    bool rebuildBatches = false;
-    bool rebuildInstances = false;
+    bool hasChanged = false;
 };
 
     

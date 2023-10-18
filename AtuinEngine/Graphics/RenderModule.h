@@ -39,7 +39,7 @@ private:
             "Meshes/Default/cube.obj", "Meshes/Default/sphere.obj", "Meshes/Default/torus.obj"
         };
 
-        int N = 20;
+        int N = 10;
         mTestObjects.Reserve( N*N*N);
         for ( int i = 0; i < N; i++)
         {
@@ -61,6 +61,18 @@ private:
                 }                
             }
         }
+
+        // int modelIdx = 1;
+        // glm::vec3 position = glm::vec3( 1.f, -2.f, -8.f);
+
+        // MeshObject obj;
+        // obj.materialName = "Materials//Rusted_Iron/rusted_iron.material.json";
+        // obj.meshName     = models[ modelIdx];
+        // obj.transform    = glm::translate( glm::mat4(1.f), position);
+        // obj.sphereBounds = glm::vec4( position, 1.f);
+        // mTestObjects.PushBack( obj);          
+                   
+        // mRenderer.RegisterMeshObject( mTestObjects.Back());
     }
 
 
