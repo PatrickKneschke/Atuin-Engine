@@ -5,9 +5,49 @@
 namespace Atuin {
 
 
+void Camera::MoveTo( glm::vec3 newPosition) {
+
+	position = newPosition;
+}
+    
+
+void Camera::Pan( glm::vec3 pan) {
+
+	position += pan;
+}
+
+
+void Camera::Rotate( float angle, glm::vec3 axis) {
+
+	auto rotation = glm::mat3( glm::rotate( glm::mat4(1.f), glm::radians( angle), axis));
+	forward = rotation * forward;
+	up = rotation * up;
+	right = rotation * right;
+}
+
+
+void Camera::Pitch( float angle) {
+
+	Rotate( angle, right);
+}
+    
+
+void Camera::Yaw( float angle) {
+
+	Rotate( angle, up);
+}
+
+
+void Camera::Roll( float angle) {
+
+	Rotate( angle, forward);
+}
+
+
 void Camera::UpdateCoordinates() {
 
-	right = glm::normalize( glm::cross( up, -forward));
+	forward = glm::normalize( forward);
+	right = glm::normalize( glm::cross( glm::vec3(0.f, 1.f, 0.f), -forward));
 	up = glm::normalize( glm::cross( -forward, right));
 }
 

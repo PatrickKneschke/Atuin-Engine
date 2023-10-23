@@ -77,7 +77,7 @@ void Renderer::StartUp(GLFWwindow *window) {
 
 	// camera
 	float unit = 4;
-	mMainCamera.position = {-1.f * unit, -1.f * unit, -1.f * unit};
+	mMainCamera.position = {-2.0f * unit, -2.0f * unit, -2.0f * unit};
 	mMainCamera.forward = glm::normalize( glm::vec3(0.f, 0.f, 0.f) - mMainCamera.position);
 	mMainCamera.fov = glm::radians( 60.f);
 	mMainCamera.aspect = (float)mSwapchain.extent.width / (float)mSwapchain.extent.height;
@@ -1176,9 +1176,6 @@ void Renderer::UpdateMeshPassInstanceBuffer( MeshPass *pass, vk::CommandBuffer c
 	}
 	pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
 
-	// // upload buffer data to Gpu memory
-	// CopyBuffer( stagingBuffer.buffer, pass->instanceDataBuffer.buffer, 0, stagingBuffer.bufferSize);
-
 	auto copyRegion = vk::BufferCopy{}
 		.setSrcOffset( 0 )
 		.setDstOffset( 0 )
@@ -2019,23 +2016,23 @@ void Renderer::DrawFrame() {
 	++mFrameCount;
 
 
-	void *data;
-	result = pCore->Device().mapMemory( mOpaqueMeshPass.drawIndirectBuffer.bufferMemory, 0, mOpaqueMeshPass.drawIndirectBuffer.bufferSize, vk::MemoryMapFlags(), &data);
-	if( result != vk::Result::eSuccess )
-	{
-		throw std::runtime_error("Failed to map buffer memory " + vk::to_string(result));
-	}
+	// void *data;
+	// result = pCore->Device().mapMemory( mOpaqueMeshPass.drawIndirectBuffer.bufferMemory, 0, mOpaqueMeshPass.drawIndirectBuffer.bufferSize, vk::MemoryMapFlags(), &data);
+	// if( result != vk::Result::eSuccess )
+	// {
+	// 	throw std::runtime_error("Failed to map buffer memory " + vk::to_string(result));
+	// }
 
-	IndirectData *indirectData = (IndirectData*)data;
-	for ( U32 i = 0; i < mOpaqueMeshPass.indirectBatches.GetSize(); i++)
-	{
-		std::cout << i << "   :   " << indirectData[i].drawIndirectCmd.firstInstance << "   , "  << indirectData[i].drawIndirectCmd.instanceCount << '\n';
-	}
-	std::cout << "----------------------------\n";
-	pCore->Device().unmapMemory( mOpaqueMeshPass.drawIndirectBuffer.bufferMemory);
+	// IndirectData *indirectData = (IndirectData*)data;
+	// for ( U32 i = 0; i < mOpaqueMeshPass.indirectBatches.GetSize(); i++)
+	// {
+	// 	std::cout << i << "   :   " << indirectData[i].drawIndirectCmd.firstInstance << "   , "  << indirectData[i].drawIndirectCmd.instanceCount << '\n';
+	// }
+	// std::cout << "----------------------------\n";
+	// pCore->Device().unmapMemory( mOpaqueMeshPass.drawIndirectBuffer.bufferMemory);
 
 
-	// if (FrameCount() == 2)
+	// if (FrameCount() <= 10)
 	// {
 	// 	void *data;
 	// 	result = pCore->Device().mapMemory( cullDebugBuffer.bufferMemory, 0, cullDebugBuffer.bufferSize, vk::MemoryMapFlags(), &data);
@@ -2065,14 +2062,12 @@ void Renderer::CullShadowPass( vk::CommandBuffer cmd) {
 
 void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 
-	// debug
-	Size debugSize = mOpaqueMeshPass.renderBatches.GetSize() * sizeof( CullDebugData);
-	if ( cullDebugBuffer.bufferSize < debugSize)
-	{
-		CreateBuffer( cullDebugBuffer, debugSize, vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-	}
-
-
+	// // debug
+	// Size debugSize = mOpaqueMeshPass.renderBatches.GetSize() * sizeof( CullDebugData);
+	// if ( cullDebugBuffer.bufferSize < debugSize)
+	// {
+	// 	CreateBuffer( cullDebugBuffer, debugSize, vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+	// }
 
 	// get cull data
 	glm::mat4 proj = mMainCamera.Projection();
@@ -2080,8 +2075,6 @@ void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 	// normalls of left and upper frustum plane ( pointing inward )
 	glm::vec4 frustumX = (projT[3] + projT[0]) / glm::length( glm::vec3( projT[3] + projT[0]));
 	glm::vec4 frustumY = (projT[3] + projT[1]) / glm::length( glm::vec3( projT[3] + projT[1]));
-
-	// std::cout << proj[0][0] << "   "  << proj[1][1] << '\n';
 
 	ViewCullData opaqueCull;
 	opaqueCull.view = mMainCamera.View();
@@ -2108,14 +2101,14 @@ void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 	auto instanceDataOpaqueInfo = mOpaqueMeshPass.instanceDataBuffer.DescriptorInfo();
 	auto drawIndirectOpaqueInfo = mOpaqueMeshPass.drawIndirectBuffer.DescriptorInfo();
 	auto instanceIdxOpaqueInfo = mOpaqueMeshPass.instanceIndexBuffer.DescriptorInfo();
-		auto debugInfo = cullDebugBuffer.DescriptorInfo();
+		// auto debugInfo = cullDebugBuffer.DescriptorInfo();
 	vk::DescriptorSet viewCullOpaqueSet = DescriptorSetBuilder( pCore->Device(), CurrentFrame().descriptorAllocator, pDescriptorLayoutCache)
 		.BindImage( 0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eCompute, &pyramidInfo)
 		.BindBuffer( 1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &objectInfo)
 		.BindBuffer( 2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceDataOpaqueInfo)
 		.BindBuffer( 3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &drawIndirectOpaqueInfo)
 		.BindBuffer( 4, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceIdxOpaqueInfo)
-			.BindBuffer( 5, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &debugInfo)
+			// .BindBuffer( 5, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &debugInfo)
 		.Build();
 
 	// auto instanceDataTransparentInfo = mTransparentMeshPass.instanceDataBuffer.DescriptorInfo();
