@@ -75,6 +75,7 @@ void Renderer::StartUp(GLFWwindow *window) {
 	CreateDescriptorSetLayouts();
 	CreateDescriptorSets();
 
+
 	// camera
 	float unit = 4;
 	mMainCamera.position = {-2.0f * unit, -2.0f * unit, -2.0f * unit};
@@ -84,7 +85,6 @@ void Renderer::StartUp(GLFWwindow *window) {
 	mMainCamera.zNear = 0.1f;
 	mMainCamera.zFar = 1000.f;
 	mMainCamera.UpdateCoordinates();
-
 }
 
 
@@ -163,15 +163,18 @@ void Renderer::Update() {
 
 	// TODO make async calls
 
+	// add new objects using overridable positions
+	// mark deleted objects for override
+
 	if ( mMeshesDirty)
 	{
 		MergeMeshes();
 		mMeshesDirty = false;
-	}	
-	// UpdateObjectBuffer( vk::CommandBuffer{});
+	}
 	UpdateMeshPass( &mShadowMeshPass);
 	UpdateMeshPass( &mOpaqueMeshPass);
 	UpdateMeshPass( &mTransparentMeshPass);
+
 
 	DrawFrame();
 }
@@ -347,15 +350,24 @@ void Renderer::RegisterMeshObject( MeshObject &object) {
 	newObject.materialId = RegisterMaterial( object.materialName);
 	// newObject.passIndex created after batch processing
 
-	U32 objIdx = (U32)mRenderObjects.GetSize();
-	object.objectIdx = objIdx;
-
-	mRenderObjects.PushBack( newObject);
+	U32 objIdx;
+	if ( !mReuseObjectIndices.IsEmpty())
+	{
+		objIdx = mReuseObjectIndices.Back();
+		mReuseObjectIndices.PopBack();
+		mRenderObjects[ objIdx] = newObject;
+	}
+	else
+	{
+		objIdx = (U32)mRenderObjects.GetSize();
+		mRenderObjects.PushBack( newObject);
+	}
 	mDirtyObjectIndices.PushBack( objIdx);
+
+	object.objectIdx = objIdx;
 	
 	// submit to mesh passes
 	newObject.passIndex.Clear( -1);
-
 	Material &material = mMaterials[ newObject.materialId];
 	if ( material.usedInPass[PassType::SHADOW] )
 	{
@@ -369,6 +381,36 @@ void Renderer::RegisterMeshObject( MeshObject &object) {
 	{
 		mTransparentMeshPass.unbatchedIndices.PushBack( objIdx);
 	}
+}
+
+    
+void Renderer::DeleteMeshObject( U32 objectIdx) {
+
+	auto &object = mRenderObjects[ objectIdx];
+
+	if ( object.passIndex[ PassType::SHADOW] >= 0) 
+	{
+		mShadowMeshPass.deleteObjectIndices.PushBack( (U32)object.passIndex[ PassType::SHADOW]);
+	}
+	if ( object.passIndex[ PassType::OPAQUE] >= 0) 
+	{
+		mOpaqueMeshPass.deleteObjectIndices.PushBack( (U32)object.passIndex[ PassType::OPAQUE]);
+	}
+	if ( object.passIndex[ PassType::TRANSPARENT] >= 0) 
+	{
+		mTransparentMeshPass.deleteObjectIndices.PushBack( (U32)object.passIndex[ PassType::TRANSPARENT]);
+	}
+
+	mReuseObjectIndices.PushBack( objectIdx);
+}
+
+
+void Renderer::UpdateMeshObject( U32 objectIdx) {
+
+	if ( !mRenderObjects[ objectIdx].updated)
+	{
+		mDirtyObjectIndices.PushBack( objectIdx);
+	}	
 }
 
 
@@ -860,7 +902,6 @@ void Renderer::MergeMeshes() {
 void Renderer::UpdateMeshPass( MeshPass *pass) {
 
 	// TODO use better sortKey including the materials pipeline
-	// TODO use pass objects after all -> lookup into mRenderobjects after deletion incorrect
 
 	// handle deleted render objects
 	if ( !pass->deleteObjectIndices.IsEmpty())
@@ -891,8 +932,6 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 		std::set_difference( pass->renderBatches.Begin(), pass->renderBatches.End(), deleteBatches.Begin(), deleteBatches.End(), newBatches.Begin());
 		pass->renderBatches = std::move( newBatches);
 
-		// pass->rebuildBatches = true;
-		// pass->rebuildInstances = true;
 		pass->hasChanged = true;
 	}
 
@@ -951,8 +990,6 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 			std::inplace_merge( begin, middle, end);
 		}
 
-		// pass->rebuildBatches = true;
-		// pass->rebuildInstances = true;
 		pass->hasChanged = true;
 	}
 
@@ -1005,23 +1042,11 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 		pCore->Device().updateDescriptorSets(1, &instanceWrite, 0, nullptr);
 	}
 
-	// update gpu side buffers
-    // UpdateMeshPassBatchBuffer( pass, vk::CommandBuffer{});
-    // UpdateMeshPassInstanceBuffer( pass, vk::CommandBuffer{});
-
-	// pass->rebuildBatches = false;
-	// pass->rebuildInstances = false;
 	pass->hasChanged = false;
 }
 
 
 void Renderer::BuildMeshPassBatches( MeshPass *pass) {
-
-	// // do nothing if batches are unchanged
-	// if( !pass->rebuildBatches)
-	// {
-	// 	return;
-	// }
 
 	// rebuild indirect batches
 	pass->indirectBatches.Clear();
@@ -1199,15 +1224,6 @@ void Renderer::UpdateMeshPassInstanceBuffer( MeshPass *pass, vk::CommandBuffer c
 		pCore->Device().destroyBuffer( stagingBuffer.buffer);
 		pCore->Device().freeMemory( stagingBuffer.bufferMemory);
 	});
-}
-
-
-void Renderer::UpdateMeshObject( U32 objectIdx) {
-
-	if ( !mRenderObjects[ objectIdx].updated)
-	{
-		mDirtyObjectIndices.PushBack( objectIdx);
-	}	
 }
 
 

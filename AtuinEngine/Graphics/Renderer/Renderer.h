@@ -86,7 +86,7 @@ struct RenderObject {
     U64 materialId;
 
     PassData<I64> passIndex;
-    bool updated = false;
+    bool updated = true;
 };
 
 
@@ -167,6 +167,7 @@ private:
 
     // resources
     void RegisterMeshObject( MeshObject &object);
+    void DeleteMeshObject( U32 objectIdx);
     void UpdateMeshObject( U32 objectIdx);
     U64 RegisterMesh( std::string_view meshName);
     U64 RegisterMaterial( std::string_view materialName);
@@ -199,6 +200,7 @@ private:
     // utils
     void CreateBuffer( Buffer &buffer, Size size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags memoryType);
     Buffer CreateStagingBuffer(Size bufferSize);
+    // TODO split resource copy methods into synchronous ( using current command buffer in grahics queue) and async ( using transfer queue)
     void UploadBufferData( void *bufferData, Size size, vk::Buffer targetBuffer, Size offset = 0);
     void TransitionImageLayout(vk::Image image, vk::ImageLayout initialLayout, vk::ImageLayout finalLayout, U32 mipLevels = 1);
     void CopyBufferToImage(vk::Buffer buffer, vk::Image image, U32 imageWidth, U32 imageHeight);
@@ -274,8 +276,12 @@ private:
 
     // list of all objects to be rendered
     Array<RenderObject> mRenderObjects;
-    // indices of objects that have been updated since last frame
+    // indices of objects that have been added or updated since last frame
     Array<U32> mDirtyObjectIndices;
+
+    // indices of objects that can be overwritten by new objects added 
+    Array<U32> mReuseObjectIndices;
+
     // flag to indicate changes in meshes
     bool mMeshesDirty;
 
