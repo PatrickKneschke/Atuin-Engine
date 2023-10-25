@@ -171,9 +171,10 @@ void Renderer::Update() {
 		MergeMeshes();
 		mMeshesDirty = false;
 	}
-	UpdateMeshPass( &mShadowMeshPass);
+
+	// UpdateMeshPass( &mShadowMeshPass);
 	UpdateMeshPass( &mOpaqueMeshPass);
-	UpdateMeshPass( &mTransparentMeshPass);
+	// UpdateMeshPass( &mTransparentMeshPass);
 
 
 	DrawFrame();
@@ -914,26 +915,26 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 		for ( U32 idx : pass->deleteObjectIndices)
 		{
 			pass->reuseObjectIndices.PushBack( idx);
-			RenderObject &obj = mRenderObjects[ pass->objectIndices[idx]];
+			RenderObject &obj = mRenderObjects[ pass->objectIndices[ idx]];
 
 			RenderBatch newBatch;
-			newBatch.objectIdx = pass->objectIndices[idx];
+			newBatch.objectIdx = pass->objectIndices[ idx];
 			newBatch.sortKey = (U64)obj.materialId << 32 | obj.meshId;
 
 			deleteBatches.PushBack( newBatch);
 		}
 		pass->deleteObjectIndices.Clear();
 
+		std::cout << "    " << pass->renderBatches.GetSize() << "    " << deleteBatches.GetSize() << '\n';
+
 		// remove deleted batches from renderBatches array
 		std::sort( deleteBatches.Begin(), deleteBatches.End());
-
-		Array<RenderBatch> newBatches;
-		newBatches.Reserve( pass->renderBatches.GetSize());
-		std::set_difference( pass->renderBatches.Begin(), pass->renderBatches.End(), deleteBatches.Begin(), deleteBatches.End(), newBatches.Begin());
-		pass->renderBatches = std::move( newBatches);
+		std::set_difference( pass->renderBatches.Begin(), pass->renderBatches.End(), deleteBatches.Begin(), deleteBatches.End(), pass->renderBatches.Begin());
+		pass->renderBatches.Resize( pass->renderBatches.GetSize() - deleteBatches.GetSize());
 
 		pass->hasChanged = true;
 	}
+
 
 	// handle unbatched objects
 	if ( !pass->unbatchedIndices.IsEmpty())
@@ -1048,6 +1049,12 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 
 void Renderer::BuildMeshPassBatches( MeshPass *pass) {
 
+	if ( pass->renderBatches.IsEmpty())
+	{
+		return;
+	}
+	
+
 	// rebuild indirect batches
 	pass->indirectBatches.Clear();
 	pass->multiBatches.Clear();
@@ -1102,7 +1109,7 @@ void Renderer::BuildMeshPassBatches( MeshPass *pass) {
 		{
 			pass->indirectBatches.Back().count++;
 		}
-	}	
+	}
 }
 
 
@@ -1951,10 +1958,10 @@ void Renderer::DrawFrame() {
 
     UpdateMeshPassBatchBuffer( &mOpaqueMeshPass, cmd);
     UpdateMeshPassInstanceBuffer( &mOpaqueMeshPass, cmd);
-    UpdateMeshPassBatchBuffer( &mTransparentMeshPass, cmd);
-    UpdateMeshPassInstanceBuffer( &mTransparentMeshPass, cmd);
-    UpdateMeshPassBatchBuffer( &mShadowMeshPass, cmd);
-    UpdateMeshPassInstanceBuffer( &mShadowMeshPass, cmd);
+    // UpdateMeshPassBatchBuffer( &mTransparentMeshPass, cmd);
+    // UpdateMeshPassInstanceBuffer( &mTransparentMeshPass, cmd);
+    // UpdateMeshPassBatchBuffer( &mShadowMeshPass, cmd);
+    // UpdateMeshPassInstanceBuffer( &mShadowMeshPass, cmd);
 
 	cmd.pipelineBarrier( 
 		vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eComputeShader, vk::DependencyFlags{}, 
@@ -1965,7 +1972,7 @@ void Renderer::DrawFrame() {
 	// compute culling
 	mPostCullBarriers.Clear();
 
-	CullShadowPass( cmd  );
+	CullShadowPass( cmd);
 	CullForwardPass( cmd);
 
 	cmd.pipelineBarrier( 

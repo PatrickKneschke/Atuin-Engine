@@ -84,44 +84,46 @@ private:
 
     void UpdateObjects() {
 
-        // if ( mRenderer.FrameCount() % 60)
-        // {
-        //     U32 turnOver = (U32)ceil( 0.05 * (U32)mTestObjects.GetSize());
-        //     // add some objects
-        //     for( U32 i=0; i<turnOver && !mReuseObjectIndices.empty(); i++)
-        //     {
-        //         glm::vec3 position = glm::vec3( 
-        //             8.f * (float)(std::rand() % 20),
-        //             8.f * (float)(std::rand() % 20),
-        //             8.f * (float)(std::rand() % 20)
-        //         );
+        if ( mRenderer.FrameCount() % 60 == 1)
+        {
+            U32 turnOver = (U32)ceil( 0.05 * (U32)mTestObjects.GetSize());
+            // add some objects
+            // for( U32 i=0; i<turnOver; i++) //&& !mReuseObjectIndices.empty(); i++)
+            // {
+            //     glm::vec3 position = glm::vec3( 
+            //         8.f * (float)(std::rand() % 20),
+            //         8.f * (float)(std::rand() % 20),
+            //         8.f * (float)(std::rand() % 20)
+            //     );
 
-        //         MeshObject obj;
-        //         obj.materialName = "Materials//Rusted_Iron/rusted_iron.material.json";
-        //         obj.meshName     = "Meshes/Default/torus.obj";
-        //         obj.transform    = glm::translate( glm::mat4(1.f), position);
-        //         obj.sphereBounds = glm::vec4( position, 1.f);
+            //     MeshObject obj;
+            //     obj.materialName = "Materials//Rusted_Iron/rusted_iron.material.json";
+            //     obj.meshName     = "Meshes/Default/torus.obj";
+            //     obj.transform    = glm::translate( glm::mat4(1.f), position);
+            //     obj.sphereBounds = glm::vec4( position, 1.f);
 
-        //         U32 idx = *mReuseObjectIndices.begin();
-        //         mReuseObjectIndices.erase( mReuseObjectIndices.begin());
-        //         mTestObjects[ idx] = obj;
+            //     // U32 idx = *mReuseObjectIndices.begin();
+            //     // mReuseObjectIndices.erase( mReuseObjectIndices.begin());
+            //     // mTestObjects[ idx] = obj;
+            //     U32 idx = mTestObjects.GetSize();
+            //     mTestObjects.PushBack( obj);
                         
-        //         mRenderer.RegisterMeshObject( mTestObjects[ idx]);
-        //     }
+            //     mRenderer.RegisterMeshObject( mTestObjects[ idx]);
+            // }
 
-        //     // delete some objects
-        //     U32 i = 0;
-        //     while ( i<turnOver)
-        //     {
-        //         U32 idx = rand() % (U32)mTestObjects.GetSize();
-        //         if ( mReuseObjectIndices.find( idx) == mReuseObjectIndices.end())
-        //         {
-        //             mRenderer.DeleteMeshObject( idx);
-        //             mReuseObjectIndices.insert( idx);
-        //             ++i;
-        //         }
-        //     }
-        // }
+            // delete some objects
+            U32 i = 0;
+            while ( i<turnOver)
+            {
+                U32 idx = rand() % (U32)mTestObjects.GetSize();
+                if ( mReuseObjectIndices.find( idx) == mReuseObjectIndices.end())
+                {
+                    mRenderer.DeleteMeshObject( idx);
+                    mReuseObjectIndices.insert( idx);
+                }
+                ++i;
+            }
+        }
 
         U32 numObjects = (U32)mTestObjects.GetSize();
         U32 numUpdates = (U32)ceil( 0.2 * numObjects);
