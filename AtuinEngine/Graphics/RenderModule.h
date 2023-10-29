@@ -6,6 +6,7 @@
 
 
 #include <unordered_set>
+#include <glm/gtx/string_cast.hpp>
 
 
 class GLFWwindow;
@@ -41,7 +42,7 @@ private:
     void CreateObjects() {
 
         std::string models[3] = {
-            "Meshes/Default/cube.obj", "Meshes/Default/sphere.obj"//, "Meshes/Default/torus.obj"
+            "Meshes/Default/cube.obj", "Meshes/Default/sphere.obj", "Meshes/Default/torus.obj"
         };
 
         int N = 20;
@@ -53,7 +54,7 @@ private:
             {
                 for ( int k = 0; k < N; k++)
                 {
-                    int modelIdx = std::rand() % 3;
+                    int modelIdx = 1;//std::rand() % 3;
                     glm::vec3 position = glm::vec3( (float)i * unit,  (float)j * unit, (float)k * unit);
 
                     MeshObject obj;
@@ -67,6 +68,7 @@ private:
                 }                
             }
         }
+
 
         // int modelIdx = 1;
         // glm::vec3 position = glm::vec3( 400.f, 400.f, 400.f);
@@ -84,32 +86,40 @@ private:
 
     void UpdateObjects() {
 
-        if ( mRenderer.FrameCount() % 60 == 1)
+        if ( mRenderer.FrameCount() % 60 == 1 )
         {
             U32 turnOver = (U32)ceil( 0.05 * (U32)mTestObjects.GetSize());
             // add some objects
-            // for( U32 i=0; i<turnOver; i++) //&& !mReuseObjectIndices.empty(); i++)
-            // {
-            //     glm::vec3 position = glm::vec3( 
-            //         8.f * (float)(std::rand() % 20),
-            //         8.f * (float)(std::rand() % 20),
-            //         8.f * (float)(std::rand() % 20)
-            //     );
+            for( U32 i=0; i<turnOver && !mReuseObjectIndices.empty(); i++)
+            {
+                glm::vec3 position = glm::vec3( 
+                    8.f * (float)(std::rand() % 20),
+                    8.f * (float)(std::rand() % 20),
+                    8.f * (float)(std::rand() % 20)
+                );
 
-            //     MeshObject obj;
-            //     obj.materialName = "Materials//Rusted_Iron/rusted_iron.material.json";
-            //     obj.meshName     = "Meshes/Default/torus.obj";
-            //     obj.transform    = glm::translate( glm::mat4(1.f), position);
-            //     obj.sphereBounds = glm::vec4( position, 1.f);
+                MeshObject obj;
+                obj.materialName = "Materials//Rusted_Iron/rusted_iron.material.json";
+                obj.meshName     = "Meshes/Default/torus.obj";
+                obj.transform    = glm::translate( glm::mat4(1.f), position);
+                obj.sphereBounds = glm::vec4( position, 1.0f);
+                   
 
-            //     // U32 idx = *mReuseObjectIndices.begin();
-            //     // mReuseObjectIndices.erase( mReuseObjectIndices.begin());
-            //     // mTestObjects[ idx] = obj;
-            //     U32 idx = mTestObjects.GetSize();
-            //     mTestObjects.PushBack( obj);
-                        
-            //     mRenderer.RegisterMeshObject( mTestObjects[ idx]);
-            // }
+                U32 idx;
+                if ( mReuseObjectIndices.empty())
+                {
+                    idx = (U32)mTestObjects.GetSize();
+                    mTestObjects.PushBack( obj);
+                }
+                else
+                {
+                    idx = *mReuseObjectIndices.begin();
+                    mReuseObjectIndices.erase( mReuseObjectIndices.begin());
+                    mTestObjects[ idx] = obj;
+                }
+
+                mRenderer.RegisterMeshObject( mTestObjects[ idx]);
+            }
 
             // delete some objects
             U32 i = 0;
@@ -118,27 +128,27 @@ private:
                 U32 idx = rand() % (U32)mTestObjects.GetSize();
                 if ( mReuseObjectIndices.find( idx) == mReuseObjectIndices.end())
                 {
-                    mRenderer.DeleteMeshObject( idx);
+                    mRenderer.DeleteMeshObject( mTestObjects[ idx].objectIdx );
                     mReuseObjectIndices.insert( idx);
                 }
                 ++i;
             }
         }
 
-        U32 numObjects = (U32)mTestObjects.GetSize();
-        U32 numUpdates = (U32)ceil( 0.2 * numObjects);
-        for (U32 i = 0; i < numUpdates; i++)
-        {
-            int idx = rand() % numObjects;
+        // U32 numObjects = (U32)mTestObjects.GetSize();
+        // U32 numUpdates = (U32)ceil( 0.2 * numObjects);
+        // for (U32 i = 0; i < numUpdates; i++)
+        // {
+        //     int idx = rand() % numObjects;
 
-            mTestObjects[ idx].transform = glm::rotate(
-                mTestObjects[ idx].transform, 
-                1.f / 30.f * glm::radians(30.f), 
-                glm::vec3(0.5f, 1.f, 0.75f)
-            );
+        //     mTestObjects[ idx].transform = glm::rotate(
+        //         mTestObjects[ idx].transform, 
+        //         1.f / 30.f * glm::radians(30.f), 
+        //         glm::vec3(0.5f, 1.f, 0.75f)
+        //     );
             
-            mRenderer.UpdateMeshObject( mTestObjects[ idx].objectIdx);
-        }
+        //     mRenderer.UpdateMeshObject( mTestObjects[ idx].objectIdx);
+        // }
     }
 };
 

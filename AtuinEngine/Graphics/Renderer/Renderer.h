@@ -79,8 +79,9 @@ struct MeshObject {
 // representation of a MeshObject inside the Renderer
 struct RenderObject {
 
-    const glm::mat4 *transform;
-    const glm::vec4 *sphereBounds;
+    // TODO is invalidated if mesh objects move after reallocation!
+    glm::mat4 *transform;
+    glm::vec4 *sphereBounds;
 
     U64 meshId;
     U64 materialId;
@@ -152,7 +153,8 @@ public:
 
 private:
     
-    FrameResources& CurrentFrame() { return mFrames[mFrameCount % pFrameOverlap->Get()]; }
+    FrameResources& CurrentFrame() { return mFrames[ mFrameCount % pFrameOverlap->Get()]; }
+    FrameResources& NextFrame() { return mFrames[ (mFrameCount + 1) % pFrameOverlap->Get()]; }
 
     // inits
     void CreateSubmitContexts();
@@ -194,7 +196,7 @@ private:
     void CullForwardPass( vk::CommandBuffer cmd);
     void DrawShadowPass( vk::CommandBuffer cmd, U32 imageIndex);
     void DrawForwardPass( vk::CommandBuffer cmd, U32 imageIndex);
-    void RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass);
+    void RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass, vk::DescriptorSet globalDataSet);
     void UpdateDepthPyramid( vk::CommandBuffer cmd);
 
     // utils

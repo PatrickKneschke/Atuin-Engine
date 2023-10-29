@@ -172,10 +172,13 @@ void Renderer::Update() {
 		mMeshesDirty = false;
 	}
 
+	// std::cout << mCombinedVertexBuffer.buffer << "   " << mCombinedVertexBuffer.bufferSize / sizeof(Vertex) << '\n';
+	// std::cout << mCombinedIndexBuffer.buffer << "   " << mCombinedIndexBuffer.bufferSize / sizeof(U32) << '\n';
+	// std::cout << "----------------------------------------------\n";
+
 	// UpdateMeshPass( &mShadowMeshPass);
 	UpdateMeshPass( &mOpaqueMeshPass);
 	// UpdateMeshPass( &mTransparentMeshPass);
-
 
 	DrawFrame();
 }
@@ -350,25 +353,25 @@ void Renderer::RegisterMeshObject( MeshObject &object) {
 	newObject.meshId = RegisterMesh( object.meshName);
 	newObject.materialId = RegisterMaterial( object.materialName);
 	// newObject.passIndex created after batch processing
+	newObject.passIndex.Clear( -1);
 
 	U32 objIdx;
-	if ( !mReuseObjectIndices.IsEmpty())
+	if ( mReuseObjectIndices.IsEmpty())
+	{
+		objIdx = (U32)mRenderObjects.GetSize();
+		mRenderObjects.PushBack( newObject);
+	}
+	else
 	{
 		objIdx = mReuseObjectIndices.Back();
 		mReuseObjectIndices.PopBack();
 		mRenderObjects[ objIdx] = newObject;
 	}
-	else
-	{
-		objIdx = (U32)mRenderObjects.GetSize();
-		mRenderObjects.PushBack( newObject);
-	}
 	mDirtyObjectIndices.PushBack( objIdx);
 
 	object.objectIdx = objIdx;
-	
+
 	// submit to mesh passes
-	newObject.passIndex.Clear( -1);
 	Material &material = mMaterials[ newObject.materialId];
 	if ( material.usedInPass[PassType::SHADOW] )
 	{
@@ -925,8 +928,6 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 		}
 		pass->deleteObjectIndices.Clear();
 
-		std::cout << "    " << pass->renderBatches.GetSize() << "    " << deleteBatches.GetSize() << '\n';
-
 		// remove deleted batches from renderBatches array
 		std::sort( deleteBatches.Begin(), deleteBatches.End());
 		std::set_difference( pass->renderBatches.Begin(), pass->renderBatches.End(), deleteBatches.Begin(), deleteBatches.End(), pass->renderBatches.Begin());
@@ -961,7 +962,7 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 
 			RenderObject &obj = mRenderObjects[ objIdx];
 			obj.passIndex[ pass->passType] = newIndex;
-			
+
 			RenderBatch newBatch;
 			newBatch.objectIdx = objIdx;
 			newBatch.sortKey = (U64)obj.materialId << 32 | obj.meshId;
@@ -1031,16 +1032,16 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent //vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
 
-		auto instanceInfo = pass->instanceIndexBuffer.DescriptorInfo();
-		auto instanceWrite = vk::WriteDescriptorSet{}
-			.setDstSet( pass->passDataSet )
-			.setDstBinding( 1 )
-			.setDstArrayElement( 0 )
-			.setDescriptorCount( 1 )
-			.setDescriptorType( vk::DescriptorType::eStorageBuffer )
-			.setPBufferInfo( &instanceInfo );	
+		// auto instanceInfo = pass->instanceIndexBuffer.DescriptorInfo();
+		// auto instanceWrite = vk::WriteDescriptorSet{}
+		// 	.setDstSet( pass->passDataSet )
+		// 	.setDstBinding( 1 )
+		// 	.setDstArrayElement( 0 )
+		// 	.setDescriptorCount( 1 )
+		// 	.setDescriptorType( vk::DescriptorType::eStorageBuffer )
+		// 	.setPBufferInfo( &instanceInfo );	
 
-		pCore->Device().updateDescriptorSets(1, &instanceWrite, 0, nullptr);
+		// pCore->Device().updateDescriptorSets(1, &instanceWrite, 0, nullptr);
 	}
 
 	pass->hasChanged = false;
@@ -1247,6 +1248,8 @@ void Renderer::UpdateObjectBuffer( vk::CommandBuffer cmd) {
 	// recreate object buffer if necessary
 	if ( mObjectBuffer.bufferSize < copySize)
 	{
+		// TODO barrier here to prevent buffer modification before prev frame is done with it ?
+
 		CreateBuffer( 
 			mObjectBuffer,
 			copySize,
@@ -1254,20 +1257,20 @@ void Renderer::UpdateObjectBuffer( vk::CommandBuffer cmd) {
 			vk::MemoryPropertyFlagBits::eDeviceLocal	
 		);
 
-		auto objectInfo = mObjectBuffer.DescriptorInfo();
-		auto objectWrite = vk::WriteDescriptorSet{}
-			.setDstBinding( 0 )
-			.setDstArrayElement( 0 )
-			.setDescriptorCount( 1 )
-			.setDescriptorType( vk::DescriptorType::eStorageBuffer )
-			.setPBufferInfo( &objectInfo );	
+		// auto objectInfo = mObjectBuffer.DescriptorInfo();
+		// auto objectWrite = vk::WriteDescriptorSet{}
+		// 	.setDstBinding( 0 )
+		// 	.setDstArrayElement( 0 )
+		// 	.setDescriptorCount( 1 )
+		// 	.setDescriptorType( vk::DescriptorType::eStorageBuffer )
+		// 	.setPBufferInfo( &objectInfo );	
 
-		objectWrite.setDstSet( mShadowMeshPass.passDataSet );
-		pCore->Device().updateDescriptorSets(1, &objectWrite, 0, nullptr);
-		objectWrite.setDstSet( mOpaqueMeshPass.passDataSet );
-		pCore->Device().updateDescriptorSets(1, &objectWrite, 0, nullptr);
-		objectWrite.setDstSet( mTransparentMeshPass.passDataSet );
-		pCore->Device().updateDescriptorSets(1, &objectWrite, 0, nullptr);
+		// objectWrite.setDstSet( mShadowMeshPass.passDataSet );
+		// pCore->Device().updateDescriptorSets(1, &objectWrite, 0, nullptr);
+		// objectWrite.setDstSet( mOpaqueMeshPass.passDataSet );
+		// pCore->Device().updateDescriptorSets(1, &objectWrite, 0, nullptr);
+		// objectWrite.setDstSet( mTransparentMeshPass.passDataSet );
+		// pCore->Device().updateDescriptorSets(1, &objectWrite, 0, nullptr);
 	}
 
 	// TODO allow for partial update if not too many objects changed
@@ -1326,11 +1329,12 @@ void Renderer::CreateBuffer( Buffer &buffer, Size size, vk::BufferUsageFlags usa
 
 	if ( (bool)buffer.buffer)
 	{
-		// CurrentFrame().deletionStack.Push([&](){
+		NextFrame().deletionStack.Push([&, buffer](){
 
+			// std::cout << "deleting " << buffer.buffer << '\n';
 			pCore->Device().destroyBuffer( buffer.buffer);
 			pCore->Device().freeMemory( buffer.bufferMemory);
-		// });
+		});
 	}
 
 	buffer.bufferSize = size;
@@ -2092,6 +2096,12 @@ void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 	// 	CreateBuffer( cullDebugBuffer, debugSize, vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 	// }
 
+	if ( mCombinedVertexBuffer.bufferSize == 0)
+	{
+		return;
+	}
+
+
 	// get cull data
 	glm::mat4 proj = mMainCamera.Projection();
 	glm::mat4 projT = glm::transpose( proj);
@@ -2235,20 +2245,31 @@ void Renderer::DrawForwardPass( vk::CommandBuffer cmd, U32 imageIndex) {
 	cmd.setScissor( 0, 1, &scissor);
 
 
-	Size offset = 0;
-	cmd.bindVertexBuffers( 0, 1, &mCombinedVertexBuffer.buffer, &offset);
-	cmd.bindIndexBuffer( mCombinedIndexBuffer.buffer, 0, vk::IndexType::eUint32);
+	if ( mCombinedVertexBuffer.bufferSize > 0)
+	{
+		Size offset = 0;
+		cmd.bindVertexBuffers( 0, 1, &mCombinedVertexBuffer.buffer, &offset);
+		cmd.bindIndexBuffer( mCombinedIndexBuffer.buffer, 0, vk::IndexType::eUint32);
 
 
-	RenderMeshPass( cmd, &mOpaqueMeshPass);
-	RenderMeshPass( cmd, &mTransparentMeshPass);
+		RenderMeshPass( cmd, &mOpaqueMeshPass, mGlobalDataSet);
+		RenderMeshPass( cmd, &mTransparentMeshPass, mGlobalDataSet);
+	}
 
 
 	cmd.endRenderPass();
 }
 
 
-void Renderer::RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass) {
+void Renderer::RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass, vk::DescriptorSet globalDataSet) {
+
+	auto objectInfo = mObjectBuffer.DescriptorInfo();
+	auto instanceInfo = pass->instanceIndexBuffer.DescriptorInfo();
+	auto passDataSet = DescriptorSetBuilder( pCore->Device(), CurrentFrame().descriptorAllocator, pDescriptorLayoutCache)
+		.BindBuffer(0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex, &objectInfo)
+		.BindBuffer(1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex, &instanceInfo)
+		.Build();
+
 
 	U64 lastPipelineId = 0;
 	U64 lastMaterialId = 0;
@@ -2268,10 +2289,10 @@ void Renderer::RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass) {
 
 			// TODO rebind should not be necessary, because same set layout ???
 			cmd.bindDescriptorSets( 
-				vk::PipelineBindPoint::eGraphics, pipeline.pipelineLayout, 0, 1, &mGlobalDataSet, 0, nullptr
+				vk::PipelineBindPoint::eGraphics, pipeline.pipelineLayout, 0, 1, &globalDataSet, 0, nullptr
 			);
 			cmd.bindDescriptorSets( 
-				vk::PipelineBindPoint::eGraphics,pipeline.pipelineLayout, 2, 1, &pass->passDataSet, 0, nullptr		
+				vk::PipelineBindPoint::eGraphics,pipeline.pipelineLayout, 2, 1, &passDataSet, 0, nullptr		
 			);
 
 			lastPipelineId = material.pipelineId[ PassType::OPAQUE];
