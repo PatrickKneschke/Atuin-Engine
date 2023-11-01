@@ -88,7 +88,7 @@ private:
 
         if ( mRenderer.FrameCount() % 60 == 1 )
         {
-            U32 turnOver = (U32)ceil( 0.05 * (U32)mTestObjects.GetSize());
+            U32 turnOver = (U32)ceil( 0.1 * (U32)mTestObjects.GetSize());
             // add some objects
             for( U32 i=0; i<turnOver && !mReuseObjectIndices.empty(); i++)
             {
@@ -135,20 +135,20 @@ private:
             }
         }
 
-        // U32 numObjects = (U32)mTestObjects.GetSize();
-        // U32 numUpdates = (U32)ceil( 0.2 * numObjects);
-        // for (U32 i = 0; i < numUpdates; i++)
-        // {
-        //     int idx = rand() % numObjects;
+        U32 numObjects = (U32)mTestObjects.GetSize();
+        U32 numUpdates = (U32)ceil( 0.2 * numObjects);
+        for (U32 i = 0; i < numUpdates; i++)
+        {
+            int idx = rand() % numObjects;
 
-        //     mTestObjects[ idx].transform = glm::rotate(
-        //         mTestObjects[ idx].transform, 
-        //         1.f / 30.f * glm::radians(30.f), 
-        //         glm::vec3(0.5f, 1.f, 0.75f)
-        //     );
+            mTestObjects[ idx].transform = glm::rotate(
+                mTestObjects[ idx].transform, 
+                1.f / 30.f * glm::radians(30.f), 
+                glm::vec3(0.5f, 1.f, 0.75f)
+            );
             
-        //     mRenderer.UpdateMeshObject( mTestObjects[ idx].objectIdx);
-        // }
+            mRenderer.UpdateMeshObject( mTestObjects[ idx].objectIdx);
+        }
     }
 };
 

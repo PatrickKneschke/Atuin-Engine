@@ -163,22 +163,15 @@ void Renderer::Update() {
 
 	// TODO make async calls
 
-	// add new objects using overridable positions
-	// mark deleted objects for override
-
 	if ( mMeshesDirty)
 	{
 		MergeMeshes();
 		mMeshesDirty = false;
 	}
 
-	// std::cout << mCombinedVertexBuffer.buffer << "   " << mCombinedVertexBuffer.bufferSize / sizeof(Vertex) << '\n';
-	// std::cout << mCombinedIndexBuffer.buffer << "   " << mCombinedIndexBuffer.bufferSize / sizeof(U32) << '\n';
-	// std::cout << "----------------------------------------------\n";
-
-	// UpdateMeshPass( &mShadowMeshPass);
+	UpdateMeshPass( &mShadowMeshPass);
 	UpdateMeshPass( &mOpaqueMeshPass);
-	// UpdateMeshPass( &mTransparentMeshPass);
+	UpdateMeshPass( &mTransparentMeshPass);
 
 	DrawFrame();
 }
@@ -352,6 +345,7 @@ void Renderer::RegisterMeshObject( MeshObject &object) {
 	newObject.sphereBounds = &object.sphereBounds;
 	newObject.meshId = RegisterMesh( object.meshName);
 	newObject.materialId = RegisterMaterial( object.materialName);
+	newObject.updated = true;
 	// newObject.passIndex created after batch processing
 	newObject.passIndex.Clear( -1);
 
@@ -1011,7 +1005,8 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 			pass->drawIndirectBuffer,
 			pass->indirectBatches.GetSize() * sizeof(IndirectData),
 			vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eIndirectBuffer | vk::BufferUsageFlagBits::eTransferDst,
-			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent //vk::MemoryPropertyFlagBits::eDeviceLocal
+			// vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent 
+			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
 	}
 	if ( pass->instanceDataBuffer.bufferSize < pass->renderBatches.GetSize() * sizeof(InstanceData))
@@ -1029,19 +1024,9 @@ void Renderer::UpdateMeshPass( MeshPass *pass) {
 			pass->instanceIndexBuffer,
 			pass->renderBatches.GetSize() * sizeof(U32),
 			vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
-			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent //vk::MemoryPropertyFlagBits::eDeviceLocal
+			// vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent 
+			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
-
-		// auto instanceInfo = pass->instanceIndexBuffer.DescriptorInfo();
-		// auto instanceWrite = vk::WriteDescriptorSet{}
-		// 	.setDstSet( pass->passDataSet )
-		// 	.setDstBinding( 1 )
-		// 	.setDstArrayElement( 0 )
-		// 	.setDescriptorCount( 1 )
-		// 	.setDescriptorType( vk::DescriptorType::eStorageBuffer )
-		// 	.setPBufferInfo( &instanceInfo );	
-
-		// pCore->Device().updateDescriptorSets(1, &instanceWrite, 0, nullptr);
 	}
 
 	pass->hasChanged = false;
@@ -1150,9 +1135,6 @@ void Renderer::UpdateMeshPassBatchBuffer( MeshPass *pass, vk::CommandBuffer cmd)
 	}
 	pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
 
-	// // upload buffer data to Gpu memory
-	// CopyBuffer( stagingBuffer.buffer, pass->drawIndirectBuffer.buffer, 0, stagingBuffer.bufferSize);
-
 	auto copyRegion = vk::BufferCopy{}
 		.setSrcOffset( 0 )
 		.setDstOffset( 0 )
@@ -1248,61 +1230,67 @@ void Renderer::UpdateObjectBuffer( vk::CommandBuffer cmd) {
 	// recreate object buffer if necessary
 	if ( mObjectBuffer.bufferSize < copySize)
 	{
-		// TODO barrier here to prevent buffer modification before prev frame is done with it ?
-
+		Array<U32> sharedQueueFamilies = {(U32)pCore->QueueFamilies().graphicsFamily, (U32)pCore->QueueFamilies().transferFamily};
 		CreateBuffer( 
-			mObjectBuffer,
-			copySize,
+			mObjectBuffer, copySize,
 			vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
-			vk::MemoryPropertyFlagBits::eDeviceLocal	
+			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
-
-		// auto objectInfo = mObjectBuffer.DescriptorInfo();
-		// auto objectWrite = vk::WriteDescriptorSet{}
-		// 	.setDstBinding( 0 )
-		// 	.setDstArrayElement( 0 )
-		// 	.setDescriptorCount( 1 )
-		// 	.setDescriptorType( vk::DescriptorType::eStorageBuffer )
-		// 	.setPBufferInfo( &objectInfo );	
-
-		// objectWrite.setDstSet( mShadowMeshPass.passDataSet );
-		// pCore->Device().updateDescriptorSets(1, &objectWrite, 0, nullptr);
-		// objectWrite.setDstSet( mOpaqueMeshPass.passDataSet );
-		// pCore->Device().updateDescriptorSets(1, &objectWrite, 0, nullptr);
-		// objectWrite.setDstSet( mTransparentMeshPass.passDataSet );
-		// pCore->Device().updateDescriptorSets(1, &objectWrite, 0, nullptr);
 	}
 
-	// TODO allow for partial update if not too many objects changed
+	// // reupload whole object data buffer
+	// Buffer stagingBuffer = CreateStagingBuffer( copySize);
+	// void *data;
+	// vk::Result result = pCore->Device().mapMemory( stagingBuffer.bufferMemory, 0, copySize, vk::MemoryMapFlags(), &data);
+	// if( result != vk::Result::eSuccess )
+	// {
+	// 	throw std::runtime_error("Failed to map staging buffer memory " + vk::to_string(result));
+	// }
 
-	// fill stating buffer
-	Buffer stagingBuffer = CreateStagingBuffer( copySize);
+	// ObjectData *objData = (ObjectData*)data;
+	// for ( Size i = 0; i < mRenderObjects.GetSize(); i++)
+	// {
+	// 	objData[i].transform = *mRenderObjects[i].transform;
+	// 	objData[i].sphereBounds = *mRenderObjects[i].sphereBounds;
+	// 	mRenderObjects[i].updated = false;
+	// }
+	// pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
+
+	// auto copyRegion = vk::BufferCopy{}
+	// 	.setSrcOffset( 0 )
+	// 	.setDstOffset( 0 )
+	// 	.setSize( copySize );
+			
+	// cmd.copyBuffer(stagingBuffer.buffer, mObjectBuffer.buffer, 1, &copyRegion);
+
+
+	// TODO check if compute shader performs better
+	// partial buffer update
+	Buffer stagingBuffer = CreateStagingBuffer( mDirtyObjectIndices.GetSize() * sizeof( ObjectData));
 	void *data;
-	vk::Result result = pCore->Device().mapMemory( stagingBuffer.bufferMemory, 0, copySize, vk::MemoryMapFlags(), &data);
+	vk::Result result = pCore->Device().mapMemory( stagingBuffer.bufferMemory, 0, VK_WHOLE_SIZE, vk::MemoryMapFlags(), &data);
 	if( result != vk::Result::eSuccess )
 	{
 		throw std::runtime_error("Failed to map staging buffer memory " + vk::to_string(result));
 	}
-
 	ObjectData *objData = (ObjectData*)data;
-	for ( Size i = 0; i < mRenderObjects.GetSize(); i++)
+
+	Array<vk::BufferCopy> copies;
+	copies.Reserve( mDirtyObjectIndices.GetSize());
+	for( U32 i = 0; i < (U32)mDirtyObjectIndices.GetSize(); i++)
 	{
-		objData[i].transform = *mRenderObjects[i].transform;
-		objData[i].sphereBounds = *mRenderObjects[i].sphereBounds;
+		objData[i].transform = *mRenderObjects[ mDirtyObjectIndices[i]].transform;
+		objData[i].sphereBounds = *mRenderObjects[ mDirtyObjectIndices[i]].sphereBounds;
 		mRenderObjects[i].updated = false;
+
+		copies.PushBack(
+			vk::BufferCopy{}
+				.setSrcOffset( i * sizeof( ObjectData) )
+				.setDstOffset( mDirtyObjectIndices[i] * sizeof( ObjectData) )
+				.setSize( sizeof( ObjectData) )
+		);
 	}
-	pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
-
-	// upload buffer data to Gpu memory
-	// CopyBuffer( stagingBuffer.buffer, mObjectBuffer.buffer, 0, stagingBuffer.bufferSize);
-
-
-	auto copyRegion = vk::BufferCopy{}
-		.setSrcOffset( 0 )
-		.setDstOffset( 0 )
-		.setSize( copySize );
-		
-	cmd.copyBuffer(stagingBuffer.buffer, mObjectBuffer.buffer, 1, &copyRegion);
+	cmd.copyBuffer(stagingBuffer.buffer, mObjectBuffer.buffer, (U32)copies.GetSize(), copies.Data());
 
 	mPreCullBarriers.PushBack( 
 		vk::BufferMemoryBarrier{}
@@ -1310,8 +1298,6 @@ void Renderer::UpdateObjectBuffer( vk::CommandBuffer cmd) {
 			.setSize( VK_WHOLE_SIZE)
 			.setSrcAccessMask( vk::AccessFlagBits::eTransferWrite)
 			.setDstAccessMask( vk::AccessFlagBits::eShaderRead)
-			.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
-			.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
 	);
 
 	mDirtyObjectIndices.Clear();
@@ -1331,7 +1317,6 @@ void Renderer::CreateBuffer( Buffer &buffer, Size size, vk::BufferUsageFlags usa
 	{
 		NextFrame().deletionStack.Push([&, buffer](){
 
-			// std::cout << "deleting " << buffer.buffer << '\n';
 			pCore->Device().destroyBuffer( buffer.buffer);
 			pCore->Device().freeMemory( buffer.bufferMemory);
 		});
@@ -1343,30 +1328,6 @@ void Renderer::CreateBuffer( Buffer &buffer, Size size, vk::BufferUsageFlags usa
 
 	buffer.buffer = pCore->CreateBuffer( buffer.bufferSize, buffer.usage);
 	buffer.bufferMemory = pCore->AllocateBufferMemory( buffer.buffer, buffer.memoryType);
-}
-
-
-void Renderer::UploadBufferData( void *bufferData, Size size, vk::Buffer targetBuffer, Size offset) {
-
-	Buffer stagingBuffer = CreateStagingBuffer( size);
-
-	// transfer data to staging buffer
-	void *data;
-	vk::Result result = pCore->Device().mapMemory( stagingBuffer.bufferMemory, 0, size, vk::MemoryMapFlags(), &data);
-	if( result == vk::Result::eSuccess ) 
-	{
-		memcpy(data, bufferData, size);
-		pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
-	}
-	else 
-	{
-		throw std::runtime_error("Failed to map staging buffer memory " + vk::to_string(result));
-	}
-
-	CopyBuffer( stagingBuffer.buffer, targetBuffer, offset, size);
-	
-	pCore->Device().destroyBuffer( stagingBuffer.buffer, nullptr);
-	pCore->Device().freeMemory( stagingBuffer.bufferMemory, nullptr);
 }
 
 
@@ -1551,14 +1512,16 @@ void Renderer::CreateMeshPass( MeshPass *pass, PassType type) {
 		pass->drawIndirectBuffer,
 		sizeof(IndirectData),
 		vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eIndirectBuffer | vk::BufferUsageFlagBits::eTransferDst,
-		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent //vk::MemoryPropertyFlagBits::eDeviceLocal
+		// vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent 
+		vk::MemoryPropertyFlagBits::eDeviceLocal
 	);
 	
 	CreateBuffer(
 		pass->instanceDataBuffer,
 		sizeof(InstanceData),
 		vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
-		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent //vk::MemoryPropertyFlagBits::eDeviceLocal
+		// vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent 
+		vk::MemoryPropertyFlagBits::eDeviceLocal
 	);
 	
 	CreateBuffer(
@@ -1572,33 +1535,34 @@ void Renderer::CreateMeshPass( MeshPass *pass, PassType type) {
 
 void Renderer::CreateDescriptorResources() {
 
-	mCameraBuffer.bufferSize = sizeof(CameraData);
-	mCameraBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
-	mCameraBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
-	mCameraBuffer.buffer = pCore->CreateBuffer( mCameraBuffer.bufferSize, mCameraBuffer.usage);
-	mCameraBuffer.bufferMemory = pCore->AllocateBufferMemory( mCameraBuffer.buffer, mCameraBuffer.memoryType);
-
+	// camera data
+	CreateBuffer(
+		mCameraBuffer, sizeof(CameraData),
+		vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst,
+		vk::MemoryPropertyFlagBits::eDeviceLocal
+	);
 	mDeletionStack.Push( [&](){
 		pCore->Device().destroyBuffer( mCameraBuffer.buffer);
 		pCore->Device().freeMemory( mCameraBuffer.bufferMemory);
 	});
-
-	mSceneBuffer.bufferSize = sizeof(SceneData);
-	mSceneBuffer.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
-	mSceneBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
-	mSceneBuffer.buffer = pCore->CreateBuffer( mSceneBuffer.bufferSize, mSceneBuffer.usage);
-	mSceneBuffer.bufferMemory = pCore->AllocateBufferMemory( mSceneBuffer.buffer, mSceneBuffer.memoryType);
 	
+	// scene data
+	CreateBuffer(
+		mSceneBuffer, sizeof(SceneData),
+		vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst,
+		vk::MemoryPropertyFlagBits::eDeviceLocal
+	);
 	mDeletionStack.Push( [&](){
 		pCore->Device().destroyBuffer( mSceneBuffer.buffer);
 		pCore->Device().freeMemory( mSceneBuffer.bufferMemory);
 	});
 
-	mObjectBuffer.bufferSize = sizeof(ObjectData);
-	mObjectBuffer.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst;
-	mObjectBuffer.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
-	mObjectBuffer.buffer = pCore->CreateBuffer( mObjectBuffer.bufferSize, mObjectBuffer.usage);
-	mObjectBuffer.bufferMemory = pCore->AllocateBufferMemory( mObjectBuffer.buffer, mObjectBuffer.memoryType);
+	// object data
+	CreateBuffer( 
+		mObjectBuffer, sizeof(ObjectData), 
+		vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst, 
+		vk::MemoryPropertyFlagBits::eDeviceLocal
+	);
 }
 
 
@@ -1620,26 +1584,8 @@ void Renderer::CreateDescriptorSetLayouts() {
 	};
 	mGlobalDataLayout = pCore->CreateDescriptorSetLayout(2, globalBindings);	
 
-
-	auto objectDataBinding = vk::DescriptorSetLayoutBinding{}
-		.setBinding( 0 )
-		.setDescriptorType( vk::DescriptorType::eStorageBuffer )
-		.setDescriptorCount( 1 )
-		.setStageFlags( vk::ShaderStageFlagBits::eVertex );
-	auto instanceDataBinding = vk::DescriptorSetLayoutBinding{}
-		.setBinding( 1 )
-		.setDescriptorType( vk::DescriptorType::eStorageBuffer )
-		.setDescriptorCount( 1 )
-		.setStageFlags( vk::ShaderStageFlagBits::eVertex );
-
-	vk::DescriptorSetLayoutBinding passBindings[] = {
-		objectDataBinding, instanceDataBinding
-	};
-	mPassDataLayout = pCore->CreateDescriptorSetLayout(2, passBindings);
-
 	mDeletionStack.Push( [&](){
 		pCore->Device().destroyDescriptorSetLayout( mGlobalDataLayout);
-		pCore->Device().destroyDescriptorSetLayout( mPassDataLayout);
 	});
 }
 
@@ -1651,25 +1597,6 @@ void Renderer::CreateDescriptorSets() {
 	mGlobalDataSet = DescriptorSetBuilder( pCore->Device(), pDescriptorSetAllocator, pDescriptorLayoutCache)
 		.BindBuffer( 0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, &cameraInfo)
 		.BindBuffer( 1, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment, &sceneInfo)
-		.Build();
-
-
-	auto objectInfo = mObjectBuffer.DescriptorInfo();
-	auto shadowInstanceInfo = mShadowMeshPass.instanceIndexBuffer.DescriptorInfo();
-	auto opaqueInstanceInfo = mOpaqueMeshPass.instanceIndexBuffer.DescriptorInfo();
-	auto transparentInstanceInfo = mTransparentMeshPass.instanceIndexBuffer.DescriptorInfo();
-
-	mShadowMeshPass.passDataSet = DescriptorSetBuilder( pCore->Device(), pDescriptorSetAllocator, pDescriptorLayoutCache)
-		.BindBuffer( 0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex, &objectInfo)
-		.BindBuffer( 1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex, &shadowInstanceInfo)
-		.Build();
-	mOpaqueMeshPass.passDataSet = DescriptorSetBuilder( pCore->Device(), pDescriptorSetAllocator, pDescriptorLayoutCache)
-		.BindBuffer( 0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex, &objectInfo)
-		.BindBuffer( 1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex, &opaqueInstanceInfo)
-		.Build();
-	mTransparentMeshPass.passDataSet = DescriptorSetBuilder( pCore->Device(), pDescriptorSetAllocator, pDescriptorLayoutCache)
-		.BindBuffer( 0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex, &objectInfo)
-		.BindBuffer( 1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex, &transparentInstanceInfo)
 		.Build();
 }
 
@@ -1692,6 +1619,30 @@ void Renderer::CreatePipelines() {
 	mViewCullPipeline = mPipelines[ SID("Pipelines/view_culling.pipeline.json")];
 
 	CreatePipeline( "Pipelines/default_fullscreen_texture.pipeline.json", mForwardPass);
+}
+
+
+void Renderer::UploadBufferData( void *bufferData, Size size, vk::Buffer targetBuffer, Size offset) {
+
+	Buffer stagingBuffer = CreateStagingBuffer( size);
+
+	// transfer data to staging buffer
+	void *data;
+	vk::Result result = pCore->Device().mapMemory( stagingBuffer.bufferMemory, 0, size, vk::MemoryMapFlags(), &data);
+	if( result == vk::Result::eSuccess ) 
+	{
+		memcpy(data, bufferData, size);
+		pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
+	}
+	else 
+	{
+		throw std::runtime_error("Failed to map staging buffer memory " + vk::to_string(result));
+	}
+
+	CopyBuffer( stagingBuffer.buffer, targetBuffer, offset, size);
+	
+	pCore->Device().destroyBuffer( stagingBuffer.buffer, nullptr);
+	pCore->Device().freeMemory( stagingBuffer.bufferMemory, nullptr);
 }
 
 
@@ -1962,10 +1913,10 @@ void Renderer::DrawFrame() {
 
     UpdateMeshPassBatchBuffer( &mOpaqueMeshPass, cmd);
     UpdateMeshPassInstanceBuffer( &mOpaqueMeshPass, cmd);
-    // UpdateMeshPassBatchBuffer( &mTransparentMeshPass, cmd);
-    // UpdateMeshPassInstanceBuffer( &mTransparentMeshPass, cmd);
-    // UpdateMeshPassBatchBuffer( &mShadowMeshPass, cmd);
-    // UpdateMeshPassInstanceBuffer( &mShadowMeshPass, cmd);
+    UpdateMeshPassBatchBuffer( &mTransparentMeshPass, cmd);
+    UpdateMeshPassInstanceBuffer( &mTransparentMeshPass, cmd);
+    UpdateMeshPassBatchBuffer( &mShadowMeshPass, cmd);
+    UpdateMeshPassInstanceBuffer( &mShadowMeshPass, cmd);
 
 	cmd.pipelineBarrier( 
 		vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eComputeShader, vk::DependencyFlags{}, 

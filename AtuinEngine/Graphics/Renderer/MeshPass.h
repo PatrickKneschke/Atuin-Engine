@@ -111,9 +111,6 @@ struct MeshPass {
     // GPU buffer to hold indirect batch index and object index for each instance
     Buffer instanceDataBuffer;
 
-    // pass descriptor set -> points to object and instance data
-    vk::DescriptorSet passDataSet;
-
     // dirty flags
     bool hasChanged = false;
 };

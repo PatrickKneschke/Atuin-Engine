@@ -306,8 +306,6 @@ private:
     Buffer mObjectBuffer;
     
     vk::DescriptorSetLayout mGlobalDataLayout;
-    vk::DescriptorSetLayout mPassDataLayout;
-
     vk::DescriptorSet mGlobalDataSet;
 
 
