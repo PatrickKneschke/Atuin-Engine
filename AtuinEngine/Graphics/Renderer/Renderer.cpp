@@ -78,7 +78,7 @@ void Renderer::StartUp(GLFWwindow *window) {
 
 	// camera
 	float unit = 4;
-	mMainCamera.position = {-2.0f * unit, -2.0f * unit, -2.0f * unit};
+	mMainCamera.position = {-1.0f * unit, -1.0f * unit, -1.0f * unit};
 	mMainCamera.forward = glm::normalize( glm::vec3(0.f, 0.f, 0.f) - mMainCamera.position);
 	mMainCamera.fov = glm::radians( 60.f);
 	mMainCamera.aspect = (float)mSwapchain.extent.width / (float)mSwapchain.extent.height;
@@ -169,7 +169,7 @@ void Renderer::Update() {
 		mMeshesDirty = false;
 	}
 
-	UpdateMeshPass( &mShadowMeshPass);
+	// UpdateMeshPass( &mShadowMeshPass);
 	UpdateMeshPass( &mOpaqueMeshPass);
 	UpdateMeshPass( &mTransparentMeshPass);
 
@@ -338,15 +338,14 @@ void Renderer::RecreateSwapchain() {
 }
 
 
-void Renderer::RegisterMeshObject( MeshObject &object) {
+void Renderer::RegisterMeshObject( MeshObject *object) {
 
 	RenderObject newObject;
-	newObject.transform = &object.transform;
-	newObject.sphereBounds = &object.sphereBounds;
-	newObject.meshId = RegisterMesh( object.meshName);
-	newObject.materialId = RegisterMaterial( object.materialName);
+	newObject.transform = &object->transform;
+	newObject.sphereBounds = &object->sphereBounds;
+	newObject.meshId = RegisterMesh( object->meshName);
+	newObject.materialId = RegisterMaterial( object->materialName);
 	newObject.updated = true;
-	// newObject.passIndex created after batch processing
 	newObject.passIndex.Clear( -1);
 
 	U32 objIdx;
@@ -363,7 +362,7 @@ void Renderer::RegisterMeshObject( MeshObject &object) {
 	}
 	mDirtyObjectIndices.PushBack( objIdx);
 
-	object.objectIdx = objIdx;
+	object->objectIdx = objIdx;
 
 	// submit to mesh passes
 	Material &material = mMaterials[ newObject.materialId];
@@ -382,32 +381,32 @@ void Renderer::RegisterMeshObject( MeshObject &object) {
 }
 
     
-void Renderer::DeleteMeshObject( U32 objectIdx) {
+void Renderer::DeleteMeshObject( MeshObject *object) {
 
-	auto &object = mRenderObjects[ objectIdx];
+	auto &deleteObj = mRenderObjects[ object->objectIdx];
 
-	if ( object.passIndex[ PassType::SHADOW] >= 0) 
+	if ( deleteObj.passIndex[ PassType::SHADOW] >= 0) 
 	{
-		mShadowMeshPass.deleteObjectIndices.PushBack( (U32)object.passIndex[ PassType::SHADOW]);
+		mShadowMeshPass.deleteObjectIndices.PushBack( (U32)deleteObj.passIndex[ PassType::SHADOW]);
 	}
-	if ( object.passIndex[ PassType::OPAQUE] >= 0) 
+	if ( deleteObj.passIndex[ PassType::OPAQUE] >= 0) 
 	{
-		mOpaqueMeshPass.deleteObjectIndices.PushBack( (U32)object.passIndex[ PassType::OPAQUE]);
+		mOpaqueMeshPass.deleteObjectIndices.PushBack( (U32)deleteObj.passIndex[ PassType::OPAQUE]);
 	}
-	if ( object.passIndex[ PassType::TRANSPARENT] >= 0) 
+	if ( deleteObj.passIndex[ PassType::TRANSPARENT] >= 0) 
 	{
-		mTransparentMeshPass.deleteObjectIndices.PushBack( (U32)object.passIndex[ PassType::TRANSPARENT]);
+		mTransparentMeshPass.deleteObjectIndices.PushBack( (U32)deleteObj.passIndex[ PassType::TRANSPARENT]);
 	}
 
-	mReuseObjectIndices.PushBack( objectIdx);
+	mReuseObjectIndices.PushBack( object->objectIdx);
 }
 
 
-void Renderer::UpdateMeshObject( U32 objectIdx) {
+void Renderer::UpdateMeshObject( MeshObject *object) {
 
-	if ( !mRenderObjects[ objectIdx].updated)
+	if ( !mRenderObjects[ object->objectIdx].updated)
 	{
-		mDirtyObjectIndices.PushBack( objectIdx);
+		mDirtyObjectIndices.PushBack( object->objectIdx);
 	}	
 }
 
@@ -454,6 +453,8 @@ void Renderer::CreateMesh( std::string_view meshName) {
 
 
 void Renderer::CreateMaterial( std::string_view materialName) {
+
+	std::cout << "create " << materialName << '\n';
 
 	U64 materialId = SID( materialName.data());
 	Material newMaterial;
@@ -900,6 +901,8 @@ void Renderer::MergeMeshes() {
 void Renderer::UpdateMeshPass( MeshPass *pass) {
 
 	// TODO use better sortKey including the materials pipeline
+
+	std::cout << "    " << (U32)pass->passType << "   " << pass->deleteObjectIndices.GetSize() << "   "  << pass->unbatchedIndices.GetSize() << '\n';
 
 	// handle deleted render objects
 	if ( !pass->deleteObjectIndices.IsEmpty())
@@ -1915,8 +1918,8 @@ void Renderer::DrawFrame() {
     UpdateMeshPassInstanceBuffer( &mOpaqueMeshPass, cmd);
     UpdateMeshPassBatchBuffer( &mTransparentMeshPass, cmd);
     UpdateMeshPassInstanceBuffer( &mTransparentMeshPass, cmd);
-    UpdateMeshPassBatchBuffer( &mShadowMeshPass, cmd);
-    UpdateMeshPassInstanceBuffer( &mShadowMeshPass, cmd);
+    // UpdateMeshPassBatchBuffer( &mShadowMeshPass, cmd);
+    // UpdateMeshPassInstanceBuffer( &mShadowMeshPass, cmd);
 
 	cmd.pipelineBarrier( 
 		vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eComputeShader, vk::DependencyFlags{}, 
@@ -2076,8 +2079,8 @@ void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 	opaqueCull.enableDistCull = 1;
 	opaqueCull.enableOcclusionCull = 1;
 
-	// ViewCullData transparentCull = opaqueCull;
-	// transparentCull.drawCount = (U32)mTransparentMeshPass.renderBatches.GetSize(); 
+	ViewCullData transparentCull = opaqueCull;
+	transparentCull.drawCount = (U32)mTransparentMeshPass.renderBatches.GetSize(); 
 
 	// build descriptor sets
 	auto pyramidInfo = mDepthPyramid.DescriptorInfo( mDepthSampler, vk::ImageLayout::eGeneral);
@@ -2095,16 +2098,16 @@ void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 			// .BindBuffer( 5, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &debugInfo)
 		.Build();
 
-	// auto instanceDataTransparentInfo = mTransparentMeshPass.instanceDataBuffer.DescriptorInfo();
-	// auto drawIndirectTransparentInfo = mTransparentMeshPass.drawIndirectBuffer.DescriptorInfo();
-	// auto instanceIdxTransparentInfo = mTransparentMeshPass.instanceIndexBuffer.DescriptorInfo();
-	// vk::DescriptorSet viewCullTransparentSet = DescriptorSetBuilder( pCore->Device(), CurrentFrame().descriptorAllocator, pDescriptorLayoutCache)
-	// 	.BindImage( 0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eCompute, &pyramidInfo)
-	// 	.BindBuffer( 1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &objectInfo)
-	// 	.BindBuffer( 2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceDataTransparentInfo)
-	// 	.BindBuffer( 3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &drawIndirectTransparentInfo)
-	// 	.BindBuffer( 4, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceIdxTransparentInfo)
-	// 	.Build();
+	auto instanceDataTransparentInfo = mTransparentMeshPass.instanceDataBuffer.DescriptorInfo();
+	auto drawIndirectTransparentInfo = mTransparentMeshPass.drawIndirectBuffer.DescriptorInfo();
+	auto instanceIdxTransparentInfo = mTransparentMeshPass.instanceIndexBuffer.DescriptorInfo();
+	vk::DescriptorSet viewCullTransparentSet = DescriptorSetBuilder( pCore->Device(), CurrentFrame().descriptorAllocator, pDescriptorLayoutCache)
+		.BindImage( 0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eCompute, &pyramidInfo)
+		.BindBuffer( 1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &objectInfo)
+		.BindBuffer( 2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceDataTransparentInfo)
+		.BindBuffer( 3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &drawIndirectTransparentInfo)
+		.BindBuffer( 4, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceIdxTransparentInfo)
+		.Build();
 
 	// dispatch culls
 	cmd.bindPipeline( vk::PipelineBindPoint::eCompute, mViewCullPipeline.pipeline);
@@ -2114,10 +2117,10 @@ void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 
 	cmd.dispatch( (U32)(opaqueCull.drawCount / 256) + 1, 1, 1);
 
-	// cmd.bindDescriptorSets( vk::PipelineBindPoint::eCompute, mViewCullPipeline.pipelineLayout, 0, 1, &viewCullTransparentSet, 0, nullptr);
-	// cmd.pushConstants( mViewCullPipeline.pipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof( ViewCullData), &transparentCull);
+	cmd.bindDescriptorSets( vk::PipelineBindPoint::eCompute, mViewCullPipeline.pipelineLayout, 0, 1, &viewCullTransparentSet, 0, nullptr);
+	cmd.pushConstants( mViewCullPipeline.pipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof( ViewCullData), &transparentCull);
 
-	// cmd.dispatch( (U32)(transparentCull.drawCount / 256) + 1, 1, 1);
+	cmd.dispatch( (U32)(transparentCull.drawCount / 256) + 1, 1, 1);
 
 	// set barriers between buffer writes and indirect draws
 	mPostCullBarriers.PushBack(
@@ -2138,24 +2141,24 @@ void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 			.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
 			.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
 	);
-	// mCullBarriers.PushBack(
-	// 	vk::BufferMemoryBarrier{}
-	// 		.setBuffer( mTransparentMeshPass.drawIndirectBuffer.buffer)
-	// 		.setSize( VK_WHOLE_SIZE)
-	// 		.setSrcAccessMask( vk::AccessFlagBits::eShaderWrite)
-	// 		.setDstAccessMask( vk::AccessFlagBits::eIndirectCommandRead)
-	// 		.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
-	// 		.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
-	// );
-	// mCullBarriers.PushBack(
-	// 	vk::BufferMemoryBarrier{}
-	// 		.setBuffer( mTransparentMeshPass.instanceIndexBuffer.buffer)
-	// 		.setSize( VK_WHOLE_SIZE)
-	// 		.setSrcAccessMask( vk::AccessFlagBits::eShaderWrite)
-	// 		.setDstAccessMask( vk::AccessFlagBits::eIndirectCommandRead)
-	// 		.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
-	// 		.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
-	// );
+	mPostCullBarriers.PushBack(
+		vk::BufferMemoryBarrier{}
+			.setBuffer( mTransparentMeshPass.drawIndirectBuffer.buffer)
+			.setSize( VK_WHOLE_SIZE)
+			.setSrcAccessMask( vk::AccessFlagBits::eShaderWrite)
+			.setDstAccessMask( vk::AccessFlagBits::eIndirectCommandRead)
+			.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+			.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+	);
+	mPostCullBarriers.PushBack(
+		vk::BufferMemoryBarrier{}
+			.setBuffer( mTransparentMeshPass.instanceIndexBuffer.buffer)
+			.setSize( VK_WHOLE_SIZE)
+			.setSrcAccessMask( vk::AccessFlagBits::eShaderWrite)
+			.setDstAccessMask( vk::AccessFlagBits::eIndirectCommandRead)
+			.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+			.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+	);
 }
 
 
@@ -2221,7 +2224,6 @@ void Renderer::RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass, vk::Descri
 		.BindBuffer(1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex, &instanceInfo)
 		.Build();
 
-
 	U64 lastPipelineId = 0;
 	U64 lastMaterialId = 0;
 	for (auto &multibatch : pass->multiBatches)
@@ -2230,7 +2232,7 @@ void Renderer::RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass, vk::Descri
 
 		RenderObject &object = mRenderObjects[ batch.objectIdx];
 		Material &material = mMaterials[ object.materialId];
-		Pipeline &pipeline = mPipelines[ material.pipelineId[ PassType::OPAQUE]];
+		Pipeline &pipeline = mPipelines[ material.pipelineId[ pass->passType]];
 
 		if ( material.pipelineId[ PassType::OPAQUE] != lastPipelineId)
 		{
@@ -2246,13 +2248,13 @@ void Renderer::RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass, vk::Descri
 				vk::PipelineBindPoint::eGraphics,pipeline.pipelineLayout, 2, 1, &passDataSet, 0, nullptr		
 			);
 
-			lastPipelineId = material.pipelineId[ PassType::OPAQUE];
+			lastPipelineId = material.pipelineId[ pass->passType];
 		}
 
 		if ( object.materialId != lastMaterialId)
 		{
 			cmd.bindDescriptorSets( 
-				vk::PipelineBindPoint::eGraphics, pipeline.pipelineLayout, 1, 1, &material.descriptorSet[ PassType::OPAQUE], 0, nullptr		
+				vk::PipelineBindPoint::eGraphics, pipeline.pipelineLayout, 1, 1, &material.descriptorSet[ pass->passType], 0, nullptr		
 			);
 
 			lastMaterialId = object.materialId;

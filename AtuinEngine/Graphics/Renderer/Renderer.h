@@ -168,9 +168,9 @@ private:
     void CreateMeshPass( MeshPass *pass, PassType type);
 
     // resources
-    void RegisterMeshObject( MeshObject &object);
-    void DeleteMeshObject( U32 objectIdx);
-    void UpdateMeshObject( U32 objectIdx);
+    void RegisterMeshObject( MeshObject *object);
+    void DeleteMeshObject( MeshObject *object);
+    void UpdateMeshObject( MeshObject *object);
     U64 RegisterMesh( std::string_view meshName);
     U64 RegisterMaterial( std::string_view materialName);
     void CreateMesh( std::string_view meshName);
@@ -202,7 +202,7 @@ private:
     // utils
     void CreateBuffer( Buffer &buffer, Size size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags memoryType);
     Buffer CreateStagingBuffer(Size bufferSize);
-    // TODO split resource copy methods into synchronous ( using current command buffer in grahics queue) and async ( using transfer queue)
+    // TODO split resource copy methods into synchronous ( using current command buffer in graphics queue) and async ( using transfer queue)
     void UploadBufferData( void *bufferData, Size size, vk::Buffer targetBuffer, Size offset = 0);
     void TransitionImageLayout(vk::Image image, vk::ImageLayout initialLayout, vk::ImageLayout finalLayout, U32 mipLevels = 1);
     void CopyBufferToImage(vk::Buffer buffer, vk::Image image, U32 imageWidth, U32 imageHeight);

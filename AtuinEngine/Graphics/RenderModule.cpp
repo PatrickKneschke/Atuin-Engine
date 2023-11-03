@@ -26,7 +26,7 @@ void RenderModule::StartUp(GLFWwindow *window) {
     mRenderer.StartUp(pWindow);
 
 
-	CreateObjects();
+	CreateScene();
 }
 
 
@@ -38,11 +38,12 @@ void RenderModule::ShutDown() {
 
 void RenderModule::Update() {
 
-    
     UpdateObjects();
 
-
     mRenderer.Update();
+
+    // late update
+    UpdateScene();
 }
 
 
