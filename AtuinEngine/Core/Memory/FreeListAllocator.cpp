@@ -1,5 +1,6 @@
 
 #include "FreeListAllocator.h"
+#include "Core/Util/StringFormat.h"
 
 #include <stdexcept>
 
@@ -37,7 +38,7 @@ void* FreeListAllocator::Allocate(Size size, U8 alignment) {
 
     if (currNode == nullptr)
     {
-        throw std::overflow_error("Free list allocator does not have a large enough memory region available.");
+        throw std::overflow_error( FormatStr("Free list allocator does not have a large enough memory region available for allocation of size %i. Free space %i.", size, mTotalMemory - mUsedMemory));
     }
 
     // Find properly aligned address for allocation

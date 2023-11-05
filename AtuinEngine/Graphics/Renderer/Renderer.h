@@ -160,6 +160,7 @@ private:
     void CreateSubmitContexts();
     void CreateFrameResources();
 	void CreateDepthResources();
+    void CreateShadowImage();
     void CreateRenderPasses();
     void CreateFramebuffers();
     void DestroyFramebuffers();
@@ -251,9 +252,12 @@ private:
     Pipeline mDepthReducePipeline;
     vk::Sampler mDepthSampler;
 
+    // shadow image
+    Image mShadowImage;
+
     // culling
     Pipeline mViewCullPipeline;
-    Pipeline mDirectionalCullPipeline;
+    Pipeline mShadowCullPipeline;
     Array<vk::BufferMemoryBarrier> mPreCullBarriers;
     Array<vk::BufferMemoryBarrier> mPostCullBarriers;
 

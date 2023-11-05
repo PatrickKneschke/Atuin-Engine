@@ -60,6 +60,7 @@ void Renderer::StartUp(GLFWwindow *window) {
 	CreateFrameResources();
     
 	CreateDepthResources();
+	CreateShadowImage();
 	CreateRenderPasses();
 	CreateFramebuffers();
 
@@ -138,6 +139,10 @@ void Renderer::ShutDown() {
 	// presentation related
 	DestroyFramebuffers();	
 
+	pCore->Device().destroyImageView( mShadowImage.imageView);
+	pCore->Device().destroyImage( mShadowImage.image);
+	pCore->Device().freeMemory( mShadowImage.imageMemory);
+
 	pCore->Device().destroyImageView( mDepthImage.imageView);
 	pCore->Device().destroyImage( mDepthImage.image);
 	pCore->Device().freeMemory( mDepthImage.imageMemory);
@@ -169,7 +174,7 @@ void Renderer::Update() {
 		mMeshesDirty = false;
 	}
 
-	// UpdateMeshPass( &mShadowMeshPass);
+	UpdateMeshPass( &mShadowMeshPass);
 	UpdateMeshPass( &mOpaqueMeshPass);
 	UpdateMeshPass( &mTransparentMeshPass);
 
@@ -240,6 +245,27 @@ void Renderer::CreateDepthResources() {
 }
 
 
+void Renderer::CreateShadowImage() {
+
+	mShadowImage.format     = vk::Format::eD32Sfloat;
+	mShadowImage.usage      = vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled;
+	mShadowImage.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
+	mShadowImage.width      = 2048;
+	mShadowImage.height     = 2048; 
+
+	mShadowImage.image = pCore->CreateImage(
+		mShadowImage.width, mShadowImage.height, 
+		mShadowImage.format, mShadowImage.usage
+	);	
+	mShadowImage.imageMemory = pCore->AllocateImageMemory(
+		mShadowImage.image, mShadowImage.memoryType
+	);	
+	mShadowImage.imageView = pCore->CreateImageView(
+		mShadowImage.image, mShadowImage.format, vk::ImageAspectFlagBits::eDepth
+	);
+}
+
+
 void Renderer::CreateRenderPasses() {
 
 	// attachements
@@ -266,24 +292,31 @@ void Renderer::CreateRenderPasses() {
 	// TODO resolve attachment if MSAA is enabled ( MsaaSamples > 1)
 
 	// forward pass
-	Array<vk::AttachmentDescription> attachments = {
+	Array<vk::AttachmentDescription> forwardAttachments = {
 		presentAttachment, depthAttachment
 	};
-
-	mForwardPass = pCore->CreateRenderPass( attachments, 1);
+	mForwardPass = pCore->CreateRenderPass( forwardAttachments, 1);
 
 	mDeletionStack.Push( [&](){
 		pCore->Device().destroyRenderPass( mForwardPass);
 	});
 
 	// shadow pass
+	Array<vk::AttachmentDescription> shadowAttachments = {
+		depthAttachment
+	};
+	mShadowPass = pCore->CreateRenderPass( shadowAttachments, 0);
 
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyRenderPass( mShadowPass);
+	});
 }
 
 
 void Renderer::CreateFramebuffers() {
 
 	mForwardFramebuffers.Resize( mSwapchain.imageCount);
+	mShadowFramebuffers.Resize( mSwapchain.imageCount);
 	for (U32 i = 0; i < mSwapchain.imageCount; i++)
 	{
 		// forward pass
@@ -293,17 +326,26 @@ void Renderer::CreateFramebuffers() {
 		mForwardFramebuffers[i] = pCore->CreateFramebuffer( mForwardPass, forwardAttachments, mSwapchain.extent.width, mSwapchain.extent.height);
 
 		// shadow pass
-
+		Array<vk::ImageView> shadowAttachments =  {
+			mShadowImage.imageView
+		};
+		mShadowFramebuffers[i] = pCore->CreateFramebuffer( mShadowPass, shadowAttachments, mShadowImage.width, mShadowImage.height);
 	}
 }
 
 
 void Renderer::DestroyFramebuffers() {
 
+	// forward pass
 	for (auto &framebuffer : mForwardFramebuffers)
 	{
 		pCore->Device().destroyFramebuffer( framebuffer);
 	}	
+	// shadow pass
+	for (auto &framebuffer : mShadowFramebuffers)
+	{
+		pCore->Device().destroyFramebuffer( framebuffer);
+	}
 }
 
 
@@ -453,8 +495,6 @@ void Renderer::CreateMesh( std::string_view meshName) {
 
 
 void Renderer::CreateMaterial( std::string_view materialName) {
-
-	std::cout << "create " << materialName << '\n';
 
 	U64 materialId = SID( materialName.data());
 	Material newMaterial;
@@ -733,7 +773,7 @@ void Renderer::CreatePipeline( std::string_view pipelineName, vk::RenderPass ren
 		{
 			mLog.Error( LogChannel::GRAPHICS, FormatStr("No vertex shader provided for graphics pipeline \"%s\".", pipelineName));
 		} 
-		// fragment shader mandatory
+		// fragment shader optional
 		if ( !shaderStages[ "fragment"].IsNull())
 		{
 			pipelineBuilder.shaderInfos.PushBack( 
@@ -742,10 +782,6 @@ void Renderer::CreatePipeline( std::string_view pipelineName, vk::RenderPass ren
 					.setModule( mShaders[ SID( shaderStages.At( "fragment").ToString().c_str())] )
 					.setPName( "main" )
 			);
-		}
-		else
-		{
-			mLog.Error( LogChannel::GRAPHICS, FormatStr("No fragment shader provided for graphics pipeline \"%s\".", pipelineName));
 		}
 		// geometry shader optional
 		if ( !shaderStages[ "geometry"].IsNull())
@@ -901,8 +937,6 @@ void Renderer::MergeMeshes() {
 void Renderer::UpdateMeshPass( MeshPass *pass) {
 
 	// TODO use better sortKey including the materials pipeline
-
-	std::cout << "    " << (U32)pass->passType << "   " << pass->deleteObjectIndices.GetSize() << "   "  << pass->unbatchedIndices.GetSize() << '\n';
 
 	// handle deleted render objects
 	if ( !pass->deleteObjectIndices.IsEmpty())
@@ -1615,13 +1649,19 @@ void Renderer::CreateSamplers() {
 
 void Renderer::CreatePipelines() {
 
+	// pipeline for depth pyramid creation
 	CreatePipeline( "Pipelines/depth_reduce.pipeline.json");
 	mDepthReducePipeline = mPipelines[ SID("Pipelines/depth_reduce.pipeline.json")];
-
+	// pipeline for forward pass culling 
 	CreatePipeline( "Pipelines/view_culling.pipeline.json");
 	mViewCullPipeline = mPipelines[ SID("Pipelines/view_culling.pipeline.json")];
-
+	// pipeline for shadow culling 
+	CreatePipeline( "Pipelines/shadow_culling.pipeline.json");
+	mShadowCullPipeline = mPipelines[ SID("Pipelines/shadow_culling.pipeline.json")];
+	// pipeline to render full screen image
 	CreatePipeline( "Pipelines/default_fullscreen_texture.pipeline.json", mForwardPass);
+	// pipeline to render to (directional) shadow image
+	CreatePipeline( "Pipelines/default_shadow.pipeline.json", mShadowPass);
 }
 
 
@@ -1918,8 +1958,8 @@ void Renderer::DrawFrame() {
     UpdateMeshPassInstanceBuffer( &mOpaqueMeshPass, cmd);
     UpdateMeshPassBatchBuffer( &mTransparentMeshPass, cmd);
     UpdateMeshPassInstanceBuffer( &mTransparentMeshPass, cmd);
-    // UpdateMeshPassBatchBuffer( &mShadowMeshPass, cmd);
-    // UpdateMeshPassInstanceBuffer( &mShadowMeshPass, cmd);
+    UpdateMeshPassBatchBuffer( &mShadowMeshPass, cmd);
+    UpdateMeshPassInstanceBuffer( &mShadowMeshPass, cmd);
 
 	cmd.pipelineBarrier( 
 		vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eComputeShader, vk::DependencyFlags{}, 
@@ -2037,7 +2077,55 @@ void Renderer::DrawFrame() {
 
 void Renderer::CullShadowPass( vk::CommandBuffer cmd) {
 
+	if ( mCombinedVertexBuffer.bufferSize == 0)
+	{
+		return;
+	}
 
+	DirectionalCullData shadowCull;
+	shadowCull.aabbMin = mMainCamera.position - 2 * mMainCamera.zFar * mMainCamera.right - 2 * mMainCamera.zFar * mMainCamera.up + 2 * mMainCamera.zFar * mMainCamera.forward;
+	shadowCull.aabbMax = mMainCamera.position + 2 * mMainCamera.zFar * mMainCamera.right + 2 * mMainCamera.zFar * mMainCamera.up - 2 * mMainCamera.zFar * mMainCamera.forward;
+	shadowCull.drawCount =(U32)mShadowMeshPass.renderBatches.GetSize();
+
+	// build descriptor sets
+	auto objectInfo = mObjectBuffer.DescriptorInfo();
+	auto instanceDataShadowInfo = mShadowMeshPass.instanceDataBuffer.DescriptorInfo();
+	auto drawIndirectShadowInfo = mShadowMeshPass.drawIndirectBuffer.DescriptorInfo();
+	auto instanceIdxShadowInfo  = mShadowMeshPass.instanceIndexBuffer.DescriptorInfo();
+	vk::DescriptorSet shadowCullSet = DescriptorSetBuilder( pCore->Device(), CurrentFrame().descriptorAllocator, pDescriptorLayoutCache)
+		.BindBuffer( 0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &objectInfo)
+		.BindBuffer( 1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceDataShadowInfo)
+		.BindBuffer( 2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &drawIndirectShadowInfo)
+		.BindBuffer( 3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceIdxShadowInfo)
+		.Build();
+
+	// dispatch culls
+	cmd.bindPipeline( vk::PipelineBindPoint::eCompute, mShadowCullPipeline.pipeline);
+
+	cmd.bindDescriptorSets( vk::PipelineBindPoint::eCompute, mShadowCullPipeline.pipelineLayout, 0, 1, &shadowCullSet, 0, nullptr);
+	cmd.pushConstants( mShadowCullPipeline.pipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof( DirectionalCullData), &shadowCull);
+
+	cmd.dispatch( (U32)(shadowCull.drawCount / 256) + 1, 1, 1);
+
+	// set barriers between buffer writes and indirect draws
+	mPostCullBarriers.PushBack(
+		vk::BufferMemoryBarrier{}
+			.setBuffer( mShadowMeshPass.drawIndirectBuffer.buffer)
+			.setSize( VK_WHOLE_SIZE)
+			.setSrcAccessMask( vk::AccessFlagBits::eShaderWrite)
+			.setDstAccessMask( vk::AccessFlagBits::eIndirectCommandRead)
+			.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+			.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+	);
+	mPostCullBarriers.PushBack(
+		vk::BufferMemoryBarrier{}
+			.setBuffer( mShadowMeshPass.instanceIndexBuffer.buffer)
+			.setSize( VK_WHOLE_SIZE)
+			.setSrcAccessMask( vk::AccessFlagBits::eShaderWrite)
+			.setDstAccessMask( vk::AccessFlagBits::eIndirectCommandRead)
+			.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+			.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+	);
 }
     
 
@@ -2245,7 +2333,7 @@ void Renderer::RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass, vk::Descri
 				vk::PipelineBindPoint::eGraphics, pipeline.pipelineLayout, 0, 1, &globalDataSet, 0, nullptr
 			);
 			cmd.bindDescriptorSets( 
-				vk::PipelineBindPoint::eGraphics,pipeline.pipelineLayout, 2, 1, &passDataSet, 0, nullptr		
+				vk::PipelineBindPoint::eGraphics,pipeline.pipelineLayout, 1, 1, &passDataSet, 0, nullptr		
 			);
 
 			lastPipelineId = material.pipelineId[ pass->passType];
@@ -2254,7 +2342,7 @@ void Renderer::RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass, vk::Descri
 		if ( object.materialId != lastMaterialId)
 		{
 			cmd.bindDescriptorSets( 
-				vk::PipelineBindPoint::eGraphics, pipeline.pipelineLayout, 1, 1, &material.descriptorSet[ pass->passType], 0, nullptr		
+				vk::PipelineBindPoint::eGraphics, pipeline.pipelineLayout, 2, 1, &material.descriptorSet[ pass->passType], 0, nullptr		
 			);
 
 			lastMaterialId = object.materialId;
