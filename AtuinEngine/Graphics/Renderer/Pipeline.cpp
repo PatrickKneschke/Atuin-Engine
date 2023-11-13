@@ -60,7 +60,7 @@ Pipeline GraphicsPipelineBuilder::Build( vk::Device device, vk::RenderPass rende
 void GraphicsPipelineBuilder::FillFromJson( Json &pipelineJson) {
 
 	// vertex input
-	auto disableVertexInput = pipelineJson[ "disableVertexInput"];
+	Json &disableVertexInput = pipelineJson[ "disableVertexInput"];
 	if ( !disableVertexInput.IsNull() && disableVertexInput.ToBool())
 	{		
 		vertexInputInfo
@@ -71,24 +71,24 @@ void GraphicsPipelineBuilder::FillFromJson( Json &pipelineJson) {
 	}
 
 	// tesselation
-	auto tesselationPoints = pipelineJson[ "tesselationControlPoints"];
+	Json &tesselationPoints = pipelineJson[ "tesselationControlPoints"];
 	if ( !tesselationPoints.IsNull())
 	{
 		tesselationInfo.setPatchControlPoints( (U32)tesselationPoints.ToInt());
 	}
 
 	// rasterization
-	auto rasterization = pipelineJson[ "rasterization"];
+	Json &rasterization = pipelineJson[ "rasterization"];
 	if ( !rasterization.IsNull())
 	{
 		// rasterizer discard
-		auto discard = rasterization[ "discard"];
+		Json &discard = rasterization[ "discard"];
 		if ( !discard.IsNull())
 		{
 			rasterizerInfo.setRasterizerDiscardEnable( discard.ToBool() );
 		}		
 		// polygon mode
-		auto polygonMode = rasterization[ "polygonMode"];
+		Json &polygonMode = rasterization[ "polygonMode"];
 		if( !polygonMode.IsNull())
 		{
 			std::string polygonModeStr = polygonMode.ToString();
@@ -106,17 +106,28 @@ void GraphicsPipelineBuilder::FillFromJson( Json &pipelineJson) {
 			}
 		}
 		// culling ( either back face culling or none )
-		auto culling = rasterization[ "culling"];
+		Json &culling = rasterization[ "culling"];
 		if ( !culling.IsNull())
 		{
 			rasterizerInfo.setCullMode( culling.ToBool() ? vk::CullModeFlagBits::eBack : vk::CullModeFlagBits::eNone );
 		}
 		// line width
-		auto lineWidth = rasterization[ "lineWidth"];
+		Json &lineWidth = rasterization[ "lineWidth"];
 		if ( !lineWidth.IsNull())
 		{
 			rasterizerInfo.setLineWidth( (float)lineWidth.ToFloat() );
-		}		
+		}
+
+		// depth bias
+		Json &depthBias = rasterization[ "depthBias"];
+		if ( !depthBias.IsNull())
+		{
+			auto &depthBiasData = depthBias.GetList();
+			rasterizerInfo.depthBiasEnable = true;
+			rasterizerInfo.depthBiasConstantFactor = (float)depthBiasData[0].ToFloat();
+			rasterizerInfo.depthBiasSlopeFactor    = (float)depthBiasData[1].ToFloat();
+			rasterizerInfo.depthBiasClamp          = (float)depthBiasData[2].ToFloat();
+		}
 	}
 	
 	// depth stencil
@@ -154,7 +165,7 @@ Pipeline ComputePipelineBuilder::Build( vk::Device device) {
 	vk::Result result = device.createComputePipelines( nullptr, 1, &pipelineInfo, nullptr, &pipeline.pipeline);
 	if(result != vk::Result::eSuccess)
 	{
-		throw std::runtime_error("Failed to create graphics pipeline : " + vk::to_string(result));
+		throw std::runtime_error("Failed to create compute pipeline : " + vk::to_string(result));
 	}
 
     return pipeline;

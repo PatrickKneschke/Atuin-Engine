@@ -39,11 +39,11 @@ private:
     Map<MeshObject*, int> modifiedObjects;
     std::unordered_set<U32> mReuseObjectIndices;
     std::string materials[5] = {
+        // "Materials//Rubber_Hose/rubber_hose.material.json"
         "Materials//Rusted_Iron/rusted_iron.material.json", 
         "Materials//Rusted_Iron/rusted_iron.material.json", 
         "Materials//Rusted_Iron/rusted_iron.material.json", 
-        "Materials//Rusted_Iron/rusted_iron.material.json", 
-        "Materials//Rubber_Hose/rubber_hose.material.json"
+        "Materials//Rusted_Iron/rusted_iron.material.json"
     };
     std::string models[3] = {
         "Meshes/Default/cube.obj", 
@@ -54,9 +54,9 @@ private:
 
     void CreateScene() {
 
-        int N = 10;
-        float unit = 8.0f;
-        mTestObjects.Reserve( N*N*N);
+        int N = 1;
+        float unit = 3.0f;
+        mTestObjects.Reserve( N*N*N + 1);
         for ( int i = 0; i < N; i++)
         {
             for ( int j = 0; j < N; j++)
@@ -79,6 +79,17 @@ private:
                 }                
             }
         }
+
+        MeshObject obj;
+        glm::vec3 position = glm::vec3( 0.f,  -102.f, 0.f);
+        glm::vec3 scale = glm::vec3( 100.f,  100.f, 100.f);
+        obj.materialName = "Materials//Rusted_Iron/rusted_iron.material.json";
+        obj.meshName     = "Meshes/Default/cube.obj";
+        obj.transform    = glm::scale(glm::translate( glm::mat4(1.f), position), scale);
+        obj.sphereBounds = glm::vec4( position, 100 * 1.7321f);
+        mTestObjects.PushBack( obj);          
+                    
+        mRenderer.RegisterMeshObject( &mTestObjects.Back());
 
 
         // int modelIdx = 1;

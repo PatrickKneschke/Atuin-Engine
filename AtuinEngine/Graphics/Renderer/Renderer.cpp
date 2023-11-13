@@ -79,7 +79,7 @@ void Renderer::StartUp(GLFWwindow *window) {
 
 	// camera
 	float unit = 4;
-	mMainCamera.position = {-1.0f * unit, -1.0f * unit, -1.0f * unit};
+	mMainCamera.position = {-1.0f * unit, 2.0f * unit, -1.0f * unit};
 	mMainCamera.forward = glm::normalize( glm::vec3(0.f, 0.f, 0.f) - mMainCamera.position);
 	mMainCamera.fov = glm::radians( 60.f);
 	mMainCamera.aspect = (float)mSwapchain.extent.width / (float)mSwapchain.extent.height;
@@ -247,6 +247,8 @@ void Renderer::CreateDepthResources() {
 
 void Renderer::CreateShadowImage() {
 
+	mShadowExtent.setWidth( 128).setHeight( 128).setDepth( 200);
+
 	mShadowImage.format     = vk::Format::eD32Sfloat;
 	mShadowImage.usage      = vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled;
 	mShadowImage.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
@@ -274,7 +276,7 @@ void Renderer::CreateRenderPasses() {
 		.setSamples( vk::SampleCountFlagBits::e1 )
 		.setLoadOp( vk::AttachmentLoadOp::eClear )
 		.setStoreOp( vk::AttachmentStoreOp::eStore )
-		.setStencilLoadOp( vk::AttachmentLoadOp::eDontCare )
+		.setStencilLoadOp( vk::AttachmentLoadOp::eClear )
 		.setStencilStoreOp( vk::AttachmentStoreOp::eDontCare )
 		.setInitialLayout( vk::ImageLayout::eUndefined )
 		.setFinalLayout( vk::ImageLayout::ePresentSrcKHR );
@@ -284,10 +286,20 @@ void Renderer::CreateRenderPasses() {
 		.setSamples( vk::SampleCountFlagBits::e1 )
 		.setLoadOp( vk::AttachmentLoadOp::eClear )
 		.setStoreOp( vk::AttachmentStoreOp::eStore )
-		.setStencilLoadOp( vk::AttachmentLoadOp::eDontCare )
+		.setStencilLoadOp( vk::AttachmentLoadOp::eClear )
 		.setStencilStoreOp( vk::AttachmentStoreOp::eDontCare )
 		.setInitialLayout( vk::ImageLayout::eUndefined )
 		.setFinalLayout( vk::ImageLayout::eDepthStencilAttachmentOptimal );
+		
+	auto shadowAttachment = vk::AttachmentDescription{}
+		.setFormat( mDepthImage.format )
+		.setSamples( vk::SampleCountFlagBits::e1 )
+		.setLoadOp( vk::AttachmentLoadOp::eClear )
+		.setStoreOp( vk::AttachmentStoreOp::eStore )
+		.setStencilLoadOp( vk::AttachmentLoadOp::eClear )
+		.setStencilStoreOp( vk::AttachmentStoreOp::eDontCare )
+		.setInitialLayout( vk::ImageLayout::eUndefined )
+		.setFinalLayout( vk::ImageLayout::eShaderReadOnlyOptimal );
 
 	// TODO resolve attachment if MSAA is enabled ( MsaaSamples > 1)
 
@@ -303,7 +315,7 @@ void Renderer::CreateRenderPasses() {
 
 	// shadow pass
 	Array<vk::AttachmentDescription> shadowAttachments = {
-		depthAttachment
+		shadowAttachment
 	};
 	mShadowPass = pCore->CreateRenderPass( shadowAttachments, 0);
 
@@ -550,6 +562,7 @@ void Renderer::CreateMaterial( std::string_view materialName) {
 	{
 		newMaterial.usedInPass[PassType::SHADOW] = true;
 		newMaterial.pipelineId[PassType::SHADOW] = SID( "Pipelines/default_shadow.pipeline.json");
+		newMaterial.descriptorSet[PassType::SHADOW] = vk::DescriptorSet{};
 	}
 	if ( materialJson.At( "transparent").ToBool())
 	{
@@ -735,7 +748,7 @@ void Renderer::CreatePipeline( std::string_view pipelineName, vk::RenderPass ren
 
 			pushConstants.PushBack( pushConstantRange);
 		}
-	}	
+	}
 
 	// read shader stages
 	auto shaderStages = pipelineJson.At( "shaders").GetDict();
@@ -1600,6 +1613,17 @@ void Renderer::CreateDescriptorResources() {
 		vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst, 
 		vk::MemoryPropertyFlagBits::eDeviceLocal
 	);
+
+	// light data
+	CreateBuffer(
+		mLightBuffer, sizeof( glm::mat4),
+		vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst, 
+		vk::MemoryPropertyFlagBits::eDeviceLocal
+	);
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyBuffer( mLightBuffer.buffer);
+		pCore->Device().freeMemory( mLightBuffer.bufferMemory);
+	});
 }
 
 
@@ -1614,12 +1638,17 @@ void Renderer::CreateDescriptorSetLayouts() {
 		.setBinding( 1 )
 		.setDescriptorType( vk::DescriptorType::eUniformBuffer )
 		.setDescriptorCount( 1 )
+		.setStageFlags( vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment );
+	auto shadowImageBinding = vk::DescriptorSetLayoutBinding{}
+		.setBinding( 2 )
+		.setDescriptorType( vk::DescriptorType::eCombinedImageSampler )
+		.setDescriptorCount( 1 )
 		.setStageFlags( vk::ShaderStageFlagBits::eFragment );
 	
-	vk::DescriptorSetLayoutBinding globalBindings[] = {
-		cameraDataBinding, sceneDataBinding
+	Array<vk::DescriptorSetLayoutBinding> globalBindings = {
+		cameraDataBinding, sceneDataBinding, shadowImageBinding
 	};
-	mGlobalDataLayout = pCore->CreateDescriptorSetLayout(2, globalBindings);	
+	mGlobalDataLayout = pCore->CreateDescriptorSetLayout( (U32)globalBindings.GetSize(), globalBindings.Data());	
 
 	mDeletionStack.Push( [&](){
 		pCore->Device().destroyDescriptorSetLayout( mGlobalDataLayout);
@@ -1631,9 +1660,11 @@ void Renderer::CreateDescriptorSets() {
 
 	auto cameraInfo = mCameraBuffer.DescriptorInfo();
 	auto sceneInfo = mSceneBuffer.DescriptorInfo();
+	auto shadowInfo = mShadowImage.DescriptorInfo( mShadowSampler);
 	mGlobalDataSet = DescriptorSetBuilder( pCore->Device(), pDescriptorSetAllocator, pDescriptorLayoutCache)
 		.BindBuffer( 0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, &cameraInfo)
-		.BindBuffer( 1, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment, &sceneInfo)
+		.BindBuffer( 1, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, &sceneInfo)
+		.BindImage( 2, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, &shadowInfo)
 		.Build();
 }
 
@@ -1642,8 +1673,11 @@ void Renderer::CreateSamplers() {
 
 	CreateSampler( "Samplers/default_depth.sampler.json");
 	mDepthSampler = mSamplers[ SID("Samplers/default_depth.sampler.json")];
+	CreateSampler( "Samplers/default_shadow.sampler.json");
+	mShadowSampler = mSamplers[ SID("Samplers/default_shadow.sampler.json")];
 
 	CreateSampler( "Samplers/default_smooth.sampler.json");
+	CreateSampler( "Samplers/default_blocky.sampler.json");
 }
 
 
@@ -1870,22 +1904,31 @@ void Renderer::UpdateCameraData( vk::CommandBuffer cmd) {
 }
 
 
-void Renderer::UpdateScenedata( vk::CommandBuffer cmd) {
+void Renderer::UpdateSceneData( vk::CommandBuffer cmd) {
 
-	float angle = (float)mFrameCount / 60.f * glm::radians(30.f);
-	glm::vec3 direction = {cos(angle), 0.f, sin(angle)};
+	float angle = (float)mFrameCount / 240.f * glm::radians(30.f);
+	glm::vec3 direction = {cos(angle), -1.f, sin(angle)};
 	SceneData scene;
 	scene.ambient = {
 		glm::vec3(1.f, 1.f, 1.f),
 		0.03f
 	};
+
+	auto viewProj = glm::orthoZO( -(float)mShadowExtent.width, (float)mShadowExtent.width, 
+								   (float)mShadowExtent.height, -(float)mShadowExtent.height, 
+								  -(float)mShadowExtent.depth, (float)mShadowExtent.depth ) *
+					glm::lookAt( mMainCamera.position, mMainCamera.position + direction, mMainCamera.up);
 	scene.light = {
+		viewProj,
 		glm::vec3(1.f, 1.f, 1.f),
 		2.5f,
 		direction
 	};
 
-	UploadBufferData( &scene, sizeof(SceneData), mSceneBuffer.buffer);
+	UploadBufferData( &scene, sizeof( SceneData), mSceneBuffer.buffer);
+
+	// TODO change later for multiple lights -> seperate update lights method
+	UploadBufferData( &viewProj, sizeof( glm::mat4), mLightBuffer.buffer);
 }
 
 
@@ -1950,7 +1993,7 @@ void Renderer::DrawFrame() {
 	mPreCullBarriers.Clear();
 
 	UpdateCameraData( cmd);
-	UpdateScenedata( cmd);
+	UpdateSceneData( cmd);
 
 	UpdateObjectBuffer( cmd);
 
@@ -2083,8 +2126,14 @@ void Renderer::CullShadowPass( vk::CommandBuffer cmd) {
 	}
 
 	DirectionalCullData shadowCull;
-	shadowCull.aabbMin = mMainCamera.position - 2 * mMainCamera.zFar * mMainCamera.right - 2 * mMainCamera.zFar * mMainCamera.up + 2 * mMainCamera.zFar * mMainCamera.forward;
-	shadowCull.aabbMax = mMainCamera.position + 2 * mMainCamera.zFar * mMainCamera.right + 2 * mMainCamera.zFar * mMainCamera.up - 2 * mMainCamera.zFar * mMainCamera.forward;
+	glm::vec3 aabbMin = mMainCamera.position - glm::vec3(2 * mMainCamera.zFar, 2 * mMainCamera.zFar, 2 * mMainCamera.zFar);
+	glm::vec3 aabbMax = mMainCamera.position + glm::vec3(2 * mMainCamera.zFar, 2 * mMainCamera.zFar, 2 * mMainCamera.zFar);
+	shadowCull.aabbMinX = aabbMin.x;
+	shadowCull.aabbMinY = aabbMin.y;
+	shadowCull.aabbMinZ = aabbMin.z;
+	shadowCull.aabbMaxX = aabbMax.x;
+	shadowCull.aabbMaxY = aabbMax.y;
+	shadowCull.aabbMaxZ = aabbMax.z;
 	shadowCull.drawCount =(U32)mShadowMeshPass.renderBatches.GetSize();
 
 	// build descriptor sets
@@ -2131,13 +2180,6 @@ void Renderer::CullShadowPass( vk::CommandBuffer cmd) {
 
 void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 
-	// // debug
-	// Size debugSize = mOpaqueMeshPass.renderBatches.GetSize() * sizeof( CullDebugData);
-	// if ( cullDebugBuffer.bufferSize < debugSize)
-	// {
-	// 	CreateBuffer( cullDebugBuffer, debugSize, vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-	// }
-
 	if ( mCombinedVertexBuffer.bufferSize == 0)
 	{
 		return;
@@ -2176,14 +2218,12 @@ void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 	auto instanceDataOpaqueInfo = mOpaqueMeshPass.instanceDataBuffer.DescriptorInfo();
 	auto drawIndirectOpaqueInfo = mOpaqueMeshPass.drawIndirectBuffer.DescriptorInfo();
 	auto instanceIdxOpaqueInfo = mOpaqueMeshPass.instanceIndexBuffer.DescriptorInfo();
-		// auto debugInfo = cullDebugBuffer.DescriptorInfo();
 	vk::DescriptorSet viewCullOpaqueSet = DescriptorSetBuilder( pCore->Device(), CurrentFrame().descriptorAllocator, pDescriptorLayoutCache)
 		.BindImage( 0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eCompute, &pyramidInfo)
 		.BindBuffer( 1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &objectInfo)
 		.BindBuffer( 2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceDataOpaqueInfo)
 		.BindBuffer( 3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &drawIndirectOpaqueInfo)
 		.BindBuffer( 4, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceIdxOpaqueInfo)
-			// .BindBuffer( 5, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &debugInfo)
 		.Build();
 
 	auto instanceDataTransparentInfo = mTransparentMeshPass.instanceDataBuffer.DescriptorInfo();
@@ -2252,7 +2292,50 @@ void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 
 void Renderer::DrawShadowPass( vk::CommandBuffer cmd, U32 imageIndex) {
 
+	//start renderpass
+	vk::ClearValue clearValue;
+	clearValue.setDepthStencil( {1.0f, 0} ); 
 
+	auto renderInfo = vk::RenderPassBeginInfo{}
+		.setRenderPass( mShadowPass )
+		.setRenderArea( {{0, 0}, {mShadowImage.width, mShadowImage.height}} )
+		.setFramebuffer( mShadowFramebuffers[imageIndex] )
+		.setClearValueCount( 1 )
+		.setPClearValues( &clearValue );		
+	cmd.beginRenderPass(renderInfo, vk::SubpassContents::eInline);
+	
+	// set viewport
+	auto viewport = vk::Viewport{}
+		.setX( 0.f )
+		.setY( 0.f )
+		.setWidth( (float)mShadowImage.width )
+		.setHeight( (float)mShadowImage.height )
+		.setMinDepth( 0.f )
+		.setMaxDepth( 1.f );
+	auto scissor = vk::Rect2D{}
+		.setOffset( {0, 0} )
+		.setExtent( {mShadowImage.width, mShadowImage.height} );
+
+	cmd.setViewport( 0, 1, &viewport);
+	cmd.setScissor( 0, 1, &scissor);
+
+
+	if ( mCombinedVertexBuffer.bufferSize > 0)
+	{
+		Size offset = 0;
+		cmd.bindVertexBuffers( 0, 1, &mCombinedVertexBuffer.buffer, &offset);
+		cmd.bindIndexBuffer( mCombinedIndexBuffer.buffer, 0, vk::IndexType::eUint32);
+
+		auto lightInfo = mLightBuffer.DescriptorInfo();
+		auto globalDataSet = DescriptorSetBuilder( pCore->Device(), CurrentFrame().descriptorAllocator, pDescriptorLayoutCache)
+			.BindBuffer( 0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex, &lightInfo)
+			.Build();
+
+		RenderMeshPass( cmd, &mShadowMeshPass, globalDataSet);
+	}
+
+
+	cmd.endRenderPass();
 }
 
 
@@ -2322,7 +2405,7 @@ void Renderer::RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass, vk::Descri
 		Material &material = mMaterials[ object.materialId];
 		Pipeline &pipeline = mPipelines[ material.pipelineId[ pass->passType]];
 
-		if ( material.pipelineId[ PassType::OPAQUE] != lastPipelineId)
+		if ( material.pipelineId[ pass->passType] != lastPipelineId)
 		{
 			cmd.bindPipeline(
 				vk::PipelineBindPoint::eGraphics, pipeline.pipeline
@@ -2341,9 +2424,12 @@ void Renderer::RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass, vk::Descri
 
 		if ( object.materialId != lastMaterialId)
 		{
-			cmd.bindDescriptorSets( 
-				vk::PipelineBindPoint::eGraphics, pipeline.pipelineLayout, 2, 1, &material.descriptorSet[ pass->passType], 0, nullptr		
-			);
+			if ( material.descriptorSet[ pass->passType] != vk::DescriptorSet{})
+			{
+				cmd.bindDescriptorSets( 
+					vk::PipelineBindPoint::eGraphics, pipeline.pipelineLayout, 2, 1, &material.descriptorSet[ pass->passType], 0, nullptr		
+				);
+			}
 
 			lastMaterialId = object.materialId;
 		}

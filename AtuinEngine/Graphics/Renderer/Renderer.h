@@ -116,8 +116,8 @@ struct ViewCullData {
 
 struct DirectionalCullData {
     
-    glm::vec3 aabbMin;
-    glm::vec3 aabbMax;
+    float aabbMinX, aabbMinY, aabbMinZ;
+    float aabbMaxX, aabbMaxY, aabbMaxZ;
 	uint drawCount;
 };
 
@@ -189,7 +189,7 @@ private:
     void UpdateMeshPassInstanceBuffer( MeshPass *pass, vk::CommandBuffer cmd);
     void UpdateObjectBuffer( vk::CommandBuffer cmd);
     void UpdateCameraData( vk::CommandBuffer cmd);
-    void UpdateScenedata( vk::CommandBuffer cmd);
+    void UpdateSceneData( vk::CommandBuffer cmd);
 
     // drawing
     void DrawFrame();
@@ -252,8 +252,13 @@ private:
     Pipeline mDepthReducePipeline;
     vk::Sampler mDepthSampler;
 
-    // shadow image
+
+    // main light shadow image
     Image mShadowImage;
+    vk::Extent3D mShadowExtent;
+    Buffer mLightBuffer;
+    vk::Sampler mShadowSampler;
+
 
     // culling
     Pipeline mViewCullPipeline;
