@@ -19,5 +19,6 @@ add_library( Renderer
     Pipeline.h 
     ResourceManager.h
     Camera.h 
+    Light.h 
     JsonToVulkan.h
 )

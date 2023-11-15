@@ -79,7 +79,7 @@ void Renderer::StartUp(GLFWwindow *window) {
 
 	// camera
 	float unit = 4;
-	mMainCamera.position = {-1.0f * unit, 2.0f * unit, -1.0f * unit};
+	mMainCamera.position = {20.0f * unit, 20.0f * unit, 20.0f * unit};
 	mMainCamera.forward = glm::normalize( glm::vec3(0.f, 0.f, 0.f) - mMainCamera.position);
 	mMainCamera.fov = glm::radians( 60.f);
 	mMainCamera.aspect = (float)mSwapchain.extent.width / (float)mSwapchain.extent.height;
@@ -247,7 +247,7 @@ void Renderer::CreateDepthResources() {
 
 void Renderer::CreateShadowImage() {
 
-	mShadowExtent.setWidth( 128).setHeight( 128).setDepth( 200);
+	mShadowExtent.setWidth( 128).setHeight( 128).setDepth( 1000);
 
 	mShadowImage.format     = vk::Format::eD32Sfloat;
 	mShadowImage.usage      = vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled;
