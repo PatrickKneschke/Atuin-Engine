@@ -16,9 +16,11 @@
 namespace Atuin {
 
 
-CVar<U32>* Renderer::pFrameOverlap = ConfigManager::RegisterCVar("Renderer", "FRAME_OVERLAP", (U32)2);
-CVar<U32>* Renderer::pMaxAnisotropy = ConfigManager::RegisterCVar("Renderer", "MAX_ANISOTROPY", (U32)8);
-CVar<U32>* Renderer::pMsaaSamples = ConfigManager::RegisterCVar("Renderer", "MSAA_SAMPLES", (U32)1);
+CVar<U32>*   Renderer::pFrameOverlap = ConfigManager::RegisterCVar("Renderer", "FRAME_OVERLAP", (U32)2);
+CVar<U32>*   Renderer::pMaxAnisotropy = ConfigManager::RegisterCVar("Renderer", "MAX_ANISOTROPY", (U32)8);
+CVar<U32>*   Renderer::pMsaaSamples = ConfigManager::RegisterCVar("Renderer", "MSAA_SAMPLES", (U32)1);
+CVar<U32>*   Renderer::pShadowCascadeCount = ConfigManager::RegisterCVar("Renderer", "SHADOW_CASCADE_COUNT", (U32)4);
+CVar<float>* Renderer::pShadowCascadeSplit = ConfigManager::RegisterCVar("Renderer", "SHADOW_CASCADE_SPLIT", 0.92f);
 
 
 Renderer::Renderer() : 
@@ -59,9 +61,9 @@ void Renderer::StartUp(GLFWwindow *window) {
 	CreateSubmitContexts();
 	CreateFrameResources();
     
-	CreateDepthResources();
-	CreateShadowImage();
 	CreateRenderPasses();
+	CreateDepthResources();
+	CreateShadowResources();
 	CreateFramebuffers();
 
     CreateDefaultPipelineBuilder();
@@ -245,11 +247,11 @@ void Renderer::CreateDepthResources() {
 }
 
 
-void Renderer::CreateShadowImage() {
+void Renderer::CreateShadowResources() {
 
 	mShadowExtent.setWidth( 128).setHeight( 128).setDepth( 1000);
 
-	mShadowImage.format     = vk::Format::eD32Sfloat;
+	mShadowImage.format     = mDepthFormat;
 	mShadowImage.usage      = vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled;
 	mShadowImage.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
 	mShadowImage.width      = 2048;
@@ -265,6 +267,55 @@ void Renderer::CreateShadowImage() {
 	mShadowImage.imageView = pCore->CreateImageView(
 		mShadowImage.image, mShadowImage.format, vk::ImageAspectFlagBits::eDepth
 	);
+
+
+	// main light
+	mMainLight.shadowImage.format     = mDepthFormat;
+	mMainLight.shadowImage.usage      = vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled;
+	mMainLight.shadowImage.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
+	mMainLight.shadowImage.width      = 2048;
+	mMainLight.shadowImage.height     = 2048; 
+
+	mMainLight.shadowImage.image = pCore->CreateImage(
+		mMainLight.shadowImage.width, mMainLight.shadowImage.height,
+		mMainLight.shadowImage.format, mMainLight.shadowImage.usage,
+		1, pShadowCascadeCount->Get()
+	);	
+	mMainLight.shadowImage.imageMemory = pCore->AllocateImageMemory(
+		mMainLight.shadowImage.image, mMainLight.shadowImage.memoryType
+	);	
+	mMainLight.shadowImage.imageView = pCore->CreateImageView(
+		mMainLight.shadowImage.image, mMainLight.shadowImage.format, vk::ImageAspectFlagBits::eDepth,
+		0, 1, 0, pShadowCascadeCount->Get(),
+		vk::ImageViewType::e2DArray
+	);
+
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyImage( mMainLight.shadowImage.image);
+		pCore->Device().destroyImageView( mMainLight.shadowImage.imageView);
+		pCore->Device().freeMemory( mMainLight.shadowImage.imageMemory);
+	});
+
+	mMainLight.cascades.Resize( pShadowCascadeCount->Get());
+	for( U32 i = 0; i < pShadowCascadeCount->Get(); i++)
+	{
+		// image view for cascade layer in shadow image
+		mMainLight.cascades[i].imageView = pCore->CreateImageView(
+			mMainLight.shadowImage.image, mMainLight.shadowImage.format, vk::ImageAspectFlagBits::eDepth,
+			0, 1, i, 1,
+			vk::ImageViewType::e2DArray
+		);
+		// framebuffer used to render this layer in shadow image
+		Array<vk::ImageView> shadowAttachments =  {
+			mMainLight.cascades[i].imageView
+		};
+		mMainLight.cascades[i].framebuffer = pCore->CreateFramebuffer( mShadowPass, shadowAttachments, mMainLight.shadowImage.width, mMainLight.shadowImage.height);
+
+		mDeletionStack.Push( [&, i](){
+			pCore->Device().destroyFramebuffer( mMainLight.cascades[i].framebuffer);
+			pCore->Device().destroyImageView( mMainLight.cascades[i].imageView);
+		});
+	}
 }
 
 
@@ -282,7 +333,7 @@ void Renderer::CreateRenderPasses() {
 		.setFinalLayout( vk::ImageLayout::ePresentSrcKHR );
 		
 	auto depthAttachment = vk::AttachmentDescription{}
-		.setFormat( mDepthImage.format )
+		.setFormat( mDepthFormat )
 		.setSamples( vk::SampleCountFlagBits::e1 )
 		.setLoadOp( vk::AttachmentLoadOp::eClear )
 		.setStoreOp( vk::AttachmentStoreOp::eStore )
@@ -292,7 +343,7 @@ void Renderer::CreateRenderPasses() {
 		.setFinalLayout( vk::ImageLayout::eDepthStencilAttachmentOptimal );
 		
 	auto shadowAttachment = vk::AttachmentDescription{}
-		.setFormat( mDepthImage.format )
+		.setFormat( mDepthFormat )
 		.setSamples( vk::SampleCountFlagBits::e1 )
 		.setLoadOp( vk::AttachmentLoadOp::eClear )
 		.setStoreOp( vk::AttachmentStoreOp::eStore )
@@ -1908,27 +1959,105 @@ void Renderer::UpdateSceneData( vk::CommandBuffer cmd) {
 
 	float angle = (float)mFrameCount / 240.f * glm::radians(30.f);
 	glm::vec3 direction = {cos(angle), -1.f, sin(angle)};
-	SceneData scene;
-	scene.ambient = {
-		glm::vec3(1.f, 1.f, 1.f),
-		0.03f
-	};
 
 	auto viewProj = glm::orthoZO( -(float)mShadowExtent.width, (float)mShadowExtent.width, 
 								   (float)mShadowExtent.height, -(float)mShadowExtent.height, 
 								  -(float)mShadowExtent.depth, (float)mShadowExtent.depth ) *
 					glm::lookAt( mMainCamera.position, mMainCamera.position + direction, mMainCamera.up);
-	scene.light = {
-		viewProj,
-		glm::vec3(1.f, 1.f, 1.f),
-		2.5f,
-		direction
-	};
+	SceneData scene;
+	scene.ambientColor = glm::vec3(1.f, 1.f, 1.f);
+	scene.ambientIntensity = 0.03f;
+	scene.sunColor = glm::vec3(1.f, 1.f, 1.f);
+	scene.sunIntensity = 2.5f;
+	scene.sunDirection = direction;
+	scene.sunViewProj = viewProj;
 
 	UploadBufferData( &scene, sizeof( SceneData), mSceneBuffer.buffer);
 
 	// TODO change later for multiple lights -> seperate update lights method
 	UploadBufferData( &viewProj, sizeof( glm::mat4), mLightBuffer.buffer);
+}
+
+
+void Renderer::UpdateShadowCascade() {
+
+	float minDepth = mMainCamera.zNear;
+	float maxDepth = mMainCamera.zFar;
+	float depthRange = maxDepth - minDepth;
+	float depthRatio = maxDepth / minDepth;
+
+	float cascadeSplits[ pShadowCascadeCount->Get()];
+	// calculate split depths based on view camera frustum
+	// based on method presented in https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch10.html
+	for (U32 i = 0; i < pShadowCascadeCount->Get(); i++) 
+	{
+		float p = ((float)i + 1.f) / static_cast<float>( pShadowCascadeCount->Get());
+		float log = minDepth * std::pow( depthRatio, p);
+		float uniform = minDepth + depthRange * p;
+		float d = pShadowCascadeSplit->Get() * (log - uniform) + uniform;
+		cascadeSplits[i] = (d - minDepth) / depthRange;
+	}
+	// calculate orthographic projection matrix for each cascade
+	float lastSplitDist = 0.0;
+	for (U32 i = 0; i < pShadowCascadeCount->Get(); i++) 
+	{
+		float splitDist = cascadeSplits[i];
+
+		glm::vec3 frustumCorners[8] = {
+			glm::vec3(-1.0f,  1.0f, 0.0f),
+			glm::vec3( 1.0f,  1.0f, 0.0f),
+			glm::vec3( 1.0f, -1.0f, 0.0f),
+			glm::vec3(-1.0f, -1.0f, 0.0f),
+			glm::vec3(-1.0f,  1.0f,  1.0f),
+			glm::vec3( 1.0f,  1.0f,  1.0f),
+			glm::vec3( 1.0f, -1.0f,  1.0f),
+			glm::vec3(-1.0f, -1.0f,  1.0f),
+		};
+
+		// project frustum corners into world space
+		glm::mat4 invCam = glm::inverse( mMainCamera.Projection() * mMainCamera.View());
+		for (U32 j = 0; j < 8; j++) 
+		{
+			glm::vec4 invCorner = invCam * glm::vec4( frustumCorners[j], 1.0f);
+			frustumCorners[j] = invCorner / invCorner.w;
+		}
+		// get current frustum slice
+		for (U32 j = 0; j < 4; j++) 
+		{
+			glm::vec3 dist = frustumCorners[j + 4] - frustumCorners[j];
+			frustumCorners[j + 4] = frustumCorners[j] + (dist * splitDist);
+			frustumCorners[j] = frustumCorners[j] + (dist * lastSplitDist);
+		}
+
+		// calculate frustum slice sphere bounds
+		glm::vec3 frustumCenter = glm::vec3(0.0f);
+		for (U32 j = 0; j < 8; j++) 
+		{
+			frustumCenter += frustumCorners[j];
+		}
+		frustumCenter /= 8.0f;
+		float radius = 0.0f;
+		for (U32 j = 0; j < 8; j++) 
+		{
+			float distance = glm::length(frustumCorners[j] - frustumCenter);
+			radius = glm::max(radius, distance);
+		}
+		radius = std::ceil(radius * 16.0f) / 16.0f;
+
+		// calculate aabb
+		glm::vec3 maxExtents = glm::vec3(radius);
+		glm::vec3 minExtents = -maxExtents;
+
+		glm::vec3 lightDir = mMainLight.direction;
+		glm::mat4 lightView = glm::lookAt( frustumCenter - lightDir * radius, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
+		glm::mat4 lightProj = glm::ortho(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
+
+		// Store split distance and matrix in cascade
+		mMainLight.cascades[i].splitDepth = (mMainCamera.zNear + splitDist * depthRange) * -1.0f;
+		mMainLight.cascades[i].viewProj = lightProj * lightView;
+
+		lastSplitDist = cascadeSplits[i];
+	}
 }
 
 

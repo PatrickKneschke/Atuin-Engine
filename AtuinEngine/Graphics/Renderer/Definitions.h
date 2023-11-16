@@ -97,28 +97,28 @@ struct ObjectData {
 };
 
 
-struct AmbientLight {
+// struct AmbientLight {
 
-    glm::vec3 color;
-    float intensity;
-};
-
-
-struct DirectionalLight {
-
-	glm::mat4 viewProj;
-
-    glm::vec3 color; 
-    float intensity;
-    glm::vec3 direction; 
-};
+//     glm::vec3 color;
+//     float intensity;
+// };
 
 
-struct SceneData {
+// struct DirectionalLight {
 
-	AmbientLight ambient;
-	DirectionalLight light;
-};
+// 	   glm::mat4 viewProj;
+
+//     glm::vec3 color; 
+//     float intensity;
+//     glm::vec3 direction; 
+// };
+
+
+// struct SceneData {
+
+// 	AmbientLight ambient;
+// 	DirectionalLight light;
+// };
 
 
 struct ImmediateSubmitContext{

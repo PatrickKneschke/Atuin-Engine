@@ -10,6 +10,7 @@
 #include "Descriptors.h"
 #include "Pipeline.h"
 #include "Camera.h"
+#include "Light.h"
 #include "Core/Util/Types.h"
 #include "Core/Config/CVar.h"
 #include "Core/Debug/Log.h"
@@ -100,6 +101,19 @@ struct CameraData {
 };
 
 
+struct SceneData {
+
+    glm::vec3 ambientColor;
+    float ambientIntensity;
+
+    glm::mat4 sunViewProj;
+
+    glm::vec3 sunColor; 
+    float sunIntensity;
+    glm::vec3 sunDirection;
+};
+
+
 struct ViewCullData {
 
 	glm::mat4 view; // camera view matrix
@@ -158,10 +172,10 @@ private:
 
     // inits
     void CreateSubmitContexts();
+    void CreateRenderPasses();
     void CreateFrameResources();
 	void CreateDepthResources();
-    void CreateShadowImage();
-    void CreateRenderPasses();
+    void CreateShadowResources();
     void CreateFramebuffers();
     void DestroyFramebuffers();
     void RecreateSwapchain();
@@ -190,6 +204,7 @@ private:
     void UpdateObjectBuffer( vk::CommandBuffer cmd);
     void UpdateCameraData( vk::CommandBuffer cmd);
     void UpdateSceneData( vk::CommandBuffer cmd);
+    void UpdateShadowCascade();
 
     // drawing
     void DrawFrame();
@@ -217,9 +232,11 @@ private:
     void CreatePipelines();
 
 
-    static CVar<U32>* pFrameOverlap;
-    static CVar<U32>* pMaxAnisotropy;
-    static CVar<U32>* pMsaaSamples;
+    static CVar<U32>*   pFrameOverlap;
+    static CVar<U32>*   pMaxAnisotropy;
+    static CVar<U32>*   pMsaaSamples;
+    static CVar<U32>*   pShadowCascadeCount;
+    static CVar<float>* pShadowCascadeSplit;
 
 
     Log mLog;
@@ -246,6 +263,7 @@ private:
     Image mDepthImage;
 
     //depth pyramid image views
+    vk::Format mDepthFormat = vk::Format::eD32Sfloat;
     Image mDepthPyramid;
     Array<vk::ImageView> mDepthPyramidViews;
 
@@ -258,6 +276,8 @@ private:
     vk::Extent3D mShadowExtent;
     Buffer mLightBuffer;
     vk::Sampler mShadowSampler;
+
+    DirectionalLight mMainLight;
 
 
     // culling

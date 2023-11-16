@@ -70,6 +70,7 @@ public:
 		vk::Format format,
 		vk::ImageUsageFlags usage,
 		U32 mipLevels = 1,
+        U32 layers = 1,
 		vk::ImageTiling tiling = vk::ImageTiling::eOptimal,
 		vk::SampleCountFlagBits	numSamples = vk::SampleCountFlagBits::e1,
         vk::SharingMode = vk::SharingMode::eExclusive,
@@ -84,7 +85,10 @@ public:
 		vk::Image image, vk::Format format,
 		vk::ImageAspectFlags aspectFlags,
         U32 baseMipLevel = 0,
-		U32 mipLevels = 1
+		U32 mipLevels = 1,
+        U32 baseLayer = 0,
+        U32 layerCount = 1,
+        vk::ImageViewType viewType = vk::ImageViewType::e2D
 	) const;
 
     vk::CommandPool CreateCommandPool(

@@ -359,6 +359,7 @@ vk::Image RendererCore::CreateImage(
 	vk::Format format,
 	vk::ImageUsageFlags usage,
 	U32 mipLevels,
+    U32 layers,
 	vk::ImageTiling tiling,
 	vk::SampleCountFlagBits	numSamples,
     vk::SharingMode sharingMode,
@@ -371,7 +372,7 @@ vk::Image RendererCore::CreateImage(
 		.setFormat( format )
 		.setUsage( usage )
 		.setMipLevels( mipLevels )
-		.setArrayLayers( 1 )
+		.setArrayLayers( layers )
 		.setTiling( tiling )
 		.setSamples( numSamples )
 		.setSharingMode( sharingMode )
@@ -433,13 +434,16 @@ vk::ImageView RendererCore::CreateImageView(
 	vk::Image image, vk::Format format,
 	vk::ImageAspectFlags aspectFlags,
 	U32 baseMipLevel,
-	U32 mipLevels ) const
+	U32 mipLevels,
+	U32 baseLayer,
+	U32 layerCount,
+	vk::ImageViewType viewType ) const
 {
 	auto imageViewInfo = vk::ImageViewCreateInfo{}
 		.setImage( image )
-		.setViewType( vk::ImageViewType::e2D )
+		.setViewType( viewType )
 		.setFormat( format )
-		.setSubresourceRange( vk::ImageSubresourceRange{aspectFlags, baseMipLevel, mipLevels, 0, 1} );
+		.setSubresourceRange( vk::ImageSubresourceRange{aspectFlags, baseMipLevel, mipLevels, baseLayer, layerCount} );
 			
 	vk::ImageView imageView;
 	vk::Result result = mDevice.createImageView(&imageViewInfo, nullptr, &imageView);
