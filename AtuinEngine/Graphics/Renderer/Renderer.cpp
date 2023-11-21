@@ -11,6 +11,7 @@
 #include "GLFW/glfw3.h"
 
 #include <glm/gtx/string_cast.hpp>
+#include <glm/gtx/string_cast.hpp>
 
 
 namespace Atuin {
@@ -80,13 +81,13 @@ void Renderer::StartUp(GLFWwindow *window) {
 
 
 	// camera
-	float unit = 4;
-	mMainCamera.position = {20.0f * unit, 20.0f * unit, 20.0f * unit};
+	float unit = 8;
+	mMainCamera.position = {2.2f * unit, 2.2f * unit, 2.5f * unit};
 	mMainCamera.forward = glm::normalize( glm::vec3(0.f, 0.f, 0.f) - mMainCamera.position);
 	mMainCamera.fov = glm::radians( 60.f);
 	mMainCamera.aspect = (float)mSwapchain.extent.width / (float)mSwapchain.extent.height;
 	mMainCamera.zNear = 0.1f;
-	mMainCamera.zFar = 1000.f;
+	mMainCamera.zFar = 200.f;
 	mMainCamera.UpdateCoordinates();
 }
 
@@ -269,7 +270,8 @@ void Renderer::CreateShadowResources() {
 	);
 
 
-	// main light
+	// main light 
+	// shadow image
 	mMainLight.shadowImage.format     = mDepthFormat;
 	mMainLight.shadowImage.usage      = vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled;
 	mMainLight.shadowImage.memoryType = vk::MemoryPropertyFlagBits::eDeviceLocal;
@@ -289,13 +291,35 @@ void Renderer::CreateShadowResources() {
 		0, 1, 0, pShadowCascadeCount->Get(),
 		vk::ImageViewType::e2DArray
 	);
-
 	mDeletionStack.Push( [&](){
 		pCore->Device().destroyImage( mMainLight.shadowImage.image);
 		pCore->Device().destroyImageView( mMainLight.shadowImage.imageView);
 		pCore->Device().freeMemory( mMainLight.shadowImage.imageMemory);
 	});
 
+	// cascade view matrix buffer
+	CreateBuffer(
+		mMainLight.cascadeViewBuffer, pShadowCascadeCount->Get() * sizeof( glm::mat4),
+		vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+		vk::MemoryPropertyFlagBits::eDeviceLocal
+	);
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyBuffer( mMainLight.cascadeViewBuffer.buffer);
+		pCore->Device().freeMemory( mMainLight.cascadeViewBuffer.bufferMemory);
+	});
+
+	// cascade viewProj matrix buffer
+	CreateBuffer(
+		mMainLight.cascadeViewProjBuffer, pShadowCascadeCount->Get() * sizeof( glm::mat4),
+		vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+		vk::MemoryPropertyFlagBits::eDeviceLocal
+	);
+	mDeletionStack.Push( [&](){
+		pCore->Device().destroyBuffer( mMainLight.cascadeViewProjBuffer.buffer);
+		pCore->Device().freeMemory( mMainLight.cascadeViewProjBuffer.bufferMemory);
+	});
+
+	// cascade image views and framebuffers
 	mMainLight.cascades.Resize( pShadowCascadeCount->Get());
 	for( U32 i = 0; i < pShadowCascadeCount->Get(); i++)
 	{
@@ -776,9 +800,11 @@ void Renderer::CreatePipeline( std::string_view pipelineName, vk::RenderPass ren
 		layouts.PushBack( pDescriptorLayoutCache->CreateLayout( &layoutInfo));
 	}
 
+
 	// read push constant ranges (optional)
 	Array<vk::PushConstantRange> pushConstants;
-	auto pushConstantsJson = pipelineJson[ "pushConstants"];
+	auto &pushConstantsJson = pipelineJson[ "pushConstants"];
+
 	if ( !pushConstantsJson.IsNull())
 	{
 		for ( auto &pcJson : pushConstantsJson.GetList())
@@ -1711,11 +1737,14 @@ void Renderer::CreateDescriptorSets() {
 
 	auto cameraInfo = mCameraBuffer.DescriptorInfo();
 	auto sceneInfo = mSceneBuffer.DescriptorInfo();
-	auto shadowInfo = mShadowImage.DescriptorInfo( mShadowSampler);
+	auto shadowCascadeInfo = mMainLight.cascadeViewProjBuffer.DescriptorInfo();
+	auto shadowMapInfo = mMainLight.shadowImage.DescriptorInfo( mShadowSampler);
+	// auto shadowInfo = mShadowImage.DescriptorInfo( mShadowSampler);
 	mGlobalDataSet = DescriptorSetBuilder( pCore->Device(), pDescriptorSetAllocator, pDescriptorLayoutCache)
 		.BindBuffer( 0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, &cameraInfo)
-		.BindBuffer( 1, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, &sceneInfo)
-		.BindImage( 2, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, &shadowInfo)
+		.BindBuffer( 1, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment, &sceneInfo)
+		.BindBuffer( 2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment, &shadowCascadeInfo)
+		.BindImage( 3, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, &shadowMapInfo)
 		.Build();
 }
 
@@ -1958,19 +1987,18 @@ void Renderer::UpdateCameraData( vk::CommandBuffer cmd) {
 void Renderer::UpdateSceneData( vk::CommandBuffer cmd) {
 
 	float angle = (float)mFrameCount / 240.f * glm::radians(30.f);
-	glm::vec3 direction = {cos(angle), -1.f, sin(angle)};
+	mMainLight.direction = {cos(angle), -1.f, sin(angle)};
 
 	auto viewProj = glm::orthoZO( -(float)mShadowExtent.width, (float)mShadowExtent.width, 
 								   (float)mShadowExtent.height, -(float)mShadowExtent.height, 
 								  -(float)mShadowExtent.depth, (float)mShadowExtent.depth ) *
-					glm::lookAt( mMainCamera.position, mMainCamera.position + direction, mMainCamera.up);
+					glm::lookAt( mMainCamera.position, mMainCamera.position + mMainLight.direction, mMainCamera.up);
 	SceneData scene;
 	scene.ambientColor = glm::vec3(1.f, 1.f, 1.f);
 	scene.ambientIntensity = 0.03f;
 	scene.sunColor = glm::vec3(1.f, 1.f, 1.f);
 	scene.sunIntensity = 2.5f;
-	scene.sunDirection = direction;
-	scene.sunViewProj = viewProj;
+	scene.sunDirection = mMainLight.direction;
 
 	UploadBufferData( &scene, sizeof( SceneData), mSceneBuffer.buffer);
 
@@ -1998,6 +2026,8 @@ void Renderer::UpdateShadowCascade() {
 		cascadeSplits[i] = (d - minDepth) / depthRange;
 	}
 	// calculate orthographic projection matrix for each cascade
+	glm::mat4 cascadeViews[ pShadowCascadeCount->Get()];
+	glm::mat4 cascadeViewProjs[ pShadowCascadeCount->Get()];
 	float lastSplitDist = 0.0;
 	for (U32 i = 0; i < pShadowCascadeCount->Get(); i++) 
 	{
@@ -2044,20 +2074,29 @@ void Renderer::UpdateShadowCascade() {
 		}
 		radius = std::ceil(radius * 16.0f) / 16.0f;
 
-		// calculate aabb
+		// calculate view and projection matrix
 		glm::vec3 maxExtents = glm::vec3(radius);
 		glm::vec3 minExtents = -maxExtents;
 
 		glm::vec3 lightDir = mMainLight.direction;
-		glm::mat4 lightView = glm::lookAt( frustumCenter - lightDir * radius, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
-		glm::mat4 lightProj = glm::ortho(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
+		mMainLight.cascades[i].view = glm::lookAt( frustumCenter - lightDir * radius, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
+		mMainLight.cascades[i].proj = glm::ortho( minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
 
-		// Store split distance and matrix in cascade
-		mMainLight.cascades[i].splitDepth = (mMainCamera.zNear + splitDist * depthRange) * -1.0f;
-		mMainLight.cascades[i].viewProj = lightProj * lightView;
+		// Store split distance
+		mMainLight.cascades[i].splitDepth = (mMainCamera.zNear + splitDist * depthRange) * -1.0f; // -1 because of camera z direction
+
+		// cascade data to send to GPU
+		cascadeViewProjs[i] = mMainLight.cascades[i].proj * mMainLight.cascades[i].view;
+		cascadeViewProjs[i][3][3] = mMainLight.cascades[i].splitDepth;
+		cascadeViews[i] = mMainLight.cascades[i].view;
+		cascadeViews[i][3][3] = radius;
 
 		lastSplitDist = cascadeSplits[i];
 	}
+
+	// send view matrix data to GPU
+	UploadBufferData(cascadeViews, pShadowCascadeCount->Get() * sizeof( glm::mat4), mMainLight.cascadeViewBuffer.buffer);
+	UploadBufferData(cascadeViewProjs, pShadowCascadeCount->Get() * sizeof( glm::mat4), mMainLight.cascadeViewProjBuffer.buffer);
 }
 
 
@@ -2123,6 +2162,8 @@ void Renderer::DrawFrame() {
 
 	UpdateCameraData( cmd);
 	UpdateSceneData( cmd);
+	UpdateShadowCascade();
+
 
 	UpdateObjectBuffer( cmd);
 
@@ -2206,44 +2247,7 @@ void Renderer::DrawFrame() {
 		}
 	}
 
-	++mFrameCount;
-
-
-	// void *data;
-	// result = pCore->Device().mapMemory( mOpaqueMeshPass.drawIndirectBuffer.bufferMemory, 0, mOpaqueMeshPass.drawIndirectBuffer.bufferSize, vk::MemoryMapFlags(), &data);
-	// if( result != vk::Result::eSuccess )
-	// {
-	// 	throw std::runtime_error("Failed to map buffer memory " + vk::to_string(result));
-	// }
-
-	// IndirectData *indirectData = (IndirectData*)data;
-	// for ( U32 i = 0; i < mOpaqueMeshPass.indirectBatches.GetSize(); i++)
-	// {
-	// 	std::cout << i << "   :   " << indirectData[i].drawIndirectCmd.firstInstance << "   , "  << indirectData[i].drawIndirectCmd.instanceCount << '\n';
-	// }
-	// std::cout << "----------------------------\n";
-	// pCore->Device().unmapMemory( mOpaqueMeshPass.drawIndirectBuffer.bufferMemory);
-
-
-	// if (FrameCount() <= 10)
-	// {
-	// 	void *data;
-	// 	result = pCore->Device().mapMemory( cullDebugBuffer.bufferMemory, 0, cullDebugBuffer.bufferSize, vk::MemoryMapFlags(), &data);
-	// 	if( result != vk::Result::eSuccess )
-	// 	{
-	// 		throw std::runtime_error("Failed to map buffer memory " + vk::to_string(result));
-	// 	}
-
-	// 	CullDebugData *debugData = (CullDebugData*)data;
-	// 	for ( U32 i = 0; i < mOpaqueMeshPass.renderBatches.GetSize(); i++)
-	// 	{
-	// 		std::cout << i << "   :   (" << debugData[i].aabb.x << ", " << debugData[i].aabb.y << ", " << debugData[i].aabb.z << ", " << debugData[i].aabb.w << ")   " 
-	// 									<< debugData[i].depth << " ,   " << debugData[i].sampledDepth << "   ,   " << debugData[i].level << "  ->  " << debugData[i].culled << '\n';
-	// 	}
-	// 	std::cout << "----------------------------\n";
-	// 	pCore->Device().unmapMemory( cullDebugBuffer.bufferMemory);
-	// }
-	
+	++mFrameCount;	
 }
 
 
@@ -2255,26 +2259,22 @@ void Renderer::CullShadowPass( vk::CommandBuffer cmd) {
 	}
 
 	DirectionalCullData shadowCull;
-	glm::vec3 aabbMin = mMainCamera.position - glm::vec3(2 * mMainCamera.zFar, 2 * mMainCamera.zFar, 2 * mMainCamera.zFar);
-	glm::vec3 aabbMax = mMainCamera.position + glm::vec3(2 * mMainCamera.zFar, 2 * mMainCamera.zFar, 2 * mMainCamera.zFar);
-	shadowCull.aabbMinX = aabbMin.x;
-	shadowCull.aabbMinY = aabbMin.y;
-	shadowCull.aabbMinZ = aabbMin.z;
-	shadowCull.aabbMaxX = aabbMax.x;
-	shadowCull.aabbMaxY = aabbMax.y;
-	shadowCull.aabbMaxZ = aabbMax.z;
-	shadowCull.drawCount =(U32)mShadowMeshPass.renderBatches.GetSize();
+	shadowCull.drawCount = (U32)mShadowMeshPass.renderBatches.GetSize();
+	shadowCull.cascadeCount = pShadowCascadeCount->Get();
+
 
 	// build descriptor sets
 	auto objectInfo = mObjectBuffer.DescriptorInfo();
 	auto instanceDataShadowInfo = mShadowMeshPass.instanceDataBuffer.DescriptorInfo();
 	auto drawIndirectShadowInfo = mShadowMeshPass.drawIndirectBuffer.DescriptorInfo();
 	auto instanceIdxShadowInfo  = mShadowMeshPass.instanceIndexBuffer.DescriptorInfo();
+	auto cascadeViewInfo        = mMainLight.cascadeViewBuffer.DescriptorInfo();
 	vk::DescriptorSet shadowCullSet = DescriptorSetBuilder( pCore->Device(), CurrentFrame().descriptorAllocator, pDescriptorLayoutCache)
 		.BindBuffer( 0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &objectInfo)
 		.BindBuffer( 1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceDataShadowInfo)
 		.BindBuffer( 2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &drawIndirectShadowInfo)
 		.BindBuffer( 3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &instanceIdxShadowInfo)
+		.BindBuffer( 4, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute, &cascadeViewInfo)
 		.Build();
 
 	// dispatch culls
@@ -2421,50 +2421,93 @@ void Renderer::CullForwardPass( vk::CommandBuffer cmd) {
 
 void Renderer::DrawShadowPass( vk::CommandBuffer cmd, U32 imageIndex) {
 
-	//start renderpass
-	vk::ClearValue clearValue;
-	clearValue.setDepthStencil( {1.0f, 0} ); 
+	auto clearValue = vk::ClearValue{}
+		.setDepthStencil( {1.0f, 0} );
 
-	auto renderInfo = vk::RenderPassBeginInfo{}
-		.setRenderPass( mShadowPass )
-		.setRenderArea( {{0, 0}, {mShadowImage.width, mShadowImage.height}} )
-		.setFramebuffer( mShadowFramebuffers[imageIndex] )
-		.setClearValueCount( 1 )
-		.setPClearValues( &clearValue );		
-	cmd.beginRenderPass(renderInfo, vk::SubpassContents::eInline);
-	
-	// set viewport
 	auto viewport = vk::Viewport{}
-		.setX( 0.f )
-		.setY( 0.f )
-		.setWidth( (float)mShadowImage.width )
-		.setHeight( (float)mShadowImage.height )
-		.setMinDepth( 0.f )
-		.setMaxDepth( 1.f );
+		.setX( 0.f ).setY( 0.f )
+		.setWidth( (float)mMainLight.shadowImage.width ).setHeight( (float)mMainLight.shadowImage.height )
+		.setMinDepth( 0.f ).setMaxDepth( 1.f );
 	auto scissor = vk::Rect2D{}
 		.setOffset( {0, 0} )
 		.setExtent( {mShadowImage.width, mShadowImage.height} );
 
-	cmd.setViewport( 0, 1, &viewport);
-	cmd.setScissor( 0, 1, &scissor);
-
-
-	if ( mCombinedVertexBuffer.bufferSize > 0)
+	auto renderInfo = vk::RenderPassBeginInfo{}
+		.setRenderPass( mShadowPass )
+		.setRenderArea( {{0, 0}, {mMainLight.shadowImage.width, mMainLight.shadowImage.height}} )
+		.setClearValueCount( 1 )
+		.setPClearValues( &clearValue );		
+	
+	for (U32 i = 0; i< pShadowCascadeCount->Get(); i++)
 	{
-		Size offset = 0;
-		cmd.bindVertexBuffers( 0, 1, &mCombinedVertexBuffer.buffer, &offset);
-		cmd.bindIndexBuffer( mCombinedIndexBuffer.buffer, 0, vk::IndexType::eUint32);
+		renderInfo.setFramebuffer(  mMainLight.cascades[i].framebuffer);
+		cmd.beginRenderPass(renderInfo, vk::SubpassContents::eInline);
 
-		auto lightInfo = mLightBuffer.DescriptorInfo();
-		auto globalDataSet = DescriptorSetBuilder( pCore->Device(), CurrentFrame().descriptorAllocator, pDescriptorLayoutCache)
-			.BindBuffer( 0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex, &lightInfo)
-			.Build();
+		// set viewport
+		cmd.setViewport( 0, 1, &viewport);
+		cmd.setScissor( 0, 1, &scissor);
 
-		RenderMeshPass( cmd, &mShadowMeshPass, globalDataSet);
+		if ( mCombinedVertexBuffer.bufferSize > 0)
+		{
+			Size offset = 0;
+			cmd.bindVertexBuffers( 0, 1, &mCombinedVertexBuffer.buffer, &offset);
+			cmd.bindIndexBuffer( mCombinedIndexBuffer.buffer, 0, vk::IndexType::eUint32);
+
+			auto lightInfo = mMainLight.cascadeViewProjBuffer.DescriptorInfo();
+			auto globalDataSet = DescriptorSetBuilder( pCore->Device(), CurrentFrame().descriptorAllocator, pDescriptorLayoutCache)
+				.BindBuffer( 0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex, &lightInfo)
+				.Build();
+
+			RenderMeshPass( cmd, &mShadowMeshPass, globalDataSet,   sizeof( U32), &i, vk::ShaderStageFlagBits::eVertex);
+		}
+
+		cmd.endRenderPass();
 	}
 
+	// //start renderpass
+	// vk::ClearValue clearValue;
+	// clearValue.setDepthStencil( {1.0f, 0} ); 
 
-	cmd.endRenderPass();
+	// auto renderInfo = vk::RenderPassBeginInfo{}
+	// 	.setRenderPass( mShadowPass )
+	// 	.setRenderArea( {{0, 0}, {mShadowImage.width, mShadowImage.height}} )
+	// 	.setFramebuffer( mShadowFramebuffers[imageIndex] )
+	// 	.setClearValueCount( 1 )
+	// 	.setPClearValues( &clearValue );		
+	// cmd.beginRenderPass(renderInfo, vk::SubpassContents::eInline);
+	
+	// // set viewport
+	// auto viewport = vk::Viewport{}
+	// 	.setX( 0.f )
+	// 	.setY( 0.f )
+	// 	.setWidth( (float)mShadowImage.width )
+	// 	.setHeight( (float)mShadowImage.height )
+	// 	.setMinDepth( 0.f )
+	// 	.setMaxDepth( 1.f );
+	// auto scissor = vk::Rect2D{}
+	// 	.setOffset( {0, 0} )
+	// 	.setExtent( {mShadowImage.width, mShadowImage.height} );
+
+	// cmd.setViewport( 0, 1, &viewport);
+	// cmd.setScissor( 0, 1, &scissor);
+
+
+	// if ( mCombinedVertexBuffer.bufferSize > 0)
+	// {
+	// 	Size offset = 0;
+	// 	cmd.bindVertexBuffers( 0, 1, &mCombinedVertexBuffer.buffer, &offset);
+	// 	cmd.bindIndexBuffer( mCombinedIndexBuffer.buffer, 0, vk::IndexType::eUint32);
+
+	// 	auto lightInfo = mLightBuffer.DescriptorInfo();
+	// 	auto globalDataSet = DescriptorSetBuilder( pCore->Device(), CurrentFrame().descriptorAllocator, pDescriptorLayoutCache)
+	// 		.BindBuffer( 0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex, &lightInfo)
+	// 		.Build();
+
+	// 	RenderMeshPass( cmd, &mShadowMeshPass, globalDataSet);
+	// }
+
+
+	// cmd.endRenderPass();
 }
 
 
@@ -2505,9 +2548,9 @@ void Renderer::DrawForwardPass( vk::CommandBuffer cmd, U32 imageIndex) {
 		cmd.bindVertexBuffers( 0, 1, &mCombinedVertexBuffer.buffer, &offset);
 		cmd.bindIndexBuffer( mCombinedIndexBuffer.buffer, 0, vk::IndexType::eUint32);
 
-
-		RenderMeshPass( cmd, &mOpaqueMeshPass, mGlobalDataSet);
-		RenderMeshPass( cmd, &mTransparentMeshPass, mGlobalDataSet);
+		U32 cascadeCount = pShadowCascadeCount->Get();
+		RenderMeshPass( cmd, &mOpaqueMeshPass, mGlobalDataSet,   sizeof( U32), &cascadeCount, vk::ShaderStageFlagBits::eFragment);
+		// RenderMeshPass( cmd, &mTransparentMeshPass, mGlobalDataSet,   sizeof( U32), &cascadeCount, vk::ShaderStageFlagBits::eFragment);
 	}
 
 
@@ -2515,7 +2558,7 @@ void Renderer::DrawForwardPass( vk::CommandBuffer cmd, U32 imageIndex) {
 }
 
 
-void Renderer::RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass, vk::DescriptorSet globalDataSet) {
+void Renderer::RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass, vk::DescriptorSet globalDataSet, U32 pushConstantSize, void *pushConstantData, vk::ShaderStageFlagBits pushConstantStage) {
 
 	auto objectInfo = mObjectBuffer.DescriptorInfo();
 	auto instanceInfo = pass->instanceIndexBuffer.DescriptorInfo();
@@ -2545,8 +2588,13 @@ void Renderer::RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass, vk::Descri
 				vk::PipelineBindPoint::eGraphics, pipeline.pipelineLayout, 0, 1, &globalDataSet, 0, nullptr
 			);
 			cmd.bindDescriptorSets( 
-				vk::PipelineBindPoint::eGraphics,pipeline.pipelineLayout, 1, 1, &passDataSet, 0, nullptr		
+				vk::PipelineBindPoint::eGraphics, pipeline.pipelineLayout, 1, 1, &passDataSet, 0, nullptr		
 			);
+
+			if ( pushConstantSize > 0)
+			{
+				cmd.pushConstants( pipeline.pipelineLayout, pushConstantStage, 0, pushConstantSize, pushConstantData);
+			}
 
 			lastPipelineId = material.pipelineId[ pass->passType];
 		}

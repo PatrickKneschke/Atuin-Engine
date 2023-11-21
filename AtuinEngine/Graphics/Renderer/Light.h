@@ -10,7 +10,8 @@ namespace Atuin {
 
 struct ShadowCascade {
     
-	glm::mat4 viewProj;
+	glm::mat4 view;
+    glm::mat4 proj;
 	float splitDepth;
 
 	vk::Framebuffer framebuffer;
@@ -30,6 +31,8 @@ struct DirectionalLight : Light{
     glm::vec3 direction = glm::vec3(0.f, -1.f, 0.f);
     Image shadowImage; // layered for cascading map
     Array<ShadowCascade> cascades;
+    Buffer cascadeViewBuffer;
+    Buffer cascadeViewProjBuffer;
 };
 
 

@@ -55,8 +55,8 @@ private:
 
     void CreateScene() {
 
-        int N = 10;
-        float unit = 4.0f;
+        int N = 3;
+        float unit = 8.0f;
         mTestObjects.Reserve( N*N*N);
         for ( int i = 0; i < N; i++)
         {
@@ -64,8 +64,8 @@ private:
             {
                 for ( int k = 0; k < N; k++)
                 {
-                    int materialIdx = std::rand() % 5;
-                    int modelIdx = std::rand() % 3;
+                    int materialIdx = 0;// std::rand() % 5;
+                    int modelIdx = 2;// std::rand() % 3;
                     glm::vec3 position = glm::vec3( (float)i * unit,  (float)j * unit, (float)k * unit);
 
                     MeshObject obj;

@@ -105,9 +105,6 @@ struct SceneData {
 
     glm::vec3 ambientColor;
     float ambientIntensity;
-
-    glm::mat4 sunViewProj;
-
     glm::vec3 sunColor; 
     float sunIntensity;
     glm::vec3 sunDirection;
@@ -130,9 +127,8 @@ struct ViewCullData {
 
 struct DirectionalCullData {
     
-    float aabbMinX, aabbMinY, aabbMinZ;
-    float aabbMaxX, aabbMaxY, aabbMaxZ;
 	uint drawCount;
+	uint cascadeCount;
 };
 
 
@@ -212,7 +208,7 @@ private:
     void CullForwardPass( vk::CommandBuffer cmd);
     void DrawShadowPass( vk::CommandBuffer cmd, U32 imageIndex);
     void DrawForwardPass( vk::CommandBuffer cmd, U32 imageIndex);
-    void RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass, vk::DescriptorSet globalDataSet);
+    void RenderMeshPass( vk::CommandBuffer cmd, MeshPass *pass, vk::DescriptorSet globalDataSet,   U32 pushConstantSize = 0, void *pushConstantData = nullptr, vk::ShaderStageFlagBits pushConstantStage = vk::ShaderStageFlagBits{});
     void UpdateDepthPyramid( vk::CommandBuffer cmd);
 
     // utils

@@ -38,12 +38,12 @@ void RenderModule::ShutDown() {
 
 void RenderModule::Update() {
 
-    UpdateObjects();
+    // UpdateObjects();
 
     mRenderer.Update();
 
     // late update
-    UpdateScene();
+    // UpdateScene();
 }
 
 
