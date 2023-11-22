@@ -55,7 +55,7 @@ private:
 
     void CreateScene() {
 
-        int N = 3;
+        int N = 10;
         float unit = 8.0f;
         mTestObjects.Reserve( N*N*N);
         for ( int i = 0; i < N; i++)
@@ -64,8 +64,8 @@ private:
             {
                 for ( int k = 0; k < N; k++)
                 {
-                    int materialIdx = 0;// std::rand() % 5;
-                    int modelIdx = 2;// std::rand() % 3;
+                    int materialIdx = std::rand() % 5;
+                    int modelIdx = std::rand() % 3;
                     glm::vec3 position = glm::vec3( (float)i * unit,  (float)j * unit, (float)k * unit);
 
                     MeshObject obj;
@@ -121,12 +121,13 @@ private:
                 );
 
                 int materialIdx = std::rand() % 5;
+                int modelIdx = std::rand() % 3;
 
                 MeshObject obj;
                 obj.materialName = materials[ materialIdx];
-                obj.meshName     = "Meshes/Default/torus.obj";
+                obj.meshName     = models[ modelIdx];
                 obj.transform    = glm::translate( glm::mat4(1.f), position);
-                obj.sphereBounds = glm::vec4( position, 1.0f);
+                obj.sphereBounds = glm::vec4( position, modelIdx == 0 ? 1.7321f : 1.f);
                    
 
                 U32 idx;

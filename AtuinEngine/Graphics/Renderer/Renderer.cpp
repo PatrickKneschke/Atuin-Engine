@@ -82,7 +82,7 @@ void Renderer::StartUp(GLFWwindow *window) {
 
 	// camera
 	float unit = 8;
-	mMainCamera.position = {2.2f * unit, 2.2f * unit, 2.5f * unit};
+	mMainCamera.position = {10.0f * unit, 10.0f * unit, 10.0f * unit};
 	mMainCamera.forward = glm::normalize( glm::vec3(0.f, 0.f, 0.f) - mMainCamera.position);
 	mMainCamera.fov = glm::radians( 60.f);
 	mMainCamera.aspect = (float)mSwapchain.extent.width / (float)mSwapchain.extent.height;
@@ -1166,7 +1166,6 @@ void Renderer::BuildMeshPassBatches( MeshPass *pass) {
 	{
 		return;
 	}
-	
 
 	// rebuild indirect batches
 	pass->indirectBatches.Clear();
@@ -1199,7 +1198,7 @@ void Renderer::BuildMeshPassBatches( MeshPass *pass) {
 			newBatch.objectIdx = pass->renderBatches[idx].objectIdx;
 			pass->indirectBatches.PushBack( newBatch);
 
-			if ( obj.materialId != lastMaterial)
+			if ( obj.materialId != lastMaterial && pass->passType != PassType::SHADOW )  // single multibatch for shadow pass
 			{
 				newMultiBatch.first = (U32)pass->indirectBatches.GetSize();
 				newMultiBatch.count = 1;
@@ -2075,21 +2074,18 @@ void Renderer::UpdateShadowCascade() {
 		radius = std::ceil(radius * 16.0f) / 16.0f;
 
 		// calculate view and projection matrix
-		glm::vec3 maxExtents = glm::vec3(radius);
-		glm::vec3 minExtents = -maxExtents;
-
 		glm::vec3 lightDir = mMainLight.direction;
-		mMainLight.cascades[i].view = glm::lookAt( frustumCenter - lightDir * radius, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
-		mMainLight.cascades[i].proj = glm::ortho( minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
+		mMainLight.cascades[i].view = glm::lookAt( frustumCenter - lightDir * 2.f * radius, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
+		mMainLight.cascades[i].proj = glm::ortho( -radius, radius, radius, -radius, 0.0f, 4 * radius);
 
 		// Store split distance
 		mMainLight.cascades[i].splitDepth = (mMainCamera.zNear + splitDist * depthRange) * -1.0f; // -1 because of camera z direction
 
 		// cascade data to send to GPU
 		cascadeViewProjs[i] = mMainLight.cascades[i].proj * mMainLight.cascades[i].view;
-		cascadeViewProjs[i][3][3] = mMainLight.cascades[i].splitDepth;
+		cascadeViewProjs[i][3][3] = mMainLight.cascades[i].splitDepth; // store splitdepth for check for cascade index in forward pass
 		cascadeViews[i] = mMainLight.cascades[i].view;
-		cascadeViews[i][3][3] = radius;
+		cascadeViews[i][3][3] = radius; // store radius to use in aabb culling in shadow cull pass
 
 		lastSplitDist = cascadeSplits[i];
 	}
@@ -2550,7 +2546,7 @@ void Renderer::DrawForwardPass( vk::CommandBuffer cmd, U32 imageIndex) {
 
 		U32 cascadeCount = pShadowCascadeCount->Get();
 		RenderMeshPass( cmd, &mOpaqueMeshPass, mGlobalDataSet,   sizeof( U32), &cascadeCount, vk::ShaderStageFlagBits::eFragment);
-		// RenderMeshPass( cmd, &mTransparentMeshPass, mGlobalDataSet,   sizeof( U32), &cascadeCount, vk::ShaderStageFlagBits::eFragment);
+		RenderMeshPass( cmd, &mTransparentMeshPass, mGlobalDataSet,   sizeof( U32), &cascadeCount, vk::ShaderStageFlagBits::eFragment);
 	}
 
 
