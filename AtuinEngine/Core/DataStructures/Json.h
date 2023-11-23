@@ -36,8 +36,6 @@ public:
 
 public:
 
-    // TODO use MemoryManager
-
     static Json MakeList() {
 
         Json out;

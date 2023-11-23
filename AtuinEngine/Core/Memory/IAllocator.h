@@ -24,9 +24,8 @@ public:
     virtual void  Free(void *ptr) = 0;
     virtual void  Clear() = 0;
 
-    // TODO pass args by reference ?
     template<typename T, typename... Args>
-    T* New(Args... args);
+    T* New(Args&... args);
 
     template<typename T>
     T* NewArray(const Size size);
@@ -60,7 +59,7 @@ protected:
 
 
 template<typename T, typename... Args>
-T* IAllocator::New(Args... args) {
+T* IAllocator::New(Args&... args) {
 
     void *mem = Allocate(sizeof(T), alignof(T));
     return new (mem) T(args...);

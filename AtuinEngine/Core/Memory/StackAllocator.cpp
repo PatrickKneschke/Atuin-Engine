@@ -1,5 +1,6 @@
 
 #include "StackAllocator.h"
+#include "Core/Util/StringFormat.h"
 
 #include "stdexcept"
 
@@ -29,8 +30,7 @@ void* StackAllocator::Allocate(Size size, U8 alignment) {
     UPtr alignedAddress = mTopAddress + adjustment;
     if (alignedAddress + size - mBaseAddress > mTotalMemory)
     {
-        // TODO call to debug log ? -> or try catch in MemoryManager
-        throw std::overflow_error("Stack allocator is out of memory!");
+        throw std::overflow_error( FormatStr("Stack allocator does not have a large enough memory region available for allocation of size %i. Free space %i.", size, mTotalMemory - mUsedMemory));
     }
 
     mTopAddress = alignedAddress + size;

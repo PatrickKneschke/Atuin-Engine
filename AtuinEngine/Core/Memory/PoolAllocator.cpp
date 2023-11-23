@@ -1,5 +1,6 @@
 
 #include "PoolAllocator.h"
+#include "Core/Util/StringFormat.h"
 
 #include "stdexcept"
 
@@ -34,7 +35,7 @@ void* PoolAllocator::Allocate(Size size, U8 alignment) {
 
     if(!pHead)
     {
-        throw std::overflow_error("Pool allocator is out of memory!");
+        throw std::overflow_error( FormatStr("Pool allocator does not have a large enough memory region available for allocation of size %i. Free space %i.", size, mTotalMemory - mUsedMemory));
     }
 
     void *mem = reinterpret_cast<void*>(pHead);

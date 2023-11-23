@@ -15,7 +15,6 @@ namespace Atuin {
 
 
 CVar<std::string>*  Logger::pLogDir = ConfigManager::RegisterCVar("Logger", "LOG_DIR", std::string("Logs"));
-CVar<Size>*         Logger::pMaxMessageChars = ConfigManager::RegisterCVar("Logger", "MAX_MESSAGE_CHARS", 1024UL);
 CVar<Size>*         Logger::pBytesToBuffer = ConfigManager::RegisterCVar("Logger", "BYTES_TO_BUFFER", 4096UL);
 
 

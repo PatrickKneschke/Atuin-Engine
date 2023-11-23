@@ -49,7 +49,6 @@ private:
 
     // config variables
     static CVar<std::string>*   pLogDir;
-    static CVar<Size>*          pMaxMessageChars;   // TODO either use or remove
     static CVar<Size>*          pBytesToBuffer;
     
     // log level mask

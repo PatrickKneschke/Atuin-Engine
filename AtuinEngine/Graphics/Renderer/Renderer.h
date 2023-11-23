@@ -108,6 +108,7 @@ struct SceneData {
     glm::vec3 sunColor; 
     float sunIntensity;
     glm::vec3 sunDirection;
+    // TODO add fog
 };
 
 

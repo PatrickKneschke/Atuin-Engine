@@ -71,6 +71,8 @@ CVar<T>* ConfigManager::RegisterCVar(std::string_view blockName, std::string_vie
     }
     registry->at(blockId).cvars.insert( {newCVar->Id(), newCVar} );
 
+    std::cout << newCVar->Name() << "   " << newCVar->Get() << " " << newCVar->GetValueStr() << '\n';
+
     return newCVar;
 }
 

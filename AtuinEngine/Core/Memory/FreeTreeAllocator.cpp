@@ -1,6 +1,8 @@
 
 #include "FreeTreeAllocator.h"
 
+#include "Core/Util/StringFormat.h"
+
 
 namespace Atuin {
 
@@ -29,7 +31,7 @@ void* FreeTreeAllocator::Allocate(Size size, U8 alignment) {
     TreeNode *allocNode = FindNode(requiredSize, pRoot);
     if (allocNode == nullptr)
     {
-        throw std::overflow_error("Free tree allocator does not have a large enough memory region available.");
+        throw std::overflow_error( FormatStr("Free tree allocator does not have a large enough memory region available for allocation of size %i. Free space %i.", size, mTotalMemory - mUsedMemory));
     }
 
     // Get aligned address for allocation
