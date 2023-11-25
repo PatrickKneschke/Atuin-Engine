@@ -23,6 +23,9 @@ void* FreeTreeAllocator::Allocate(Size size, U8 alignment) {
 
     assert(size > 0);
 
+    // lock mutex
+    const std::lock_guard<std::mutex> lock( mMutex);
+
     // Pad size so that total allocated space can fit a TreeNode when freed
     Size paddedSize = std::max(size, sizeof(TreeNode) - sizeof(AllocHeader));
 
@@ -69,6 +72,9 @@ void FreeTreeAllocator::Free(void *ptr) {
 
     assert(ptr != nullptr);
 
+    // lock mutex
+    const std::lock_guard<std::mutex> lock( mMutex);
+
     // start address and size of freed memory section
     UPtr freeAddress = reinterpret_cast<UPtr>(ptr);
     AllocHeader *header = reinterpret_cast<AllocHeader*>( freeAddress - sizeof(AllocHeader) );
@@ -100,6 +106,9 @@ void FreeTreeAllocator::Free(void *ptr) {
 
 
 void FreeTreeAllocator::Clear() {
+
+    // lock mutex
+    const std::lock_guard<std::mutex> lock( mMutex);
 
     pRoot = new (pBase) TreeNode(mTotalMemory);
     mUsedMemory = 0;

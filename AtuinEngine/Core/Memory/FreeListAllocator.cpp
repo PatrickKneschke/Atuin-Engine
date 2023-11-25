@@ -23,6 +23,9 @@ FreeListAllocator::~FreeListAllocator() {
 void* FreeListAllocator::Allocate(Size size, U8 alignment) {
 
     assert(size > 0);
+
+    // lock mutex
+    const std::lock_guard<std::mutex> lock( mMutex);
    
     // Pad size so that total allocated space can fit a FreeNode when freed
     Size paddedSize = std::max(size, sizeof(FreeNode) - sizeof(AllocHeader));
@@ -85,6 +88,9 @@ void FreeListAllocator::Free(void *ptr) {
 
     assert(ptr != nullptr);
 
+    // lock mutex
+    const std::lock_guard<std::mutex> lock( mMutex);
+
     // Start address and size of freed memory section
     UPtr freeAddress = reinterpret_cast<UPtr>(ptr);
     AllocHeader *header = reinterpret_cast<AllocHeader*>( freeAddress - sizeof(AllocHeader) );
@@ -130,6 +136,9 @@ void FreeListAllocator::Free(void *ptr) {
 
 void FreeListAllocator::Clear() {
 
+    // lock mutex
+    const std::lock_guard<std::mutex> lock( mMutex);
+    
     pHead = new (pBase) FreeNode{mTotalMemory};
     mUsedMemory = 0;
 }

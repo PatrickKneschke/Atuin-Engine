@@ -33,6 +33,9 @@ void* PoolAllocator::Allocate(Size size, U8 alignment) {
     assert(size > 0 && size <= mChunkSize);
     assert(mChunkSize % alignment == 0);
 
+    // lock mutex
+    const std::lock_guard<std::mutex> lock( mMutex);
+
     if(!pHead)
     {
         throw std::overflow_error( FormatStr("Pool allocator does not have a large enough memory region available for allocation of size %i. Free space %i.", size, mTotalMemory - mUsedMemory));
@@ -52,12 +55,18 @@ void PoolAllocator::Free(void *ptr) {
 
     assert(ptr != nullptr);
 
+    // lock mutex
+    const std::lock_guard<std::mutex> lock( mMutex);
+
     pHead = new (ptr) PoolNode{pHead};
     mUsedMemory -= mChunkSize;
 }
 
 
 void PoolAllocator::Clear() {
+
+    // lock mutex
+    const std::lock_guard<std::mutex> lock( mMutex);
 
     CreatePool();
     mUsedMemory = 0;

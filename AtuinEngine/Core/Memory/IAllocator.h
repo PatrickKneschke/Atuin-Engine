@@ -5,6 +5,7 @@
 #include "Core/Util/Types.h"
 
 #include <assert.h>
+#include <mutex>
 
 
 namespace Atuin {
@@ -52,6 +53,9 @@ protected:
     Size mTotalMemory;
     Size mUsedMemory;
     Size mMaxUsedMemory;
+
+    // mutex to make Allocate(), Free() and Clear() thread safe
+    std::mutex mMutex;
 
     // Poiner to a parent allocator, nullptr by default
     IAllocator *pParent;

@@ -88,8 +88,6 @@ const ICVar* ConfigManager::GetCVar(std::string_view blockName, std::string_view
 
 void ConfigManager::ProcessConfigFile(const char *content, Size size) {  
 
-    // TODO use Json instead of ini ???
-
     std::string_view lines(content, size);
     Size startPos = 0, endPos = 0, maxPos = lines.length();
     std::string currBlock;

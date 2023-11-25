@@ -25,6 +25,9 @@ void* StackAllocator::Allocate(Size size, U8 alignment) {
 
     assert(size > 0);
 
+    // lock mutex
+    const std::lock_guard<std::mutex> lock( mMutex);
+
     Size adjustment = GetAlignmentAdjustment(mTopAddress, alignment);
 
     UPtr alignedAddress = mTopAddress + adjustment;
@@ -45,6 +48,9 @@ void StackAllocator::Free(void *ptr) {
 
     assert(ptr != nullptr);
 
+    // lock mutex
+    const std::lock_guard<std::mutex> lock( mMutex);
+
     UPtr newTopAddress = reinterpret_cast<UPtr>(ptr);
 
     // Do nothing if attempt is made to free memory outside used memory range
@@ -59,6 +65,9 @@ void StackAllocator::Free(void *ptr) {
 
 
 void StackAllocator::Clear() {
+
+    // lock mutex
+    const std::lock_guard<std::mutex> lock( mMutex);
 
     mTopAddress = mBaseAddress;
     mUsedMemory = 0;
