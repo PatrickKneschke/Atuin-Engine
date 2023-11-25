@@ -36,8 +36,6 @@ void ConfigManager::Save() const {
         oss << "\n[" << block.name << "]\n";
         for (auto &[cvarId, cvar] : block.cvars)
         {
-            std::cout << cvar->Name() << " = " << cvar->GetValueStr() << '\n';
-            
             oss << std::setw(20) << std::left << cvar->Name() << " = " << cvar->GetValueStr() << '\n';
         }
     }

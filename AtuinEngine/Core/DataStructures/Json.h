@@ -115,7 +115,7 @@ public:
     const JsonList& GetList() const;
     const JsonDict& GetDict() const;
 
-    JsonType GetType() { return (JsonType)mData.index(); }
+    JsonType GetType() const { return (JsonType)mData.index(); }
 
     std::string Print(Size depth = 1, std::string tab = "    ") const;
 

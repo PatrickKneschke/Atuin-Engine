@@ -97,30 +97,6 @@ struct ObjectData {
 };
 
 
-// struct AmbientLight {
-
-//     glm::vec3 color;
-//     float intensity;
-// };
-
-
-// struct DirectionalLight {
-
-// 	   glm::mat4 viewProj;
-
-//     glm::vec3 color; 
-//     float intensity;
-//     glm::vec3 direction; 
-// };
-
-
-// struct SceneData {
-
-// 	AmbientLight ambient;
-// 	DirectionalLight light;
-// };
-
-
 struct ImmediateSubmitContext{
 
 	vk::Queue queue;
