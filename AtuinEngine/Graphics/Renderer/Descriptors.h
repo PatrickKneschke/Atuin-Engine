@@ -4,6 +4,7 @@
 
 #include "VulkanInclude.h"
 #include "Definitions.h"
+#include "Core/Config/CVar.h"
 #include "Core/Util/Types.h"
 #include "Core/DataStructures/Array.h"
 #include "Core/DataStructures/Map.h"
@@ -29,9 +30,11 @@ private:
     vk::DescriptorPool GetNewPool();
     vk::DescriptorPool CreateDescriptorPool( U32 maxSets, U32 count, vk::DescriptorPoolSize* poolSizes, vk::DescriptorPoolCreateFlags flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet);
 
+
+    static CVar<U32>* pMaxSetsPerPool;
+
     vk::Device mDevice;
 
-    U32 mMaxSetsPerPool; // TODO maybe as CVar
     Array<vk::DescriptorPoolSize> mPoolSizes;
 
     vk::DescriptorPool mCurrPool;

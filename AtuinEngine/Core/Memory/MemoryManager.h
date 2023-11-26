@@ -23,8 +23,6 @@ public:
     MemoryManager();
     ~MemoryManager() = default;
 
-    // TODO make these thread-safe!!!
-
     void* Allocate(Size size, U8 alignment);
     void  Free(void *ptr);
 

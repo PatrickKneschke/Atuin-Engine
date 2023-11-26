@@ -1,8 +1,12 @@
 
 #include "Descriptors.h"
+#include "Core/Config/ConfigManager.h"
 
 
 namespace Atuin {
+
+
+CVar<U32>* DescriptorSetAllocator::pMaxSetsPerPool = ConfigManager::RegisterCVar( "Rednerer", "MAX_DESCRIPTOR_SETS", (U32)100);
 
 
 /***    DescriptorSetAllocator    ****/
@@ -11,19 +15,19 @@ namespace Atuin {
 void DescriptorSetAllocator::Init( vk::Device device) {
 
     mDevice = device;
-    mMaxSetsPerPool = 100;
+    U32 maxSetsPerPool = pMaxSetsPerPool->Get();
     mPoolSizes = {
-        // vk::DescriptorPoolSize{ vk::DescriptorType::eSampler,              (U32)( (float)mMaxSetsPerPool * 0.5f) },
-		// vk::DescriptorPoolSize{ vk::DescriptorType::eSampledImage,         mMaxSetsPerPool * 4 },
-        vk::DescriptorPoolSize{ vk::DescriptorType::eCombinedImageSampler, mMaxSetsPerPool * 4 },
-		vk::DescriptorPoolSize{ vk::DescriptorType::eStorageImage,         mMaxSetsPerPool * 4 },
-		// vk::DescriptorPoolSize{ vk::DescriptorType::eUniformTexelBuffer,   mMaxSetsPerPool * 1 },
-		// vk::DescriptorPoolSize{ vk::DescriptorType::eStorageTexelBuffer,   mMaxSetsPerPool * 1 },
-		vk::DescriptorPoolSize{ vk::DescriptorType::eUniformBuffer,        mMaxSetsPerPool * 2 },
-		vk::DescriptorPoolSize{ vk::DescriptorType::eUniformBufferDynamic, mMaxSetsPerPool * 1 },
-		vk::DescriptorPoolSize{ vk::DescriptorType::eStorageBuffer,        mMaxSetsPerPool * 4 },
-		vk::DescriptorPoolSize{ vk::DescriptorType::eStorageBufferDynamic, mMaxSetsPerPool * 1 },
-		// vk::DescriptorPoolSize{ vk::DescriptorType::eInputAttachment,      (U32)( (float)mMaxSetsPerPool * 0.5f) }
+        // vk::DescriptorPoolSize{ vk::DescriptorType::eSampler,              (U32)( (float)maxSetsPerPool * 0.5f) },
+		// vk::DescriptorPoolSize{ vk::DescriptorType::eSampledImage,         maxSetsPerPool * 4 },
+        vk::DescriptorPoolSize{ vk::DescriptorType::eCombinedImageSampler, maxSetsPerPool * 4 },
+		vk::DescriptorPoolSize{ vk::DescriptorType::eStorageImage,         maxSetsPerPool * 4 },
+		// vk::DescriptorPoolSize{ vk::DescriptorType::eUniformTexelBuffer,   maxSetsPerPool * 1 },
+		// vk::DescriptorPoolSize{ vk::DescriptorType::eStorageTexelBuffer,   maxSetsPerPool * 1 },
+		vk::DescriptorPoolSize{ vk::DescriptorType::eUniformBuffer,        maxSetsPerPool * 2 },
+		vk::DescriptorPoolSize{ vk::DescriptorType::eUniformBufferDynamic, maxSetsPerPool * 1 },
+		vk::DescriptorPoolSize{ vk::DescriptorType::eStorageBuffer,        maxSetsPerPool * 4 },
+		vk::DescriptorPoolSize{ vk::DescriptorType::eStorageBufferDynamic, maxSetsPerPool * 1 },
+		// vk::DescriptorPoolSize{ vk::DescriptorType::eInputAttachment,      (U32)( (float)maxSetsPerPool * 0.5f) }
     };
 }
     
@@ -88,7 +92,7 @@ vk::DescriptorPool DescriptorSetAllocator::GetNewPool() {
 
     if( mFreePools.IsEmpty())
     {
-        return CreateDescriptorPool( mMaxSetsPerPool, (U32)mPoolSizes.GetSize(), mPoolSizes.Data());
+        return CreateDescriptorPool( pMaxSetsPerPool->Get(), (U32)mPoolSizes.GetSize(), mPoolSizes.Data());
     }
 
     auto pool = mFreePools.Back();
