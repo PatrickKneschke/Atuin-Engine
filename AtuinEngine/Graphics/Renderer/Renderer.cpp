@@ -150,6 +150,14 @@ void Renderer::ShutDown() {
 	pCore->Device().destroyImage( mDepthImage.image);
 	pCore->Device().freeMemory( mDepthImage.imageMemory);
 
+	for (auto imageView : mDepthPyramidViews)
+	{
+		pCore->Device().destroyImageView( imageView);
+	}
+	pCore->Device().destroyImageView( mDepthPyramid.imageView);
+	pCore->Device().destroyImage( mDepthPyramid.image);
+	pCore->Device().freeMemory( mDepthPyramid.imageMemory);
+
 	for (auto imageView : mSwapchain.imageViews)
 	{
 		pCore->Device().destroyImageView( imageView);
@@ -228,22 +236,12 @@ void Renderer::CreateDepthResources() {
 
 	TransitionImageLayout( mDepthPyramid.image, vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral, pyramidLevels);
 
-	mDeletionStack.Push( [&](){
-		pCore->Device().destroyImageView( mDepthPyramid.imageView );
-		pCore->Device().destroyImage( mDepthPyramid.image );
-		pCore->Device().freeMemory( mDepthPyramid.imageMemory );
-	});
-
 	mDepthPyramidViews.Resize( pyramidLevels);
 	for ( U32 i = 0; i < pyramidLevels; i++)
 	{
 		mDepthPyramidViews[i] = pCore->CreateImageView(
 			mDepthPyramid.image, mDepthPyramid.format, vk::ImageAspectFlagBits::eColor, i, 1
 		);
-
-		mDeletionStack.Push( [&, i](){
-			pCore->Device().destroyImageView( mDepthPyramidViews[i] );
-		});
 	}
 }
 
@@ -445,11 +443,19 @@ void Renderer::RecreateSwapchain() {
 	DestroyFramebuffers();
 
 	// depth image
-	pCore->Device().destroyImageView(mDepthImage.imageView, nullptr);
-	pCore->Device().destroyImage(mDepthImage.image, nullptr);
-	pCore->Device().freeMemory(mDepthImage.imageMemory, nullptr);	
+	pCore->Device().destroyImageView( mDepthImage.imageView);
+	pCore->Device().destroyImage( mDepthImage.image);
+	pCore->Device().freeMemory( mDepthImage.imageMemory);
 
-	// TODO  destroy depth pyramid here
+	// depth pyramid here
+	for (auto imageView : mDepthPyramidViews)
+	{
+		pCore->Device().destroyImageView( imageView);
+	}
+	pCore->Device().destroyImageView( mDepthPyramid.imageView);
+	pCore->Device().destroyImage( mDepthPyramid.image);
+	pCore->Device().freeMemory( mDepthPyramid.imageMemory);
+
 
 	// swapchain
 	for(auto &imageView : mSwapchain.imageViews) 
