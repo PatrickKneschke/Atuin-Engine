@@ -21,14 +21,32 @@ class Files {
 
 public:
 
+    struct AsyncReadData {
+
+        std::string fileName;
+        Array<char> buffer;
+        std::ios::openmode mode = std::ios::in;
+    };
+
+    struct AsyncWriteData {
+
+        std::string fileName;
+        std::string buffer;
+        std::ios::openmode mode = std::ios::out;
+    };
+
+
     Files() : pFileManager {sFileManager} {}
 
-    bool Ready() { return sFileManager != nullptr; }
+    bool Ready() const { return sFileManager != nullptr; }
 
     void MakeDir(std::string_view dirName) const ;
 
-    Array<char> Read(std::string_view fileName, std::ios::openmode mode = std::ios::in) const ;
+    void Read(std::string_view fileName, Array<char> &buffer, std::ios::openmode mode = std::ios::in) const ;
     void Write(std::string_view fileName, std::string_view buffer, std::ios::openmode mode = std::ios::out) const ;
+ 
+    void ReadAsync(void *data) const;
+    void WriteAsync(void *data) const;
 
 private:
 

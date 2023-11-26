@@ -22,10 +22,9 @@ public:
 
     void MakeDir(std::string_view dirName);
 
-    Array<char> Read(std::string_view fileName, std::ios::openmode mode = std::ios::in);
+    void Read(std::string_view fileName, Array<char> &buffer, std::ios::openmode mode = std::ios::in);
     void Write(std::string_view fileName, std::string_view buffer, std::ios::openmode mode = std::ios::out);
 
-    //TODO add asynch read and write 
 
 private:
 

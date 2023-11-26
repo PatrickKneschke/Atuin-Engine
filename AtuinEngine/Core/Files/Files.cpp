@@ -18,14 +18,12 @@ void Files::MakeDir(std::string_view dirName) const {
 }
 
 
-Array<char> Files::Read(std::string_view fileName, std::ios::openmode mode) const {
+void Files::Read(std::string_view fileName, Array<char> &buffer, std::ios::openmode mode) const {
 
-    if (sFileManager != nullptr)
+    if ( Ready() )
     {
-        return sFileManager->Read(fileName, mode);   
+        sFileManager->Read(fileName, buffer, mode);
     }
-
-    return {};
 }
 
 
@@ -35,6 +33,22 @@ void Files::Write(std::string_view fileName, std::string_view buffer, std::ios::
     {
         sFileManager->Write(fileName, buffer, mode);   
     }
+}
+
+
+void Files::ReadAsync(void *data) const {
+
+    auto readData = (AsyncReadData*)data;
+
+    return Read( readData->fileName, readData->buffer, readData->mode);
+}
+
+
+void Files::WriteAsync(void *data) const {
+
+    auto writeData = (AsyncWriteData*)data;
+
+    Write( writeData->fileName, writeData->buffer, writeData->mode);
 }
 
 

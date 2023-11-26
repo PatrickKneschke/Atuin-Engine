@@ -587,7 +587,8 @@ void Renderer::CreateMaterial( std::string_view materialName) {
 	Material newMaterial;
 
 	// read material json
-	auto content = mFiles.Read( mResourceDir + materialName.data());
+	Array<char> content;
+	mFiles.Read( mResourceDir + materialName.data(), content);
 	Json materialJson = Json::Load( std::string_view( content.Data(), content.GetSize()));
 
 	// get pipeline
@@ -717,7 +718,8 @@ void Renderer::CreateSampler( std::string_view samplerName) {
 	U64 samplerId = SID( samplerName.data());
 
 	// read sampler json
-	auto content = mFiles.Read( mResourceDir + samplerName.data());
+	Array<char> content;
+	mFiles.Read( mResourceDir + samplerName.data(), content);
 	Json samplerJson = Json::Load( std::string_view( content.Data(), content.GetSize()));
 
 	auto samplerInfo = vk::SamplerCreateInfo{}
@@ -763,7 +765,8 @@ void Renderer::CreatePipeline( std::string_view pipelineName, vk::RenderPass ren
 	U64 pipelineId = SID( pipelineName.data());
 
 	// read pipeline json
-	auto content = mFiles.Read( mResourceDir + pipelineName.data());
+	Array<char> content;
+	mFiles.Read( mResourceDir + pipelineName.data(), content);
 	Json pipelineJson = Json::Load( std::string_view( content.Data(), content.GetSize()));
 
 	// read descriptor set layouts
@@ -940,8 +943,9 @@ void Renderer::CreateShaderModule( std::string_view shaderName) {
 
 	U64 shaderId = SID( shaderName.data());
 
-	auto vertShaderCode = mFiles.Read( mResourceDir + shaderName.data() , std::ios::binary);
-	auto newShader = pCore->CreateShaderModule( vertShaderCode.GetSize(), vertShaderCode.Data() );
+	Array<char> shaderCode;
+	mFiles.Read( mResourceDir + shaderName.data(), shaderCode, std::ios::binary);
+	auto newShader = pCore->CreateShaderModule( shaderCode.GetSize(), shaderCode.Data() );
 
 	mShaders[ shaderId] = newShader;
 

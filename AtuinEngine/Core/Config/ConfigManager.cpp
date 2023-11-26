@@ -23,7 +23,8 @@ void ConfigManager::Read(std::string_view configFile) {
 
     mConfigFile = configFile;
 
-    auto content = mFiles.Read(configFile);
+    Array<char> content;
+     mFiles.Read(configFile, content);
     ProcessConfigFile( content.Data(), content.GetSize() );
 }
 
