@@ -19,7 +19,7 @@ namespace Atuin {
 
 
 using JobID = int64_t;
-using Task  = std::function<void(void *data)>;
+using Task  = std::function<void(void*)>;
 
 
 class EngineLoop;

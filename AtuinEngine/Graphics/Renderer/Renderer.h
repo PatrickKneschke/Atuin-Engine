@@ -21,6 +21,7 @@
 #include "Core/DataStructures/Map.h"
 
 #include <functional>
+#include <mutex>
 
 
 class GLFWwindow;
@@ -199,8 +200,8 @@ private:
     void UpdateMeshPassBatchBuffer( MeshPass *pass, vk::CommandBuffer cmd);
     void UpdateMeshPassInstanceBuffer( MeshPass *pass, vk::CommandBuffer cmd);
     void UpdateObjectBuffer( vk::CommandBuffer cmd);
-    void UpdateCameraData( vk::CommandBuffer cmd);
-    void UpdateSceneData( vk::CommandBuffer cmd);
+    void UpdateCameraData();
+    void UpdateSceneData();
     void UpdateShadowCascade();
 
     // drawing
@@ -243,6 +244,8 @@ private:
 
     std::string mResourceDir;
 
+    std::mutex mUpdateMutex;
+
     GLFWwindow* pWindow;
     RendererCore* pCore;
     ResourceManager* pResources;
@@ -280,6 +283,7 @@ private:
     // culling
     Pipeline mViewCullPipeline;
     Pipeline mShadowCullPipeline;
+
     Array<vk::BufferMemoryBarrier> mPreCullBarriers;
     Array<vk::BufferMemoryBarrier> mPostCullBarriers;
 

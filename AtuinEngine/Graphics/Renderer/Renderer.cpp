@@ -185,9 +185,27 @@ void Renderer::Update() {
 		mMeshesDirty = false;
 	}
 
-	UpdateMeshPass( &mShadowMeshPass);
-	UpdateMeshPass( &mOpaqueMeshPass);
-	UpdateMeshPass( &mTransparentMeshPass);
+	auto meshUpdates = mJobs.CreateJob( [](void*){}, nullptr);
+	auto shadowUpdate = mJobs.CreateJob( [&](void *data){
+		UpdateMeshPass( (MeshPass*)data);
+	}, &mShadowMeshPass, meshUpdates);
+	auto opaqueUpdate = mJobs.CreateJob( [&](void *data){
+		UpdateMeshPass( (MeshPass*)data);
+	}, &mOpaqueMeshPass, meshUpdates);
+	auto transparentUpdate = mJobs.CreateJob( [&](void *data){
+		UpdateMeshPass( (MeshPass*)data);
+	}, &mTransparentMeshPass, meshUpdates);
+
+	mJobs.Run( shadowUpdate);
+	mJobs.Run( opaqueUpdate);
+	mJobs.Run( transparentUpdate);
+	mJobs.Run( meshUpdates);
+
+	mJobs.Wait( meshUpdates);
+
+	// UpdateMeshPass( &mShadowMeshPass);
+	// UpdateMeshPass( &mOpaqueMeshPass);
+	// UpdateMeshPass( &mTransparentMeshPass);
 
 	DrawFrame();
 }
@@ -1278,22 +1296,26 @@ void Renderer::UpdateMeshPassBatchBuffer( MeshPass *pass, vk::CommandBuffer cmd)
 		
 	cmd.copyBuffer(stagingBuffer.buffer, pass->drawIndirectBuffer.buffer, 1, &copyRegion);
 
-	mPreCullBarriers.PushBack( 
-		vk::BufferMemoryBarrier{}
-			.setBuffer( pass->drawIndirectBuffer.buffer)
-			.setSize( VK_WHOLE_SIZE)
-			.setSrcAccessMask( vk::AccessFlagBits::eTransferWrite)
-			.setDstAccessMask( vk::AccessFlagBits::eShaderRead)
-			.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
-			.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
-	);
+	{
+		std::lock_guard<std::mutex> lock( mUpdateMutex);
 
-	// cleanup
-	CurrentFrame().deletionStack.Push( [&, stagingBuffer]() {
+		mPreCullBarriers.PushBack( 
+			vk::BufferMemoryBarrier{}
+				.setBuffer( pass->drawIndirectBuffer.buffer)
+				.setSize( VK_WHOLE_SIZE)
+				.setSrcAccessMask( vk::AccessFlagBits::eTransferWrite)
+				.setDstAccessMask( vk::AccessFlagBits::eShaderRead)
+				.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+				.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+		);
 
-		pCore->Device().destroyBuffer( stagingBuffer.buffer);
-		pCore->Device().freeMemory( stagingBuffer.bufferMemory);
-	});
+		// cleanup
+		CurrentFrame().deletionStack.Push( [&, stagingBuffer]() {
+
+			pCore->Device().destroyBuffer( stagingBuffer.buffer);
+			pCore->Device().freeMemory( stagingBuffer.bufferMemory);
+		});
+	}
 }
     
 	
@@ -1334,22 +1356,26 @@ void Renderer::UpdateMeshPassInstanceBuffer( MeshPass *pass, vk::CommandBuffer c
 		
 	cmd.copyBuffer(stagingBuffer.buffer, pass->instanceDataBuffer.buffer, 1, &copyRegion);
 
-	mPreCullBarriers.PushBack( 
-		vk::BufferMemoryBarrier{}
-			.setBuffer( pass->instanceDataBuffer.buffer)
-			.setSize( VK_WHOLE_SIZE)
-			.setSrcAccessMask( vk::AccessFlagBits::eTransferWrite)
-			.setDstAccessMask( vk::AccessFlagBits::eShaderRead)
-			.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
-			.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
-	);
+	{
+		std::lock_guard<std::mutex> lock( mUpdateMutex);
 
-	// cleanup
-	CurrentFrame().deletionStack.Push( [&, stagingBuffer]() {
+		mPreCullBarriers.PushBack( 
+			vk::BufferMemoryBarrier{}
+				.setBuffer( pass->instanceDataBuffer.buffer)
+				.setSize( VK_WHOLE_SIZE)
+				.setSrcAccessMask( vk::AccessFlagBits::eTransferWrite)
+				.setDstAccessMask( vk::AccessFlagBits::eShaderRead)
+				.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+				.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
+		);
 
-		pCore->Device().destroyBuffer( stagingBuffer.buffer);
-		pCore->Device().freeMemory( stagingBuffer.bufferMemory);
-	});
+		// cleanup
+		CurrentFrame().deletionStack.Push( [&, stagingBuffer]() {
+
+			pCore->Device().destroyBuffer( stagingBuffer.buffer);
+			pCore->Device().freeMemory( stagingBuffer.bufferMemory);
+		});
+	}
 }
 
 
@@ -1366,7 +1392,6 @@ void Renderer::UpdateObjectBuffer( vk::CommandBuffer cmd) {
 	// recreate object buffer if necessary
 	if ( mObjectBuffer.bufferSize < copySize)
 	{
-		Array<U32> sharedQueueFamilies = {(U32)pCore->QueueFamilies().graphicsFamily, (U32)pCore->QueueFamilies().transferFamily};
 		CreateBuffer( 
 			mObjectBuffer, copySize,
 			vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
@@ -1428,22 +1453,26 @@ void Renderer::UpdateObjectBuffer( vk::CommandBuffer cmd) {
 	}
 	cmd.copyBuffer(stagingBuffer.buffer, mObjectBuffer.buffer, (U32)copies.GetSize(), copies.Data());
 
-	mPreCullBarriers.PushBack( 
-		vk::BufferMemoryBarrier{}
-			.setBuffer( mObjectBuffer.buffer)
-			.setSize( VK_WHOLE_SIZE)
-			.setSrcAccessMask( vk::AccessFlagBits::eTransferWrite)
-			.setDstAccessMask( vk::AccessFlagBits::eShaderRead)
-	);
-
 	mDirtyObjectIndices.Clear();
 
-	// cleanup
-	CurrentFrame().deletionStack.Push( [&, stagingBuffer]() {
+	{
+		std::lock_guard<std::mutex> lock( mUpdateMutex);
 
-		pCore->Device().destroyBuffer( stagingBuffer.buffer);
-		pCore->Device().freeMemory( stagingBuffer.bufferMemory);
-	});
+		mPreCullBarriers.PushBack( 
+			vk::BufferMemoryBarrier{}
+				.setBuffer( mObjectBuffer.buffer)
+				.setSize( VK_WHOLE_SIZE)
+				.setSrcAccessMask( vk::AccessFlagBits::eTransferWrite)
+				.setDstAccessMask( vk::AccessFlagBits::eShaderRead)
+		);
+
+		// cleanup
+		CurrentFrame().deletionStack.Push( [&, stagingBuffer]() {
+
+			pCore->Device().destroyBuffer( stagingBuffer.buffer);
+			pCore->Device().freeMemory( stagingBuffer.bufferMemory);
+		});
+	}
 }
 
 
@@ -1451,6 +1480,8 @@ void Renderer::CreateBuffer( Buffer &buffer, Size size, vk::BufferUsageFlags usa
 
 	if ( (bool)buffer.buffer)
 	{
+		std::lock_guard<std::mutex> lock( mUpdateMutex);
+
 		NextFrame().deletionStack.Push([&, buffer](){
 
 			pCore->Device().destroyBuffer( buffer.buffer);
@@ -1981,7 +2012,7 @@ void Renderer::CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, Size offse
 }
 
 
-void Renderer::UpdateCameraData( vk::CommandBuffer cmd) {
+void Renderer::UpdateCameraData() {
 
 	CameraData camera;
 	camera.view = mMainCamera.View();
@@ -1993,15 +2024,11 @@ void Renderer::UpdateCameraData( vk::CommandBuffer cmd) {
 }
 
 
-void Renderer::UpdateSceneData( vk::CommandBuffer cmd) {
+void Renderer::UpdateSceneData() {
 
 	float angle = (float)mFrameCount / 240.f * glm::radians(30.f);
 	mMainLight.direction = {cos(angle), -1.f, sin(angle)};
 
-	auto viewProj = glm::orthoZO( -(float)mShadowExtent.width, (float)mShadowExtent.width, 
-								   (float)mShadowExtent.height, -(float)mShadowExtent.height, 
-								  -(float)mShadowExtent.depth, (float)mShadowExtent.depth ) *
-					glm::lookAt( mMainCamera.position, mMainCamera.position + mMainLight.direction, mMainCamera.up);
 	SceneData scene;
 	scene.ambientColor = glm::vec3(1.f, 1.f, 1.f);
 	scene.ambientIntensity = 0.03f;
@@ -2012,7 +2039,11 @@ void Renderer::UpdateSceneData( vk::CommandBuffer cmd) {
 	UploadBufferData( &scene, sizeof( SceneData), mSceneBuffer.buffer);
 
 	// TODO change later for multiple lights -> seperate update lights method
-	UploadBufferData( &viewProj, sizeof( glm::mat4), mLightBuffer.buffer);
+	// auto viewProj = glm::orthoZO( -(float)mShadowExtent.width, (float)mShadowExtent.width, 
+	// 							   (float)mShadowExtent.height, -(float)mShadowExtent.height, 
+	// 							  -(float)mShadowExtent.depth, (float)mShadowExtent.depth ) *
+	// 				glm::lookAt( mMainCamera.position, mMainCamera.position + mMainLight.direction, mMainCamera.up);
+	// UploadBufferData( &viewProj, sizeof( glm::mat4), mLightBuffer.buffer);
 }
 
 
@@ -2166,19 +2197,65 @@ void Renderer::DrawFrame() {
 	// buffer updates
 	mPreCullBarriers.Clear();
 
-	UpdateCameraData( cmd);
-	UpdateSceneData( cmd);
-	UpdateShadowCascade();
+
+	// UpdateCameraData();
+	// UpdateSceneData();
+	// UpdateShadowCascade();
+
+	// UpdateObjectBuffer( cmd);
+
+    // UpdateMeshPassBatchBuffer( &mShadowMeshPass, cmd);
+    // UpdateMeshPassInstanceBuffer( &mShadowMeshPass, cmd);
+    // UpdateMeshPassBatchBuffer( &mOpaqueMeshPass, cmd);
+    // UpdateMeshPassInstanceBuffer( &mOpaqueMeshPass, cmd);
+    // UpdateMeshPassBatchBuffer( &mTransparentMeshPass, cmd);
+    // UpdateMeshPassInstanceBuffer( &mTransparentMeshPass, cmd);
 
 
-	UpdateObjectBuffer( cmd);
+	auto preCullUpdates = mJobs.CreateJob( [](void*){}, nullptr);
 
-    UpdateMeshPassBatchBuffer( &mOpaqueMeshPass, cmd);
-    UpdateMeshPassInstanceBuffer( &mOpaqueMeshPass, cmd);
-    UpdateMeshPassBatchBuffer( &mTransparentMeshPass, cmd);
-    UpdateMeshPassInstanceBuffer( &mTransparentMeshPass, cmd);
-    UpdateMeshPassBatchBuffer( &mShadowMeshPass, cmd);
-    UpdateMeshPassInstanceBuffer( &mShadowMeshPass, cmd);
+	auto sceneUpdate =  mJobs.CreateJob( [&](void*){
+		UpdateCameraData();
+		UpdateSceneData();
+		UpdateShadowCascade();
+	}, nullptr, preCullUpdates);
+	mJobs.Run( sceneUpdate);
+
+	auto objectUpdate =  mJobs.CreateJob( [&](void*){
+		UpdateObjectBuffer( cmd);
+	}, nullptr, preCullUpdates);
+	mJobs.Run( objectUpdate);
+
+	auto shadowBatchUpdate =  mJobs.CreateJob( [&](void *data){
+		UpdateMeshPassBatchBuffer( (MeshPass*)data, cmd);
+	}, &mShadowMeshPass, preCullUpdates);
+	auto shadowInstanceUpdate =  mJobs.CreateJob( [&](void *data){
+		UpdateMeshPassInstanceBuffer( (MeshPass*)data, cmd);
+	}, &mShadowMeshPass, preCullUpdates);
+	mJobs.Run( shadowBatchUpdate);
+	mJobs.Run( shadowInstanceUpdate);
+
+	auto opaqueBatchUpdate =  mJobs.CreateJob( [&](void *data){
+		UpdateMeshPassBatchBuffer( (MeshPass*)data, cmd);
+	}, &mOpaqueMeshPass, preCullUpdates);
+	auto opaqueInstanceUpdate =  mJobs.CreateJob( [&](void *data){
+		UpdateMeshPassInstanceBuffer( (MeshPass*)data, cmd);
+	}, &mOpaqueMeshPass, preCullUpdates);
+	mJobs.Run( opaqueBatchUpdate);
+	mJobs.Run( opaqueInstanceUpdate);
+
+	auto transparentBatchUpdate =  mJobs.CreateJob( [&](void *data){
+		UpdateMeshPassBatchBuffer( (MeshPass*)data, cmd);
+	}, &mTransparentMeshPass, preCullUpdates);
+	auto transparentInstanceUpdate =  mJobs.CreateJob( [&](void *data){
+		UpdateMeshPassInstanceBuffer( (MeshPass*)data, cmd);
+	}, &mTransparentMeshPass, preCullUpdates);
+	mJobs.Run( transparentBatchUpdate);
+	mJobs.Run( transparentInstanceUpdate);
+
+	mJobs.Run( preCullUpdates);
+	mJobs.Wait( preCullUpdates);
+
 
 	cmd.pipelineBarrier( 
 		vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eComputeShader, vk::DependencyFlags{}, 
@@ -2188,7 +2265,7 @@ void Renderer::DrawFrame() {
 
 	// compute culling
 	mPostCullBarriers.Clear();
-
+	
 	CullShadowPass( cmd);
 	CullForwardPass( cmd);
 
