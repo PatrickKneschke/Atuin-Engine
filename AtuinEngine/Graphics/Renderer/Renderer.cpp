@@ -1253,133 +1253,116 @@ void Renderer::BuildMeshPassBatches( MeshPass *pass) {
 }
 
 
-void Renderer::UpdateMeshPassBatchBuffer( MeshPass *pass, vk::CommandBuffer cmd) {
+void Renderer::UpdateMeshPassBatchBuffer( AsyncBufferCopyData *data) {
 
+	auto pass = data->pass;
 	if ( pass->indirectBatches.IsEmpty())
 	{
 		return;
 	}
+
+	data->targetBuffer = pass->drawIndirectBuffer.buffer;
 
 	Size copySize = pass->indirectBatches.GetSize() * sizeof(IndirectData);
 
 	// fill staging buffer
-	Buffer stagingBuffer = CreateStagingBuffer( copySize);
-	void *data;
-	vk::Result result = pCore->Device().mapMemory( stagingBuffer.bufferMemory, 0, copySize, vk::MemoryMapFlags(), &data);
+	data->stagingBuffer = CreateStagingBuffer( copySize);
+	void *memPtr;
+	vk::Result result = pCore->Device().mapMemory( data->stagingBuffer.bufferMemory, 0, copySize, vk::MemoryMapFlags(), &memPtr);
 	if( result != vk::Result::eSuccess )
 	{
 		throw std::runtime_error("Failed to map staging buffer memory " + vk::to_string(result));
 	}
+	IndirectData *indirectData = (IndirectData*)memPtr;
 
-	IndirectData *indirectData = (IndirectData*)data;
-	for ( U32 i = 0; i < pass->indirectBatches.GetSize(); i++)
+	U32 N = (U32)pass->indirectBatches.GetSize(), k = 20, M = N / k;
+	auto copies = mJobs.CreateJob( [](void*){}, nullptr);
+	for ( U32 i = 0; i <= M; i++)
 	{
-		IndirectBatch batch = pass->indirectBatches[i];
-		Mesh &mesh = mMeshes[ mRenderObjects[batch.objectIdx].meshId ];
+		auto copy = mJobs.CreateJob( [&, i](void*){
 
-		indirectData[i].batchIdx = i;
-		indirectData[i].objectIdx = batch.objectIdx;
-		indirectData[i].drawIndirectCmd
-			.setVertexOffset( mesh.firstVertex )
-			.setFirstIndex( mesh.firstIndex )
-			.setIndexCount( mesh.indexCount )
-			.setFirstInstance( batch.first )
-			.setInstanceCount( 0 );
-			// .setInstanceCount( batch.count );
+			for ( U32 j = i * k; j < (i + 1) * k  &&  j < N; j++)
+			{
+				IndirectBatch batch = pass->indirectBatches[j];
+				Mesh &mesh = mMeshes[ mRenderObjects[batch.objectIdx].meshId ];
+
+				indirectData[j].batchIdx = j;
+				indirectData[j].objectIdx = batch.objectIdx;
+				indirectData[j].drawIndirectCmd
+					.setVertexOffset( mesh.firstVertex )
+					.setFirstIndex( mesh.firstIndex )
+					.setIndexCount( mesh.indexCount )
+					.setFirstInstance( batch.first )
+					.setInstanceCount( 0 );
+			}
+		}, nullptr, copies);
+		mJobs.Run( copy);
 	}
-	pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
+	mJobs.Run( copies);
+	mJobs.Wait( copies);
 
-	auto copyRegion = vk::BufferCopy{}
-		.setSrcOffset( 0 )
-		.setDstOffset( 0 )
-		.setSize( copySize );
-		
-	cmd.copyBuffer(stagingBuffer.buffer, pass->drawIndirectBuffer.buffer, 1, &copyRegion);
+	pCore->Device().unmapMemory( data->stagingBuffer.bufferMemory);
 
-	{
-		std::lock_guard<std::mutex> lock( mUpdateMutex);
-
-		mPreCullBarriers.PushBack( 
-			vk::BufferMemoryBarrier{}
-				.setBuffer( pass->drawIndirectBuffer.buffer)
-				.setSize( VK_WHOLE_SIZE)
-				.setSrcAccessMask( vk::AccessFlagBits::eTransferWrite)
-				.setDstAccessMask( vk::AccessFlagBits::eShaderRead)
-				.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
-				.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
-		);
-
-		// cleanup
-		CurrentFrame().deletionStack.Push( [&, stagingBuffer]() {
-
-			pCore->Device().destroyBuffer( stagingBuffer.buffer);
-			pCore->Device().freeMemory( stagingBuffer.bufferMemory);
-		});
-	}
+	data->bufferCopies.PushBack(
+		vk::BufferCopy{}
+			.setSrcOffset( 0 )
+			.setDstOffset( 0 )
+			.setSize( copySize )
+	);
 }
     
 	
-void Renderer::UpdateMeshPassInstanceBuffer( MeshPass *pass, vk::CommandBuffer cmd) {
+void Renderer::UpdateMeshPassInstanceBuffer( AsyncBufferCopyData *data) {
 
+	auto pass = data->pass;
 	if ( pass->indirectBatches.IsEmpty())
 	{
 		return;
 	}
 
+	data->targetBuffer = pass->instanceDataBuffer.buffer;
+
 	Size copySize = pass->renderBatches.GetSize() * sizeof(InstanceData);
 
 	// fill staging buffer
-	Buffer stagingBuffer = CreateStagingBuffer( copySize);
-	void *data;
-	vk::Result result = pCore->Device().mapMemory( stagingBuffer.bufferMemory, 0, copySize, vk::MemoryMapFlags(), &data);
+	data->stagingBuffer = CreateStagingBuffer( copySize);
+	void *memPtr;
+	vk::Result result = pCore->Device().mapMemory( data->stagingBuffer.bufferMemory, 0, copySize, vk::MemoryMapFlags(), &memPtr);
 	if( result != vk::Result::eSuccess )
 	{
 		throw std::runtime_error("Failed to map staging buffer memory " + vk::to_string(result));
 	}
+	InstanceData *instanceData = (InstanceData*)memPtr;
 
-	InstanceData *instanceData = (InstanceData*)data;
+	auto copies = mJobs.CreateJob( [](void*){}, nullptr);
 	for ( U32 batchIdx = 0; batchIdx < pass->indirectBatches.GetSize(); batchIdx++)
 	{
-		IndirectBatch batch = pass->indirectBatches[ batchIdx];
-		for ( U32 i = 0; i < batch.count; i++)
-		{
-			instanceData[ batch.first + i].batchIdx = batchIdx;
-			instanceData[ batch.first + i].objectIdx = pass->renderBatches[ batch.first + i].objectIdx;
-		}
+		auto copy = mJobs.CreateJob( [&, batchIdx](void*){
+
+			IndirectBatch batch = pass->indirectBatches[ batchIdx];
+			for ( U32 i = 0; i < batch.count; i++)
+			{
+				instanceData[ batch.first + i].batchIdx = batchIdx;
+				instanceData[ batch.first + i].objectIdx = pass->renderBatches[ batch.first + i].objectIdx;
+			}
+		}, nullptr, copies);
+		mJobs.Run( copy);
 	}
-	pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
+	mJobs.Run( copies);
+	mJobs.Wait( copies);
 
-	auto copyRegion = vk::BufferCopy{}
-		.setSrcOffset( 0 )
-		.setDstOffset( 0 )
-		.setSize( copySize );
-		
-	cmd.copyBuffer(stagingBuffer.buffer, pass->instanceDataBuffer.buffer, 1, &copyRegion);
+	pCore->Device().unmapMemory( data->stagingBuffer.bufferMemory);
 
-	{
-		std::lock_guard<std::mutex> lock( mUpdateMutex);
-
-		mPreCullBarriers.PushBack( 
-			vk::BufferMemoryBarrier{}
-				.setBuffer( pass->instanceDataBuffer.buffer)
-				.setSize( VK_WHOLE_SIZE)
-				.setSrcAccessMask( vk::AccessFlagBits::eTransferWrite)
-				.setDstAccessMask( vk::AccessFlagBits::eShaderRead)
-				.setSrcQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
-				.setDstQueueFamilyIndex( pCore->QueueFamilies().graphicsFamily)
-		);
-
-		// cleanup
-		CurrentFrame().deletionStack.Push( [&, stagingBuffer]() {
-
-			pCore->Device().destroyBuffer( stagingBuffer.buffer);
-			pCore->Device().freeMemory( stagingBuffer.bufferMemory);
-		});
-	}
+	data->bufferCopies.PushBack(
+		vk::BufferCopy{}
+			.setSrcOffset( 0 )
+			.setDstOffset( 0 )
+			.setSize( copySize )
+	);
 }
 
 
-void Renderer::UpdateObjectBuffer( vk::CommandBuffer cmd) {
+void Renderer::UpdateObjectBuffer( AsyncBufferCopyData *data) {
 
 	// do nothing if object data has not changed
 	if ( mDirtyObjectIndices.IsEmpty())
@@ -1399,80 +1382,48 @@ void Renderer::UpdateObjectBuffer( vk::CommandBuffer cmd) {
 		);
 	}
 
-	// // reupload whole object data buffer
-	// Buffer stagingBuffer = CreateStagingBuffer( copySize);
-	// void *data;
-	// vk::Result result = pCore->Device().mapMemory( stagingBuffer.bufferMemory, 0, copySize, vk::MemoryMapFlags(), &data);
-	// if( result != vk::Result::eSuccess )
-	// {
-	// 	throw std::runtime_error("Failed to map staging buffer memory " + vk::to_string(result));
-	// }
-
-	// ObjectData *objData = (ObjectData*)data;
-	// for ( Size i = 0; i < mRenderObjects.GetSize(); i++)
-	// {
-	// 	objData[i].transform = *mRenderObjects[i].transform;
-	// 	objData[i].sphereBounds = *mRenderObjects[i].sphereBounds;
-	// 	mRenderObjects[i].updated = false;
-	// }
-	// pCore->Device().unmapMemory( stagingBuffer.bufferMemory);
-
-	// auto copyRegion = vk::BufferCopy{}
-	// 	.setSrcOffset( 0 )
-	// 	.setDstOffset( 0 )
-	// 	.setSize( copySize );
-			
-	// cmd.copyBuffer(stagingBuffer.buffer, mObjectBuffer.buffer, 1, &copyRegion);
-
+	data->targetBuffer = mObjectBuffer.buffer;
 
 	// TODO check if compute shader performs better
 	// partial buffer update
-	Buffer stagingBuffer = CreateStagingBuffer( mDirtyObjectIndices.GetSize() * sizeof( ObjectData));
-	void *data;
-	vk::Result result = pCore->Device().mapMemory( stagingBuffer.bufferMemory, 0, VK_WHOLE_SIZE, vk::MemoryMapFlags(), &data);
-	if( result != vk::Result::eSuccess )
+	data->stagingBuffer = CreateStagingBuffer( mDirtyObjectIndices.GetSize() * sizeof( ObjectData));
+	void *memPtr;
+	vk::Result result = pCore->Device().mapMemory( data->stagingBuffer.bufferMemory, 0, VK_WHOLE_SIZE, vk::MemoryMapFlags(), &memPtr);
+	if ( result != vk::Result::eSuccess )
 	{
 		throw std::runtime_error("Failed to map staging buffer memory " + vk::to_string(result));
 	}
-	ObjectData *objData = (ObjectData*)data;
+	ObjectData *objData = (ObjectData*)memPtr;
 
-	Array<vk::BufferCopy> copies;
-	copies.Reserve( mDirtyObjectIndices.GetSize());
-	for( U32 i = 0; i < (U32)mDirtyObjectIndices.GetSize(); i++)
+	// launch M + 1 jobs performing at most k copy operatins
+	U32 N = (U32)mDirtyObjectIndices.GetSize(), k = 20, M = N / k;
+	data->bufferCopies.Resize( N);
+	auto copies = mJobs.CreateJob( [](void*){}, nullptr);
+	for ( U32 i = 0; i <= M; i++)
 	{
-		objData[i].transform = *mRenderObjects[ mDirtyObjectIndices[i]].transform;
-		objData[i].sphereBounds = *mRenderObjects[ mDirtyObjectIndices[i]].sphereBounds;
-		mRenderObjects[i].updated = false;
+		auto copy = mJobs.CreateJob( [&, i](void*){
+			
+			for ( U32 j = i * k; j < (i + 1) * k  &&  j < N; j++)
+			{
+				objData[j].transform = *mRenderObjects[ mDirtyObjectIndices[j]].transform;
+				objData[j].sphereBounds = *mRenderObjects[ mDirtyObjectIndices[j]].sphereBounds;
+				mRenderObjects[j].updated = false;
 
-		copies.PushBack(
-			vk::BufferCopy{}
-				.setSrcOffset( i * sizeof( ObjectData) )
-				.setDstOffset( mDirtyObjectIndices[i] * sizeof( ObjectData) )
-				.setSize( sizeof( ObjectData) )
-		);
+				data->bufferCopies[j]
+					.setSrcOffset( j * sizeof( ObjectData) )
+					.setDstOffset( mDirtyObjectIndices[j] * sizeof( ObjectData) )
+					.setSize( sizeof( ObjectData) );
+			}
+		}, nullptr, copies);
+		mJobs.Run( copy);
 	}
-	cmd.copyBuffer(stagingBuffer.buffer, mObjectBuffer.buffer, (U32)copies.GetSize(), copies.Data());
+
+	mJobs.Run( copies);
+	mJobs.Wait( copies);
+	
+	pCore->Device().unmapMemory( data->stagingBuffer.bufferMemory);
 
 	mDirtyObjectIndices.Clear();
-
-	{
-		std::lock_guard<std::mutex> lock( mUpdateMutex);
-
-		mPreCullBarriers.PushBack( 
-			vk::BufferMemoryBarrier{}
-				.setBuffer( mObjectBuffer.buffer)
-				.setSize( VK_WHOLE_SIZE)
-				.setSrcAccessMask( vk::AccessFlagBits::eTransferWrite)
-				.setDstAccessMask( vk::AccessFlagBits::eShaderRead)
-		);
-
-		// cleanup
-		CurrentFrame().deletionStack.Push( [&, stagingBuffer]() {
-
-			pCore->Device().destroyBuffer( stagingBuffer.buffer);
-			pCore->Device().freeMemory( stagingBuffer.bufferMemory);
-		});
-	}
 }
 
 
@@ -2137,6 +2088,27 @@ void Renderer::UpdateShadowCascade() {
 }
 
 
+void Renderer::FinishBufferUpdate( vk::CommandBuffer cmd, AsyncBufferCopyData *data) {
+
+
+	cmd.copyBuffer(data->stagingBuffer.buffer, data->targetBuffer, (U32)data->bufferCopies.GetSize(), data->bufferCopies.Data());
+
+	mPreCullBarriers.PushBack( 
+		vk::BufferMemoryBarrier{}
+			.setBuffer( data->targetBuffer)
+			.setSize( VK_WHOLE_SIZE)
+			.setSrcAccessMask( vk::AccessFlagBits::eTransferWrite)
+			.setDstAccessMask( vk::AccessFlagBits::eShaderRead)
+	);
+
+	CurrentFrame().deletionStack.Push( [&, sb = data->stagingBuffer]() {
+
+		pCore->Device().destroyBuffer( sb.buffer);
+		pCore->Device().freeMemory( sb.bufferMemory);
+	});
+}
+
+
 void Renderer::DrawFrame() {
 
 	auto &frame = CurrentFrame();
@@ -2221,40 +2193,67 @@ void Renderer::DrawFrame() {
 	}, nullptr, preCullUpdates);
 	mJobs.Run( sceneUpdate);
 
-	auto objectUpdate =  mJobs.CreateJob( [&](void*){
-		UpdateObjectBuffer( cmd);
-	}, nullptr, preCullUpdates);
+
+	AsyncBufferCopyData objectUpdateData;
+	auto objectUpdate =  mJobs.CreateJob( [&](void* data){
+		UpdateObjectBuffer( (AsyncBufferCopyData*)data);
+	}, &objectUpdateData, preCullUpdates);
 	mJobs.Run( objectUpdate);
 
+	AsyncBufferCopyData shadowBatchUpdateData;
+	shadowBatchUpdateData.pass = &mShadowMeshPass;
 	auto shadowBatchUpdate =  mJobs.CreateJob( [&](void *data){
-		UpdateMeshPassBatchBuffer( (MeshPass*)data, cmd);
-	}, &mShadowMeshPass, preCullUpdates);
-	auto shadowInstanceUpdate =  mJobs.CreateJob( [&](void *data){
-		UpdateMeshPassInstanceBuffer( (MeshPass*)data, cmd);
-	}, &mShadowMeshPass, preCullUpdates);
+		UpdateMeshPassBatchBuffer( (AsyncBufferCopyData*)data);
+	}, &shadowBatchUpdateData, preCullUpdates);
 	mJobs.Run( shadowBatchUpdate);
+
+	AsyncBufferCopyData shadowInstanceUpdateData;
+	shadowInstanceUpdateData.pass = &mShadowMeshPass;
+	auto shadowInstanceUpdate =  mJobs.CreateJob( [&](void *data){
+		UpdateMeshPassInstanceBuffer( (AsyncBufferCopyData*)data);
+	}, &shadowInstanceUpdateData, preCullUpdates);
 	mJobs.Run( shadowInstanceUpdate);
 
+	AsyncBufferCopyData opaqueBatchUpdateData;
+	opaqueBatchUpdateData.pass = &mOpaqueMeshPass;
 	auto opaqueBatchUpdate =  mJobs.CreateJob( [&](void *data){
-		UpdateMeshPassBatchBuffer( (MeshPass*)data, cmd);
-	}, &mOpaqueMeshPass, preCullUpdates);
-	auto opaqueInstanceUpdate =  mJobs.CreateJob( [&](void *data){
-		UpdateMeshPassInstanceBuffer( (MeshPass*)data, cmd);
-	}, &mOpaqueMeshPass, preCullUpdates);
+		UpdateMeshPassBatchBuffer( (AsyncBufferCopyData*)data);
+	}, &opaqueBatchUpdateData, preCullUpdates);
 	mJobs.Run( opaqueBatchUpdate);
+
+	AsyncBufferCopyData opaqueInstanceUpdateData;
+	opaqueInstanceUpdateData.pass = &mOpaqueMeshPass;
+	auto opaqueInstanceUpdate =  mJobs.CreateJob( [&](void *data){
+		UpdateMeshPassInstanceBuffer( (AsyncBufferCopyData*)data);
+	}, &opaqueInstanceUpdateData, preCullUpdates);
 	mJobs.Run( opaqueInstanceUpdate);
 
+	AsyncBufferCopyData transparentBatchUpdateData;
+	transparentBatchUpdateData.pass = &mTransparentMeshPass;
 	auto transparentBatchUpdate =  mJobs.CreateJob( [&](void *data){
-		UpdateMeshPassBatchBuffer( (MeshPass*)data, cmd);
-	}, &mTransparentMeshPass, preCullUpdates);
-	auto transparentInstanceUpdate =  mJobs.CreateJob( [&](void *data){
-		UpdateMeshPassInstanceBuffer( (MeshPass*)data, cmd);
-	}, &mTransparentMeshPass, preCullUpdates);
+		UpdateMeshPassBatchBuffer( (AsyncBufferCopyData*)data);
+	}, &transparentBatchUpdateData, preCullUpdates);
 	mJobs.Run( transparentBatchUpdate);
+
+	AsyncBufferCopyData transparentInstanceUpdateData;
+	transparentInstanceUpdateData.pass = &mTransparentMeshPass;
+	auto transparentInstanceUpdate =  mJobs.CreateJob( [&](void *data){
+		UpdateMeshPassInstanceBuffer( (AsyncBufferCopyData*)data);
+	}, &transparentInstanceUpdateData, preCullUpdates);
 	mJobs.Run( transparentInstanceUpdate);
 
 	mJobs.Run( preCullUpdates);
 	mJobs.Wait( preCullUpdates);
+
+
+	FinishBufferUpdate( cmd, &objectUpdateData);
+
+	FinishBufferUpdate( cmd, &shadowBatchUpdateData);
+	FinishBufferUpdate( cmd, &shadowInstanceUpdateData);
+	FinishBufferUpdate( cmd, &opaqueBatchUpdateData);
+	FinishBufferUpdate( cmd, &opaqueInstanceUpdateData);
+	FinishBufferUpdate( cmd, &transparentBatchUpdateData);
+	FinishBufferUpdate( cmd, &transparentInstanceUpdateData);
 
 
 	cmd.pipelineBarrier( 

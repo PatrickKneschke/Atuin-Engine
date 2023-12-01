@@ -144,6 +144,15 @@ struct CullDebugData {
 };
 
 
+struct AsyncBufferCopyData {
+
+    Array<vk::BufferCopy> bufferCopies;
+    Buffer stagingBuffer;
+    vk::Buffer targetBuffer;
+    MeshPass* pass = nullptr;
+};
+
+
 class RendererCore;
 class ResourceManager;
 
@@ -197,9 +206,9 @@ private:
     void MergeMeshes();
     void UpdateMeshPass( MeshPass *pass);
     void BuildMeshPassBatches( MeshPass *pass);
-    void UpdateMeshPassBatchBuffer( MeshPass *pass, vk::CommandBuffer cmd);
-    void UpdateMeshPassInstanceBuffer( MeshPass *pass, vk::CommandBuffer cmd);
-    void UpdateObjectBuffer( vk::CommandBuffer cmd);
+    void UpdateMeshPassBatchBuffer( AsyncBufferCopyData *data);
+    void UpdateMeshPassInstanceBuffer( AsyncBufferCopyData *data);
+    void UpdateObjectBuffer( AsyncBufferCopyData *data);
     void UpdateCameraData();
     void UpdateSceneData();
     void UpdateShadowCascade();
@@ -228,6 +237,8 @@ private:
 
     void CreateSamplers();
     void CreatePipelines();
+
+    void FinishBufferUpdate( vk::CommandBuffer cmd, AsyncBufferCopyData *updateData);
 
 
     static CVar<U32>*   pFrameOverlap;
