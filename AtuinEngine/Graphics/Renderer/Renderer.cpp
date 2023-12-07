@@ -2169,21 +2169,6 @@ void Renderer::DrawFrame() {
 	// buffer updates
 	mPreCullBarriers.Clear();
 
-
-	// UpdateCameraData();
-	// UpdateSceneData();
-	// UpdateShadowCascade();
-
-	// UpdateObjectBuffer( cmd);
-
-    // UpdateMeshPassBatchBuffer( &mShadowMeshPass, cmd);
-    // UpdateMeshPassInstanceBuffer( &mShadowMeshPass, cmd);
-    // UpdateMeshPassBatchBuffer( &mOpaqueMeshPass, cmd);
-    // UpdateMeshPassInstanceBuffer( &mOpaqueMeshPass, cmd);
-    // UpdateMeshPassBatchBuffer( &mTransparentMeshPass, cmd);
-    // UpdateMeshPassInstanceBuffer( &mTransparentMeshPass, cmd);
-
-
 	auto preCullUpdates = mJobs.CreateJob( [](void*){}, nullptr);
 
 	auto sceneUpdate =  mJobs.CreateJob( [&](void*){
@@ -2199,6 +2184,7 @@ void Renderer::DrawFrame() {
 		UpdateObjectBuffer( (AsyncBufferCopyData*)data);
 	}, &objectUpdateData, preCullUpdates);
 	mJobs.Run( objectUpdate);
+
 
 	AsyncBufferCopyData shadowBatchUpdateData;
 	shadowBatchUpdateData.pass = &mShadowMeshPass;
@@ -2245,9 +2231,7 @@ void Renderer::DrawFrame() {
 	mJobs.Run( preCullUpdates);
 	mJobs.Wait( preCullUpdates);
 
-
 	FinishBufferUpdate( cmd, &objectUpdateData);
-
 	FinishBufferUpdate( cmd, &shadowBatchUpdateData);
 	FinishBufferUpdate( cmd, &shadowInstanceUpdateData);
 	FinishBufferUpdate( cmd, &opaqueBatchUpdateData);
