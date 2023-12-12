@@ -2,9 +2,10 @@
 #pragma once
 
 
+#include "Core/Util/Types.h"
 #include "Core/DataStructures/Array.h"
-#include "Core/DataStructures/Map.h"
 
+#include <bitset>
 #include <string>
 
 
@@ -18,10 +19,11 @@ class Component;
 class Entity {
 
 
-    enum class EntityAttributes {
+    enum class EntityState : U8{
         ACTIVE, 
         DIRTY,
-        DESTROY
+        DESTROY,
+        NUM_STATES
     };
 
 
@@ -52,8 +54,9 @@ private:
 
 
     std::string mName;
-    Map<U64, Component*> pComponents;
-    // Array<Component*> pComponents;
+    Array<Component*> pComponents;
+
+    std::bitset<(Size)EntityState::NUM_STATES> mState;
 
 };
 
