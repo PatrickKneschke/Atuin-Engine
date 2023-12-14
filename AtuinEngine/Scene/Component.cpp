@@ -5,6 +5,9 @@
 namespace Atuin {
 
 
+Map<U64, Component::PCreateFunc> Component::sConstructors;
+
+
 Component::Component() : entity {nullptr} {
 
 }

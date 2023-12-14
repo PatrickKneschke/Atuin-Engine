@@ -1,12 +1,13 @@
 
 #include "Transform.h"
+#include "Entity.h"
 #include "Core/Util/StringFormat.h"
 
 
 namespace Atuin {
 
 
-Transform::Transform( Entity* const entity) : pEntity { entity} {}
+Transform::Transform( Entity* const entity_) : entity { entity_} {}
     
 
 glm::vec3 Transform::WorldPosition() {
@@ -280,7 +281,7 @@ glm::vec3 Transform::LocalDirectionFromWorldDirection( const glm::vec3 &worldDir
 }
 
 
-void Transform::SetParent( Transform* const transform, bool inheritTransform = true) {
+void Transform::SetParent( Transform* const transform, bool inheritTransform) {
 
     Transform* parentTransform = transform;
     if (transform == nullptr) 
@@ -382,6 +383,12 @@ void Transform::RecalculateLocalToWorldMatrix() {
     {
         mAxis[i] = glm::normalize( glm::vec3( mLocalToWorldMatrix[i]));
     }
+}
+
+
+std::string Transform::GetEntityName() const { 
+    
+    return entity->Name(); 
 }
 
 

@@ -82,10 +82,10 @@ public:
     Array<Transform*>& GetChildren() { return pChildren; }
     Transform* GetChild(U32 childIndex);
 
-    inline std::string GetEntityName() const { /* return pEntity->Name() */}
+    inline std::string GetEntityName() const;
 
     /// Points to the entity that owns the transform
-    Entity* const pEntity = nullptr;
+    Entity* const entity = nullptr;
 
 
 private:
