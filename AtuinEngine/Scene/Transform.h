@@ -16,8 +16,7 @@ class Entity;
 
 
 class Transform {
-
-    friend class Entity;
+    
 
 public:
 
@@ -77,6 +76,7 @@ public:
 
     void AddChild(Transform* transform);
     void RemoveChild(Transform* transform);
+    void RemoveAllChildren();
     
     Size GetChildCount() const { return pChildren.GetSize(); }
     Array<Transform*>& GetChildren() { return pChildren; }

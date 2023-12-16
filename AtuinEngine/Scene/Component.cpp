@@ -6,10 +6,13 @@ namespace Atuin {
 
 
 Map<U64, Component::PCreateFunc> Component::sConstructors;
+Map<std::string, bool> Component::sComponentTypes;
 
 
 Component::Component() : entity {nullptr} {
 
+    // call Start() after creation and adding to entity
+    SetActive( true);
 }
 
 

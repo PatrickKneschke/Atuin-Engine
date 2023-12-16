@@ -19,6 +19,9 @@
             static bool NAME##Registered;                                       \
     };                                                                          \
     class NAME : public BASE, public ComponentRegistry<NAME, BASE, UNIQUE> {    \
+        public:                                                                 \
+            static std::string Type() { return #NAME; }                         \
+            static bool IsUnique() { return UNIQUE; }                           \
         protected:                                                              \
             static bool isRegistered() { return NAME##Registered; }             \
                                                                                 \
@@ -46,6 +49,8 @@ class Component {
 
     using PCreateFunc = Component* (*)();
 
+
+    friend class Entity;
     friend class Scene;
 
 
@@ -67,24 +72,24 @@ public:
     template<class Derived>
     static bool RegisterComponent( std::string componentName, bool isUnique) {
 
-        std::cout << "registered " << componentName << '\n';
-
         U64 componentTypeIdx = SID(componentName.c_str());
         // add component constructor
         sConstructors[ componentTypeIdx] = &CreateFunc<Derived>;
 
         // add to component type dict
-        auto &componentTypes = GetComponentTypes();
-        componentTypes[ componentTypeIdx] = isUnique;
+        sComponentTypes[ Derived::Type()] = isUnique;
 
         return true;
     }
 
-    static Map<U64, bool>& GetComponentTypes() {
+    static Map<std::string, bool>& GetComponentTypes() {
 
-        static Map<U64, bool> componentTypes;
+        return sComponentTypes;
+    }
 
-        return componentTypes;
+    static bool IsUnique( std::string typeName ) {
+
+        return sComponentTypes[ typeName];
     }
 
 
@@ -114,6 +119,8 @@ protected:
     Component();
 
     std::bitset<(Size)ComponentState::NUM_STATES> mState;
+    static Map<std::string, bool> sComponentTypes;
+    
 
 private:
 
@@ -122,14 +129,12 @@ private:
     template<class Derived>
     static Component* CreateFunc() { return new Derived(); }
 
-
-    template<class Derived>
     static Component* Create( std::string_view componentName) {
 
         U64 componentTypeIdx = SID( componentName.data());
         if ( sConstructors.Find( componentTypeIdx) == sConstructors.End())
         {
-            throw std::runtime_error( FormatStr( "Trying to create component of unknown type %s", componentName) );
+            throw std::runtime_error( FormatStr( "Component::Create => Trying to create component of unknown type %s", componentName) );
         }
             
         return sConstructors[ componentTypeIdx]();
@@ -139,26 +144,5 @@ private:
 };
 
 
-DEFINE_COMPONENT(TestComponent, Component, true)
 
-public:
-
-    TestComponent() = default;
-    ~TestComponent() = default;
-
-    void Init( Json data) {}
-
-    void OnEnable() {}
-    void Awake() {}
-    void Start() {}
-    void Update() {}
-    void FixedUpdate() {}
-    void LateUpdate() {}
-    void OnDisable() {}
-    void OnDestroy() {}
-
-
-DEFINE_COMPONENT_END(TestComponent, Component, true)
-
-    
 } // Atuin

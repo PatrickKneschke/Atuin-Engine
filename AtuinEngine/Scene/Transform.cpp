@@ -344,6 +344,12 @@ void Transform::RemoveChild(Transform* transform) {
 }
 
 
+void Transform::RemoveAllChildren() {
+
+    pChildren.Clear();
+}
+
+
 Transform* Transform::GetChild(U32 childIndex) {
 
     if ( childIndex > GetChildCount())
