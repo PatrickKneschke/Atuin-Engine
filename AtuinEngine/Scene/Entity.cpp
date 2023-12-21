@@ -27,7 +27,7 @@ void Entity::Destroy( Entity *entity) {
 }
 
 
-Entity::Entity( std::string_view name) : mName {name}, transform {nullptr} {
+Entity::Entity( std::string_view name) :  transform {nullptr}, mName {name} {
 
     OnEnable();
 }
@@ -39,9 +39,18 @@ Entity::~Entity() {
 }
 
 
+void Entity::AddComponent( Component *newComponent) {
+
+    // TODO unique component check
+
+    mComponentTypes.PushBack( newComponent->TypeID());
+    mComponents.PushBack( newComponent);
+}
+
+
 bool Entity::GetState( EntityState state) const {
 
-    mState.test( (Size)state);
+    return mState.test( (Size)state);
 }
 
 
@@ -74,24 +83,32 @@ void Entity::SetActive( bool value) {
 
 void Entity::OnEnable() {
 
-    for ( auto &[typeIdx, components] : mComponents)
+    // for ( auto &[typeIdx, components] : mComponents)
+    // {
+    //     for ( auto component : components)
+    //     {
+    //         component->OnEnable();
+    //     }
+    // }
+    for ( auto component : mComponents)
     {
-        for ( auto component : components)
-        {
-            component->OnEnable();
-        }
+        component->OnEnable();
     }
 }
 
 
 void Entity::OnDisable() {
 
-    for ( auto &[typeIdx, components] : mComponents)
+    // for ( auto &[typeIdx, components] : mComponents)
+    // {
+    //     for ( auto component : components)
+    //     {
+    //         component->OnDisable();
+    //     }
+    // }
+    for ( auto component : mComponents)
     {
-        for ( auto component : components)
-        {
-            component->OnDisable();
-        }
+        component->OnDisable();
     }
 }
 
@@ -99,12 +116,16 @@ void Entity::OnDisable() {
 void Entity::OnDestroy() {
 
     
-    for ( auto &[typeIdx, components] : mComponents)
+    // for ( auto &[typeIdx, components] : mComponents)
+    // {
+    //     for ( auto component : components)
+    //     {
+    //         component->OnDestroy();
+    //     }
+    // }
+    for ( auto component : mComponents)
     {
-        for ( auto component : components)
-        {
-            component->OnDestroy();
-        }
+        component->OnDestroy();
     }
 
     mComponents.Clear();
@@ -113,45 +134,57 @@ void Entity::OnDestroy() {
 
 void Entity::Update() {
     
-    for ( auto &[typeIdx, components] : mComponents)
+    // for ( auto &[typeIdx, components] : mComponents)
+    // {
+    //     for ( auto component : components)
+    //     {
+    //         if ( component->IsActive())
+    //         {
+    //             component->Update();
+    //         }
+    //     }
+    // }
+    for ( auto component : mComponents)
     {
-        for ( auto component : components)
-        {
-            if ( component->IsActive())
-            {
-                component->Update();
-            }
-        }
+        component->Update();
     }
 }
 
 
 void Entity::FixedUpdate() {
 
-    for ( auto &[typeIdx, components] : mComponents)
+    // for ( auto &[typeIdx, components] : mComponents)
+    // {
+    //     for ( auto component : components)
+    //     {
+    //         if ( component->IsActive())
+    //         {
+    //             component->FixedUpdate();
+    //         }
+    //     }
+    // }
+    for ( auto component : mComponents)
     {
-        for ( auto component : components)
-        {
-            if ( component->IsActive())
-            {
-                component->FixedUpdate();
-            }
-        }
+        component->FixedUpdate();
     }
 }
 
 
 void Entity::LateUpdate() {
 
-    for ( auto &[typeIdx, components] : mComponents)
+    // for ( auto &[typeIdx, components] : mComponents)
+    // {
+    //     for ( auto component : components)
+    //     {
+    //         if ( component->IsActive())
+    //         {
+    //             component->LateUpdate();
+    //         }
+    //     }
+    // }
+    for ( auto component : mComponents)
     {
-        for ( auto component : components)
-        {
-            if ( component->IsActive())
-            {
-                component->LateUpdate();
-            }
-        }
+        component->LateUpdate();
     }
 }
 

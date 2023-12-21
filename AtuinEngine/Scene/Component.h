@@ -21,7 +21,11 @@
     class NAME : public BASE, public ComponentRegistry<NAME, BASE, UNIQUE> {    \
         public:                                                                 \
             static std::string Type() { return #NAME; }                         \
-            static bool IsUnique() { return UNIQUE; }                           \
+            U64 TypeID() {                                                      \
+                static U64 id = SID( #NAME);                                    \
+                return id;                                                      \
+            }                                                                   \
+            bool IsUnique() { return UNIQUE; }                                  \
         protected:                                                              \
             static bool isRegistered() { return NAME##Registered; }             \
                                                                                 \
@@ -87,12 +91,6 @@ public:
         return sComponentTypes;
     }
 
-    static bool IsUnique( std::string typeName ) {
-
-        return sComponentTypes[ typeName];
-    }
-
-
     virtual ~Component() = default;
 
     bool IsActive() const;
@@ -100,6 +98,10 @@ public:
 
     bool GetState( ComponentState state) const;
     void SetState( ComponentState state, bool value);
+
+    virtual void Init( Json data) = 0;
+    virtual U64 TypeID() = 0;
+    virtual bool IsUnique() = 0;
 
     virtual void OnEnable() = 0;
     virtual void Awake() = 0;

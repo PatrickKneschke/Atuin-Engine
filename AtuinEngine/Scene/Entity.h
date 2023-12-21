@@ -2,6 +2,7 @@
 #pragma once
 
 
+#include "Component.h"
 #include "Core/Util/Types.h"
 #include "Core/Util/StringFormat.h"
 #include "Core/DataStructures/Array.h"
@@ -15,10 +16,11 @@ namespace Atuin {
 
 
 class Transform;
-class Component;
 
 
 class Entity {
+
+    friend class Scene;
 
 
     enum class EntityState : U8{
@@ -31,6 +33,7 @@ class Entity {
 
 public:
 
+    // TODO move into Scene(Manager) ???
     static Entity* Instantiate(std::string_view name, Entity* parent = nullptr);
     static void    Destroy( Entity* entity);
 
@@ -39,6 +42,15 @@ public:
 
     std::string Name() { return mName; }
     void SetName( std::string_view newName) { mName = newName; }
+
+    
+    // template<class T>
+    void AddComponent( Component *newComponent);
+    template <class T>
+    T* GetComponent();
+    template <class T>
+    Array<T*>& GetAllComponents();
+
 
     bool GetState( EntityState state) const;
     void SetState( EntityState state, bool value);
@@ -55,12 +67,6 @@ public:
     void FixedUpdate();
     void LateUpdate();
 
-    
-    template<class T>
-    void AddComponent( T *newComponent);
-    template <class T>
-    T* GetComponent();
-
 
     Transform* transform;
 
@@ -70,31 +76,13 @@ private:
 
 
     std::string mName;
-    Map<U64, Array<Component*>> mComponents;
+    Array<U64> mComponentTypes;
+    Array<Component*> mComponents;
+    // Map<U64, Array<Component*>> mComponents;
 
     std::bitset<(Size)EntityState::NUM_STATES> mState;
 
 };
-
-
-template <class T>
-void Entity::AddComponent( T *newComponent) {
-
-    if constexpr ( !std::is_base_of<Component, T>::value) 
-    {
-        throw std::logic_error( FormatStr("Entity::AddComponent => Class %s is not derived from class Component.",  typeid(T).name()) );
-    } 
-
-    U64 typeIdx = SID( T::Type());
-    if ( T::IsUnique( T::Type())  &&  mComponents.Find( typeIdx) != mComponents.End() )
-    {
-        throw std::runtime_error( FormatStr("Entity::AddComponent => Entity %s already has component of unique type %s.", mName, T::Type()) );
-    }
-
-    mComponents[ typeIdx].PushBack( newComponent);
-    (Entity *&)(newComponent->entity) = this;
-    newComponent->SetActive( IsActive());
-}
 
     
 template <class T>
@@ -102,16 +90,60 @@ T* Entity::GetComponent() {
 
     if constexpr ( !std::is_base_of<Component, T>::value) 
     {
-        throw std::logic_error( FormatStr("Entity::GetComponent => Class %s is not derived from class Component.",  typeid(T).name()) );
+        throw std::logic_error( FormatStr("Entity::GetComponent() => Class %s is not derived from class Component.",  typeid(T).name()) );
     } 
 
-    U64 typeIdx = SID( T::Name().c_str());
-    if ( mComponents.Find( typeIdx) == mComponents.End())
+    // U64 typeIdx = SID( T::Name().c_str());
+    // if ( mComponents.Find( typeIdx) == mComponents.End())
+    // {
+    //     throw std::runtime_error( FormatStr("Entity::GetComponent() => Entity %s has no component of type %s.", mName, T::Type()) );
+    // }
+
+    // return mComponents[ typeIdx].Back();
+
+    U64 typeID = SID( T::Type());
+    Size numComponents = mComponents.GetSize();
+    for ( Size i = 0; i < numComponents; i++)
     {
-        throw std::runtime_error( FormatStr("Entity::GetComponent => Entity %s has no component of type %s.", mName, T::Type()) );
+        if ( mComponentTypes[i] == typeID )
+        {
+            return static_cast<T*>( mComponents[i]);
+        }
     }
 
-    return mComponents[ typeIdx].Back();
+    return nullptr;
 }
+
+    
+template <class T>
+Array<T*>& Entity::GetAllComponents() {
+
+    if constexpr ( !std::is_base_of<Component, T>::value) 
+    {
+        throw std::logic_error( FormatStr("Entity::GetAllComponents() => Class %s is not derived from class Component.",  typeid(T).name()) );
+    } 
+
+    // U64 typeIdx = SID( T::Name().c_str());
+    // if ( mComponents.Find( typeIdx) == mComponents.End())
+    // {
+    //     throw std::runtime_error( FormatStr("Entity::GetAllComponents() => Entity %s has no component of type %s.", mName, T::Type()) );
+    // }
+
+    // return mComponents[ typeIdx];
+
+    U64 typeID = SID( T::Type());
+    Array<T*> res;
+    Size numComponents = mComponents.GetSize();
+    for ( Size i = 0; i < numComponents; i++)
+    {
+        if ( mComponentTypes[i] == typeID )
+        {
+            return res.Push_Back( static_cast<T*>( mComponents[i]));
+        }
+    }
+
+    return res;
+}
+
     
 } // Atuin
