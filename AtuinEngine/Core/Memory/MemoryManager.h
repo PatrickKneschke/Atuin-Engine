@@ -39,6 +39,9 @@ public:
     void DeleteArray(T *arr, Size size);
 
 
+    Size MaxUsedMemory() { return pHeapMemory->MaxUsedMemory(); }
+
+
 private:
 
     static CVar<Size>* pHeapMemorySize;

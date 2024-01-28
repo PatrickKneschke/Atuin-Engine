@@ -1,0 +1,31 @@
+
+{
+    "type" : "compute",
+
+    "shaders" : {
+        "compute" : "Shaders/depth_reduce_comp.spv"
+    },
+    
+    "descriptorSetLayouts" : [
+        [
+            {
+                "binding" : 0,
+                "type" : "sampled_image",
+                "stages" : ["compute"]
+            },
+            {
+                "binding" : 1,
+                "type" : "storage_image",
+                "stages" : ["compute"]
+            }
+        ]
+    ],
+
+    "pushConstants" : [
+        {
+            "size" : 16,
+            "offset" : 0,
+            "stages" : ["compute"]
+        }
+    ]
+}

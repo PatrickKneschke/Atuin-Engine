@@ -81,6 +81,8 @@ void App::ShutDown() {
         pEngine->Quit();
     }
 
+    std::cout << "Total used memory : " << pMemory->MaxUsedMemory() << '\n';
+
     pConfig->Save();
     pLog->ShutDown();
     pJobs->ShutDown(); 

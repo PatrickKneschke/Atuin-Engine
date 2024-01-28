@@ -5,6 +5,7 @@
 namespace Atuin {
 
 
+MemoryManager* Component::sMemoryManager = nullptr;
 Map<U64, Component::PCreateFunc> Component::sConstructors;
 Map<std::string, bool> Component::sComponentTypes;
 

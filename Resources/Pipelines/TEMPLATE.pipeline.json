@@ -1,0 +1,74 @@
+
+{
+    "type" : "<graphics | compute>",
+
+    "shaders" : {
+        "vertex" : "Shaders/<name>.spv",
+        "geometry" : "Shaders/<name>.spv",
+        "tesselationCtrl" : "Shaders/<name>.spv",
+        "tesselationEval" : "Shaders/<name>.spv",
+        "fragment" : "Shaders/<name>.spv",
+        "compute" : "Shaders/<name>.spv"
+    },
+
+    "disableVertexInput" : false,
+    
+    "tesselationControlPoints" : 1,
+    
+    "rasterization" : {
+        "discard" : false,
+        "polygonMode" : "<point| line | fill>",
+        "culling" : true,
+        "lineWidth" : 1.0,
+        "depthBias" : [0, 0, 0]
+    },
+    
+    "depthStencil" : {
+        "enableDepthTest" : true,
+        "enableDepthWrite" : true
+    },
+
+    "descriptorSetLayouts" : [
+        [
+            {
+                "binding" : 0,
+                "type" : "<uniform_buffer | dynamic_uniform_buffer | storage_buffer | dynamic_storage_buffer | sampled_image | storage_image>",
+                "stages" : ["vertex", "geometry", "tesselation_ctrl", "tesselation_eval", "fragment", "compute"]
+            },
+            {
+
+            }
+        ],
+        [
+            {
+                "binding" : 0,
+                "type" : "<uniform_buffer | dynamic_uniform_buffer | storage_buffer | dynamic_storage_buffer | sampled_image | storage_image>",
+                "stages" : ["vertex", "geometry", "tesselation_ctrl", "tesselation_eval", "fragment", "compute"]
+            },
+            {
+
+            }
+        ],
+        [
+            {
+                "binding" : 0,
+                "type" : "<uniform_buffer | dynamic_uniform_buffer | storage_buffer | dynamic_storage_buffer | sampled_image | storage_image>",
+                "stages" : ["vertex", "geometry", "tesselation_ctrl", "tesselation_eval", "fragment", "compute"]
+            },
+            {
+
+            }
+        ]
+    ],
+
+    "pushConstants" : [
+        {
+            "size" : 0,
+            "offset" : 0,
+            "stages" : ["vertex", "geometry", "tesselation_ctrl", "tesselation_eval", "fragment", "compute"]
+        },
+        {
+
+        }
+    ]
+}

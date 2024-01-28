@@ -1,0 +1,43 @@
+
+{
+    "type" : "graphics",
+
+    "shaders" : {
+        "vertex" : "Shaders/shadow_vert.spv"
+    },
+
+    "rasterization" : {
+        "culling" : false,
+        "depthBias" : [1.25, 1.75, 0.0]
+    },
+
+    "descriptorSetLayouts" : [
+        [
+            {
+                "binding" : 0,
+                "type" : "storage_buffer",
+                "stages" : ["vertex"]
+            }
+        ],
+        [
+            {
+                "binding" : 0,
+                "type" : "storage_buffer",
+                "stages" : ["vertex"]
+            },
+            {
+                "binding" : 1,
+                "type" : "storage_buffer",
+                "stages" : ["vertex"]
+            }
+        ]
+    ],
+
+    "pushConstants" : [
+        {
+            "size" : 4,
+            "offset" : 0,
+            "stages" : ["vertex"]
+        }
+    ]
+}

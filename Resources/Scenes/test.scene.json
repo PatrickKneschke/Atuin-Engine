@@ -1,0 +1,60 @@
+
+{
+    "Camera" : {
+        "Parent" : "Root",
+        "Transform" : {
+            "Position" : [3.0, 3.0, 0.0],
+            "Rotation" : [0.0, 0.0, 0.0],
+            "Scale" : [1.0, 1.0, 1.0]
+        },
+        "Components" : {
+            "CameraComponent" : {
+                "Near" : 0.1,
+                "Far" : 100,
+                "Fov" : 60.0,
+                "Zoom" : 1.0,
+                "Ortho" : false 
+            }
+        }
+    },
+
+    "Cube" : {
+        "Parent" : "Root",
+        "Transform" : {
+            "Position" : [0.0, 0.0, 0.0],
+            "Rotation" : [0.0, 0.0, 0.0],
+            "Scale" : [1.0, 1.0, 1.0]
+        },
+        "Components" : {
+            "MeshComponent" : {
+                "Transform" :{
+                    "Position" : [0.0, 0.0, 0.0],
+                    "Rotation" : [0.0, 0.0, 0.0],
+                    "Scale" : [1.0, 1.0, 1.0]
+                },
+                "Mesh" : "Meshes/Default/cube.obj",
+                "Material" : "Materials/Rusted_Iron/rusted_iron.material.json"
+            }
+        }
+    },
+    
+    "Sphere" : {
+        "Parent" : "Cube",
+        "Transform" : {
+            "Position" : [0.0, 0.0, 2.0],
+            "Rotation" : [0.0, 0.0, 0.0],
+            "Scale" : [0.3, 0.3, 0.3]
+        },
+        "Components" : {
+            "MeshComponent" : {
+                "Transform" :{
+                    "Position" : [0.0, 0.0, 0.0],
+                    "Rotation" : [0.0, 0.0, 0.0],
+                    "Scale" : [1.0, 1.0, 1.0]
+                },
+                "Mesh" : "Meshes/Default/sphere.obj",
+                "Material" : "Materials/Rusted_Iron/rusted_iron.material.json"
+            }
+        }
+    }
+}

@@ -1,0 +1,20 @@
+
+{
+    "magFilter" : "linear",
+    "minFilter" : "linear",
+	
+	"addressModeU" : "clamp",
+	"addressModeV" : "clamp",
+	"addressModeW" : "clamp",
+	"borderColor" : "opaque_black",
+	
+	"enableAnisotropy" : false,
+	
+    "mipmapMode" : "nearest",
+    "minLod" : 0.0,
+    "maxLod" : 1.0,
+    "mipLodBias" : 0.0,
+	
+	"enableCompare" : false,
+	"compareOp" : "always"
+}

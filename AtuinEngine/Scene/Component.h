@@ -7,6 +7,7 @@
 #include "Core/Util/StringFormat.h"
 #include "Core/DataStructures/Map.h"
 #include "Core/DataStructures/Json.h"
+#include "Core/Memory/MemoryManager.h"
 
 #include <bitset>
 #include <string>
@@ -20,12 +21,13 @@
     };                                                                          \
     class NAME : public BASE, public ComponentRegistry<NAME, BASE, UNIQUE> {    \
         public:                                                                 \
+            static Component* Instantiate();                                    \
             static std::string Type() { return #NAME; }                         \
-            U64 TypeID() {                                                      \
+            U64 TypeID() const override {                                       \
                 static U64 id = SID( #NAME);                                    \
                 return id;                                                      \
             }                                                                   \
-            bool IsUnique() { return UNIQUE; }                                  \
+            bool IsUnique() const override { return UNIQUE; }                   \
         protected:                                                              \
             static bool isRegistered() { return NAME##Registered; }             \
                                                                                 \
@@ -56,6 +58,7 @@ class Component {
 
     friend class Entity;
     friend class Scene;
+    friend class MemoryManager;
 
 
 protected:  
@@ -99,10 +102,15 @@ public:
     bool GetState( ComponentState state) const;
     void SetState( ComponentState state, bool value);
 
-    virtual void Init( Json data) = 0;
-    virtual U64 TypeID() = 0;
-    virtual bool IsUnique() = 0;
+    // automatically overridden upon derived class declaration using DEFINE_COMPONENT macro
 
+    virtual U64 TypeID() const = 0;
+    virtual bool IsUnique() const  = 0;
+
+    // overridden manually
+
+    virtual void Init( Json data) = 0;
+    
     virtual void OnEnable() = 0;
     virtual void Awake() = 0;
     virtual void Start() = 0;
@@ -120,8 +128,8 @@ protected:
 
     Component();
 
+    static MemoryManager* sMemoryManager;
     std::bitset<(Size)ComponentState::NUM_STATES> mState;
-    static Map<std::string, bool> sComponentTypes;
     
 
 private:
@@ -129,7 +137,8 @@ private:
     // derived component factory
 
     template<class Derived>
-    static Component* CreateFunc() { return new Derived(); }
+    static Component* CreateFunc() { return Derived::Instantiate(); }
+    // static Component* CreateFunc() { return sMemoryManager->New<Derived>(); }
 
     static Component* Create( std::string_view componentName) {
 
@@ -143,6 +152,7 @@ private:
     }
 
     static Map<U64, PCreateFunc> sConstructors;
+    static Map<std::string, bool> sComponentTypes;
 };
 
 

@@ -1,0 +1,46 @@
+
+{
+    "type" : "compute",
+
+    "shaders" : {
+        "compute" : "Shaders/view_culling_comp.spv"
+    },
+
+    "descriptorSetLayouts" : [
+        [
+            {
+                "binding" : 0,
+                "type" : "sampled_image",
+                "stages" : ["compute"]
+            },
+            {
+                "binding" : 1,
+                "type" : "storage_buffer",
+                "stages" : ["compute"]
+            },
+            {
+                "binding" : 2,
+                "type" : "storage_buffer",
+                "stages" : ["compute"]
+            },
+            {
+                "binding" : 3,
+                "type" : "storage_buffer",
+                "stages" : ["compute"]
+            },
+            {
+                "binding" : 4,
+                "type" : "storage_buffer",
+                "stages" : ["compute"]
+            }
+        ]
+    ],
+
+    "pushConstants" : [
+        {
+            "size" : 116,
+            "offset" : 0,
+            "stages" : ["compute"]
+        }
+    ]
+}

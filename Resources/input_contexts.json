@@ -1,0 +1,11 @@
+{
+    "GamePlayContext" : {
+        "CameraLeft" : "A",
+        "CameraRight" : "D",
+        "CameraForward" : "W",
+        "CameraBack" : "S",
+        "CameraYaw" : "MOUSE_MOVE_X",
+        "CameraPitch" : "MOUSE_MOVE_Y",
+        "Fire" : "MOUSE_LEFT"
+    }
+}

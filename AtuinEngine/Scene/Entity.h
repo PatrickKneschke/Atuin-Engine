@@ -76,9 +76,9 @@ private:
 
 
     std::string mName;
-    Array<U64> mComponentTypes;
-    Array<Component*> mComponents;
-    // Map<U64, Array<Component*>> mComponents;
+    Map<U64, Array<Component*>> mComponents;
+    // Array<U64> mComponentTypes;
+    // Array<Component*> mComponents;
 
     std::bitset<(Size)EntityState::NUM_STATES> mState;
 
@@ -93,25 +93,25 @@ T* Entity::GetComponent() {
         throw std::logic_error( FormatStr("Entity::GetComponent() => Class %s is not derived from class Component.",  typeid(T).name()) );
     } 
 
-    // U64 typeIdx = SID( T::Name().c_str());
-    // if ( mComponents.Find( typeIdx) == mComponents.End())
-    // {
-    //     throw std::runtime_error( FormatStr("Entity::GetComponent() => Entity %s has no component of type %s.", mName, T::Type()) );
-    // }
-
-    // return mComponents[ typeIdx].Back();
-
-    U64 typeID = SID( T::Type());
-    Size numComponents = mComponents.GetSize();
-    for ( Size i = 0; i < numComponents; i++)
+    U64 typeId = SID( T::Type().c_str);
+    if ( mComponents.Find( typeId) == mComponents.End())
     {
-        if ( mComponentTypes[i] == typeID )
-        {
-            return static_cast<T*>( mComponents[i]);
-        }
+        throw std::runtime_error( FormatStr("Entity::GetComponent() => Entity %s has no component of type %s.", mName, T::Type()) );
     }
 
-    return nullptr;
+    return mComponents[ typeId].Back();
+
+    // U64 typeID = SID( T::Type());
+    // Size numComponents = mComponents.GetSize();
+    // for ( Size i = 0; i < numComponents; i++)
+    // {
+    //     if ( mComponentTypes[i] == typeID )
+    //     {
+    //         return static_cast<T*>( mComponents[i]);
+    //     }
+    // }
+
+    // return nullptr;
 }
 
     
@@ -123,26 +123,26 @@ Array<T*>& Entity::GetAllComponents() {
         throw std::logic_error( FormatStr("Entity::GetAllComponents() => Class %s is not derived from class Component.",  typeid(T).name()) );
     } 
 
-    // U64 typeIdx = SID( T::Name().c_str());
-    // if ( mComponents.Find( typeIdx) == mComponents.End())
-    // {
-    //     throw std::runtime_error( FormatStr("Entity::GetAllComponents() => Entity %s has no component of type %s.", mName, T::Type()) );
-    // }
-
-    // return mComponents[ typeIdx];
-
-    U64 typeID = SID( T::Type());
-    Array<T*> res;
-    Size numComponents = mComponents.GetSize();
-    for ( Size i = 0; i < numComponents; i++)
+    U64 typeId = SID( T::Type().c_str);
+    if ( mComponents.Find( typeId) == mComponents.End())
     {
-        if ( mComponentTypes[i] == typeID )
-        {
-            return res.Push_Back( static_cast<T*>( mComponents[i]));
-        }
+        throw std::runtime_error( FormatStr("Entity::GetAllComponents() => Entity %s has no component of type %s.", mName, T::Type()) );
     }
 
-    return res;
+    return mComponents[ typeId];
+
+    // U64 typeID = SID( T::Type());
+    // Array<T*> res;
+    // Size numComponents = mComponents.GetSize();
+    // for ( Size i = 0; i < numComponents; i++)
+    // {
+    //     if ( mComponentTypes[i] == typeID )
+    //     {
+    //         return res.Push_Back( static_cast<T*>( mComponents[i]));
+    //     }
+    // }
+
+    // return res;
 }
 
     

@@ -1,0 +1,38 @@
+
+{
+    "transparent" : true,
+    "shadow" : false,
+    "pipeline" : "Pipelines/default_pbr_material_transparent.pipeline.json",
+    "textures" : [
+        {
+            "image" : "Materials/Rubber_Hose/rubber_hose_albedo.png",
+            "format" : "srgb",
+            "sampler" : "Samplers/default_pbr.sampler.json"
+        },
+        {
+            "image" : "Materials/Rubber_Hose/rubber_hose_normal.png",
+            "format" : "unorm",
+            "sampler" : "Samplers/default_pbr.sampler.json"
+        },
+        {
+            "image" : "Materials/Default/default_black.png",
+            "format" : "unorm",
+            "sampler" : "Samplers/default_pbr.sampler.json"
+        },
+        {
+            "image" : "Materials/Rubber_Hose/rubber_hose_roughness.png",
+            "format" : "unorm",
+            "sampler" : "Samplers/default_pbr.sampler.json"
+        },
+        {
+            "image" : "Materials/Rubber_Hose/rubber_hose_ao.png",
+            "format" : "unorm",
+            "sampler" : "Samplers/default_pbr.sampler.json"
+        },
+        {
+            "image" : "Materials/Rubber_Hose/rubber_hose_opacity.png",
+            "format" : "unorm",
+            "sampler" : "Samplers/default_pbr.sampler.json"
+        }
+    ]
+}

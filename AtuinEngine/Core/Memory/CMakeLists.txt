@@ -21,4 +21,5 @@ target_link_libraries(Memory
     PRIVATE Math 
     PRIVATE Config 
     PRIVATE Debug
+    PRIVATE Scene
 )

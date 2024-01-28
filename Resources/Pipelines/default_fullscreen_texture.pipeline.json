@@ -1,0 +1,34 @@
+
+{
+    "type" : "graphics",
+
+    "shaders" : {
+        "vertex" : "Shaders/fullscreen_quad_vert.spv",
+        "fragment" : "Shaders/fullscreen_texture_frag.spv"
+    },
+    
+    "disableVertexInput" : true,
+    
+    "depthStencil" : {
+        "enableDepthTest" : true,
+        "enableDepthWrite" : true
+    },
+
+    "descriptorSetLayouts" : [
+        [
+            {
+                "binding" : 0,
+                "type" : "sampled_image",
+                "stages" : ["fragment"]
+            }
+        ]
+    ],
+
+    "pushConstants" : [
+        {
+            "size" : 4,
+            "offset" : 0,
+            "stages" : ["vertex"]
+        }
+    ]
+}

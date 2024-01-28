@@ -1,0 +1,33 @@
+
+{
+    "transparent" : false,
+    "shadow" : true,
+    "pipeline" : "Pipelines/default_pbr_material.pipeline.json",
+    "textures" : [
+        {
+            "image" : "Materials/Rusted_Iron/rusted_iron_albedo.png",
+            "format" : "srgb",
+            "sampler" : "Samplers/default_pbr.sampler.json"
+        },
+        {
+            "image" : "Materials/Default/default_normal.png",
+            "format" : "unorm",
+            "sampler" : "Samplers/default_pbr.sampler.json"
+        },
+        {
+            "image" : "Materials/Rusted_Iron/rusted_iron_metallic.png",
+            "format" : "unorm",
+            "sampler" : "Samplers/default_pbr.sampler.json"
+        },
+        {
+            "image" : "Materials/Rusted_Iron/rusted_iron_roughness.png",
+            "format" : "unorm",
+            "sampler" : "Samplers/default_pbr.sampler.json"
+        },
+        {
+            "image" : "Materials/Default/default_white.png",
+            "format" : "unorm",
+            "sampler" : "Samplers/default_pbr.sampler.json"
+        }
+    ]
+}

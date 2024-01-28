@@ -1,0 +1,148 @@
+#version 460
+
+
+//input
+layout (local_size_x = 256) in;
+
+// depth pyramid
+layout(set = 0, binding = 0) uniform sampler2D depthPyramid;
+
+// object data
+struct ObjectData {
+	mat4 transform;
+	vec4 sphereBounds;
+}; 
+layout(std140, set = 0, binding = 1) readonly buffer ObjectBuffer {
+	ObjectData objects[];
+} objectBuffer;
+
+// instance data -> initial batch and object indices of all instances
+struct InstanceData {
+	uint batchIdx;
+	uint objectIdx;
+};
+layout(set = 0, binding = 2) readonly buffer InstanceBuffer {   
+	InstanceData instances[];
+} instanceDataBuffer;
+
+//draw indirect data -> fill instance count
+struct IndirectData {	
+	uint indexCount;
+    uint instanceCount;
+    uint firstIndex;
+    uint vertexOffset;
+    uint firstInstance;
+	uint batchID;
+	uint objectID;
+};
+layout(set = 0, binding = 3) buffer IndirectBuffer {
+	IndirectData indirects[];
+} drawIndirectBuffer;
+
+// instance data -> final instance object indices after culling
+layout(set = 0, binding = 4) writeonly buffer InstanceBuffer2 {
+	uint objectIndices[];
+} finalInstanceBuffer;
+
+// culling data push constants
+struct ViewCullData {
+	mat4 view; // camera view matrix (right handed, posive z towards viewer)
+	
+	float P00, P11, zNear, zFar; // symmetric projection parameters
+	float frustum[4]; // data for left/right/top/bottom frustum planes
+	float pyramidWidth, pyramidHeight; // depth pyramid size in texels
+
+	uint drawCount;
+	uint enableDistCull;
+	uint enableOcclusionCull;
+
+};
+layout(push_constant) uniform  Constants {
+   ViewCullData cullData;
+};
+
+
+// 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
+bool ProjectSphere( vec3 center, float radius, float zNear, float P00, float P11, out vec4 aabb) {
+
+	if ( center.z + radius >= zNear)
+	{
+		return false;
+	}
+
+	vec2 cxz = center.xz;
+	float dx2 = dot(cxz, cxz);
+	float lx = sqrt( dx2 - radius*radius);
+	float minX = P00 * (lx * cxz.x + radius * cxz.y) / (-radius * cxz.x + lx * cxz.y);
+	float maxX = P00 * (lx * cxz.x - radius * cxz.y) / ( radius * cxz.x + lx * cxz.y);
+	
+	vec2 cyz = center.yz;
+	float dy2 = dot(cyz, cyz);
+	float ly = sqrt( dy2 - radius*radius);
+	float minY = P11 * (ly * cyz.x - radius * cyz.y) / ( radius * cyz.x + ly * cyz.y);
+	float maxY = P11 * (ly * cyz.x + radius * cyz.y) / (-radius * cyz.x + ly * cyz.y);
+
+	aabb = -0.5 * vec4(minX, minY, maxX, maxY) + 0.5;
+
+	return true;
+}
+
+
+bool IsVisible( uint objectIndex) {
+
+	vec4 sphereBounds = objectBuffer.objects[objectIndex].sphereBounds;
+
+	vec3 center = sphereBounds.xyz;
+	center = (cullData.view * vec4(center, 1.f)).xyz;
+	float radius = sphereBounds.w;
+	
+	bool visible = true;
+
+	visible = visible  &&  center.z * cullData.frustum[1] - abs(center.x) * cullData.frustum[0] > -radius;
+	visible = visible  &&  center.z * cullData.frustum[3] + abs(center.y) * cullData.frustum[2] > -radius;
+
+	// the near/far plane culling uses camera space Z directly
+	if ( cullData.enableDistCull != 0)
+	{
+		visible = visible  &&  center.z - cullData.zNear < radius  &&  center.z - cullData.zFar > -radius;
+	}
+	
+	if ( visible && cullData.enableOcclusionCull != 0)
+	{	
+		vec4 aabb;
+		if ( ProjectSphere(center, radius, cullData.zNear, cullData.P00, cullData.P11, aabb))
+		{
+			float width = (aabb.z - aabb.x) * cullData.pyramidWidth;
+			float height = (aabb.w - aabb.y) * cullData.pyramidHeight;
+			float level = floor( log2( max(width, height)));
+
+			// Sampler is set up to do max reduction, so this computes the maximum depth of a 2x2 texel quad
+			float depth = textureLod( depthPyramid, (aabb.xy + aabb.zw) * 0.5, level).x;
+			float sphereDepth = (cullData.zFar - 2 * cullData.zNear * cullData.zFar / (center.z + radius)) / (cullData.zFar - 2 * cullData.zNear);
+
+			visible = visible  &&  sphereDepth < depth;
+		}
+	}
+	
+	return visible;
+}
+
+
+void main() {
+
+	uint gID = gl_GlobalInvocationID.x;
+	if ( gID < cullData.drawCount)
+	{
+		uint objectIdx = instanceDataBuffer.instances[gID].objectIdx;
+
+		if ( IsVisible( objectIdx))
+		{
+			uint batchIdx = instanceDataBuffer.instances[gID].batchIdx;
+			uint countIndex = atomicAdd( drawIndirectBuffer.indirects[batchIdx].instanceCount, 1);
+
+			uint instanceIndex = drawIndirectBuffer.indirects[batchIdx].firstInstance + countIndex;
+
+			finalInstanceBuffer.objectIndices[instanceIndex] = objectIdx;
+		}
+	}
+}

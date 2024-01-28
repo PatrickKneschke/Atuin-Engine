@@ -1,0 +1,81 @@
+
+{
+    "type" : "graphics",
+
+    "shaders" : {
+        "vertex" : "Shaders/batched_meshes_vert.spv",
+        "fragment" : "Shaders/single_material_pbr_frag.spv"
+    },
+
+    "descriptorSetLayouts" : [
+        [
+            {
+                "binding" : 0,
+                "type" : "uniform_buffer",
+                "stages" : ["vertex", "fragment"]
+            },
+            {
+                "binding" : 1,
+                "type" : "uniform_buffer",
+                "stages" : ["fragment"]
+            },
+            {
+                "binding" : 2,
+                "type" : "storage_buffer",
+                "stages" : ["fragment"]
+            },
+            {
+                "binding" : 3,
+                "type" : "sampled_image",
+                "stages" : ["fragment"]
+            }
+        ],
+        [
+            {
+                "binding" : 0,
+                "type" : "storage_buffer",
+                "stages" : ["vertex"]
+            },
+            {
+                "binding" : 1,
+                "type" : "storage_buffer",
+                "stages" : ["vertex"]
+            }
+        ],
+        [
+            {
+                "binding" : 0,
+                "type" : "sampled_image",
+                "stages" : ["fragment"]
+            },
+            {
+                "binding" : 1,
+                "type" : "sampled_image",
+                "stages" : ["fragment"]
+            },
+            {
+                "binding" : 2,
+                "type" : "sampled_image",
+                "stages" : ["fragment"]
+            },
+            {
+                "binding" : 3,
+                "type" : "sampled_image",
+                "stages" : ["fragment"]
+            },
+            {
+                "binding" : 4,
+                "type" : "sampled_image",
+                "stages" : ["fragment"]
+            }
+        ]
+    ],
+
+    "pushConstants" : [
+        {
+            "size" : 4,
+            "offset" : 0,
+            "stages" : ["fragment"]
+        }
+    ]
+}

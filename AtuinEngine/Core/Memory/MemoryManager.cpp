@@ -4,6 +4,7 @@
 #include "EngineLoop.h"
 #include "Core/Config/ConfigManager.h"
 #include "Core/Debug/Logger.h"
+#include "Scene/Component.h"
 
 
 namespace Atuin {
@@ -17,6 +18,7 @@ MemoryManager::MemoryManager() : mLog() {
     pHeapMemory = std::make_unique<FreeListAllocator>(pHeapMemorySize->Get());
 
     Memory::sMemoryManager = this;
+    Component::sMemoryManager = this;
 }
 
 

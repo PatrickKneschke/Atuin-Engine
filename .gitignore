@@ -64,6 +64,6 @@ _deps
 
 Doc/*
 *[Bb]uild*
-*[Rr]esources*
-*[Ss]cripts*
+# *[Rr]esources*
+# *[Ss]cripts*
 *[Bb]ackup
